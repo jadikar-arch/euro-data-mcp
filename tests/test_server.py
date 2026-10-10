@@ -43,6 +43,12 @@ async def test_list_codes_finds_municipality_with_group(index):
     assert lines[1] == "GM0363|Amsterdam|Gemeenten per provincie"  # exact title ranks first
 
 
+async def test_list_codes_place_alias(index, monkeypatch):
+    monkeypatch.setitem(server.PLACE_ALIASES, "mokum", "amsterdam")
+    out = await call("list_codes", dataset_id="37230ned", dimension="RegioS", query="Mokum")
+    assert "GM0363|Amsterdam" in out
+
+
 async def test_list_codes_time_newest_first_and_measures(index):
     out = await call("list_codes", dataset_id="37230ned", dimension="Perioden", limit=1)
     assert out.splitlines()[1] == "2026MM08|2026 augustus"

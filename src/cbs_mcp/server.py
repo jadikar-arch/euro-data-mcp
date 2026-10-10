@@ -29,6 +29,14 @@ MAX_FILTER_VALUES = 200
 FULL_CODELIST_MAX = 5_000  # above this, resolve code titles by filtered lookups
 MAX_MEASURES_SHOWN = 60
 
+# Common names whose CBS title differs (folded query → search text).
+PLACE_ALIASES = {
+    "den haag": "gravenhage", "the hague": "gravenhage", "hague": "gravenhage",
+    "den bosch": "hertogenbosch", "s-hertogenbosch": "hertogenbosch",
+    "friesland": "fryslan", "frisia": "fryslan",
+    "netherlands": "nederland", "the netherlands": "nederland",
+}
+
 INSTRUCTIONS = (
     "Dutch official statistics (CBS). Workflow: search_datasets (Dutch keywords) → "
     "describe_dataset → list_codes (find codes, e.g. a municipality) → get_observations."
@@ -353,6 +361,7 @@ async def list_codes(
         ]
         header = "code|title|" + ("status" if dim.kind == "Time" else "group")
     if query:
+        query = PLACE_ALIASES.get(fold(query).strip(), query)
         words = fold(query).split()
         hits = [
             i for i in items if all(w in fold(i["title"]) or w in fold(i["code"]) for w in words)
