@@ -21,6 +21,9 @@ SERVER = ROOT / ".venv" / "bin" / "cbs-mcp"
 MAX_CHARS = 8000  # ~2k tokens; tool outputs should stay well under this
 EXPECTED_TOOLS = {
     "search_datasets", "describe_dataset", "list_codes", "get_observations", "upcoming_releases",
+    "eurostat_search", "eurostat_describe", "eurostat_codes", "eurostat_data",
+    "agri_endpoints", "agri_data", "ep_meps", "ep_votes", "ep_query",
+    "dataeu_search", "dataeu_dataset", "dataeu_sparql", "dataeu_quality", "dataeu_use_cases",
 }
 
 Check = Callable[[str], str | None]  # returns an error message, or None when OK
@@ -100,6 +103,48 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
      [starts("Error: query too broad")]),
     ("upcoming_releases", "next 30 days", {"days": 30, "limit": 10},
      [no_error, releases, max_rows(10)]),
+    # Eurostat family
+    ("eurostat_search", "house prices", {"query": "house price index", "limit": 5},
+     [no_error, starts("id|title|period|updated"), contains("prc_hpi_q"), max_rows(5)]),
+    ("eurostat_search", "DG TAXUD", {"query": "implicit tax", "agency": "taxud"},
+     [no_error, contains("TAX_ITR")]),
+    ("eurostat_describe", "prc_hpi_q", {"dataset_id": "prc_hpi_q"},
+     [no_error, starts("PRC_HPI_Q:"), contains("geo|", "unit|")]),
+    ("eurostat_describe", "DG EMPL id with $", {"dataset_id": "LMP_EXPME$HR", "agency": "empl"},
+     [no_error, contains("LMP_TYPE|")]),
+    ("eurostat_codes", "geo Netherlands", {"dataset_id": "prc_hpi_q", "dimension": "geo", "query": "Netherlands"},
+     [no_error, contains("NL|Netherlands")]),
+    ("eurostat_data", "NL house price index",
+     {"dataset_id": "prc_hpi_q", "filters": {"geo": ["NL"], "purchase": ["TOTAL"], "unit": ["I15_Q"]}, "last_n": 4},
+     [no_error, contains("fixed:", "Netherlands"), max_rows(6)]),
+    ("eurostat_data", "too broad rejected", {"dataset_id": "nama_10_gdp"},
+     [starts("Error: query too broad")]),
+    # Agri-food
+    ("agri_endpoints", "cereal", {"query": "cereal"},
+     [no_error, contains("cereal/prices|", "code lookups")]),
+    ("agri_data", "NL pig prices", {"endpoint": "pigmeat/prices", "params": {"memberStateCodes": "NL", "pigClasses": "E"}, "limit": 5},
+     [no_error, contains("price"), max_rows(7)]),
+    ("agri_data", "missing required param", {"endpoint": "oliveOil/production"},
+     [starts("Error: oliveOil/production requires: granularity")]),
+    # European Parliament
+    ("ep_meps", "Dutch MEPs", {"country": "NL"},
+     [no_error, starts("id|name|country|group"), contains("|NL|")]),
+    ("ep_votes", "plenary 2026-07-08", {"date": "2026-07-08", "roll_call_only": True, "limit": 5},
+     [no_error, starts("topic|item|outcome"), max_rows(6)]),
+    ("ep_query", "adopted texts search", {"endpoint": "adopted-texts", "params": {"text": "housing"}, "limit": 2},
+     [no_error, contains("title:", "files:")]),
+    # data.europa.eu
+    ("dataeu_search", "NL datasets", {"query": "air quality", "country": "nl", "limit": 5},
+     [no_error, starts("id|title|country"), max_rows(6)]),
+    ("dataeu_sparql", "format counts",
+     {"query": "SELECT ?f (COUNT(*) AS ?n) WHERE { ?d <http://purl.org/dc/terms/format> ?f } GROUP BY ?f ORDER BY DESC(?n)", "limit": 3},
+     [no_error, starts("f|n")]),
+    ("dataeu_sparql", "write rejected", {"query": "DELETE WHERE { ?s ?p ?o }"},
+     [starts("Error: Only read-only")]),
+    ("dataeu_quality", "Netherlands", {"scope": "country", "id": "NLD"},
+     [no_error, contains("score", "metric|level")]),
+    ("dataeu_use_cases", "Dutch use cases", {"country": "Netherlands", "limit": 3},
+     [no_error, max_rows(4)]),
 ]
 
 

@@ -32,6 +32,19 @@ and neighbourhood level.
 > **Good to know:** CBS publishes its tables in Dutch. Your assistant translates them, so you can
 > ask and get answers in English (or any other language).
 
+### European data, too
+
+The same tool also connects to official **European** sources, so you can compare the Netherlands
+with other countries or look beyond statistics:
+
+| You ask | Source |
+|---|---|
+| *"Compare house price growth in the Netherlands and Germany"* | **Eurostat**, the EU statistics office |
+| *"What is the implicit tax rate on labour in the Netherlands?"* | European Commission (tax, labour market and postal data) |
+| *"What do Dutch farmers get for their pigs this month?"* | EU agri-food market prices |
+| *"Which Dutch MEPs are in Renew, and how did Parliament vote on 8 July?"* | **European Parliament** |
+| *"Find open datasets about air quality in the Netherlands"* | **data.europa.eu**, the EU open data portal |
+
 ---
 
 ## How to set it up
@@ -235,6 +248,32 @@ share `https://<host>/mcp`. No login is needed because the data is public. Reque
 | `list_codes(dataset_id, dimension, query=None, limit=50)` | Code lookup, e.g. `Amsterdam → GM0363`. Use `"Measures"` for measure codes. |
 | `get_observations(dataset_id, measures, filters, latest=False, limit=500)` | Values. `latest=true` returns the newest period with data. |
 | `upcoming_releases(days=14, limit=30)` | The CBS release calendar. |
+| `eurostat_search(query, agency="eurostat", limit=10)` | Find Eurostat datasets (English). `agency`: `eurostat`, `empl`, `grow` or `taxud` (DG dissemination APIs). |
+| `eurostat_describe(dataset_id, agency)` | Dimensions with the codes in use (SDMX `referencepartial`), period range, observation count. |
+| `eurostat_codes(dataset_id, dimension, query=None, agency, limit=50)` | Code lookup, e.g. geo `Netherlands → NL`. |
+| `eurostat_data(dataset_id, filters, agency, last_n, since, until, limit=500)` | JSON-stat values, newest first, with status flags. Over-broad queries are rejected before download. |
+| `agri_endpoints(query=None)` | DG AGRI agri-food endpoints (prices, production, trade, CMEF indicators) and their params, read from the OpenAPI spec. |
+| `agri_data(endpoint, params, limit=200)` | Rows from one endpoint; params are validated against the spec. |
+| `ep_meps(name, country, group, limit=50)` | Current MEPs. |
+| `ep_votes(date, query, roll_call_only, mep_id, limit=40)` | Plenary votes on a sitting day with counts, and optionally one MEP's vote. |
+| `ep_query(endpoint, params, language="en", limit=10, offset=0)` | Any European Parliament API v2 GET endpoint, with labels in one language and nested data compacted. |
+| `dataeu_search(query, country, format, catalogue, page, limit=10)` | Search data.europa.eu (1.9M datasets). |
+| `dataeu_dataset(dataset_id)` | Description, publisher, licence and download URLs. |
+| `dataeu_sparql(query, limit=100)` | Read-only SPARQL SELECT/ASK on the portal's DCAT graph. |
+| `dataeu_quality(scope, id)` | Metadata quality (MQA) score and coverage per metric: global, country (ISO3) or catalogue. |
+| `dataeu_use_cases(query, country, sector, limit=10)` | Apps and projects built on EU open data. |
+
+EU sources used (one entry per API; see `NOTES.md` for the probe findings):
+
+| Source | Base URL |
+|---|---|
+| Eurostat | `https://ec.europa.eu/eurostat/api/dissemination` |
+| DG EMPL / GROW / TAXUD | `https://webgate.ec.europa.eu/{empl,grow,taxation_customs}/redisstat/api/dissemination` |
+| Agri-food (DG AGRI) | `https://api.tech.ec.europa.eu/agrifood/api` |
+| European Parliament | `https://data.europarl.europa.eu/api/v2` |
+| data.europa.eu search, SPARQL, MQA, use cases | `https://data.europa.eu/api/hub/search`, `/sparql`, `/api/mqa/cache`, `/en/export-use-cases` |
+
+Not wrapped: the data.europa.eu registry (`/api/hub/repo`) serves the same metadata as search, but as slow RDF. The MQA reporter only serves PDFs, so `dataeu_quality` links to it instead. SHACL validation is publisher tooling and currently returns 503.
 
 The output is compact text with `|` separators, and values that are the same in every row are
 printed once under `fixed:`. A typical answer takes 3–4 calls of under 400 tokens each:

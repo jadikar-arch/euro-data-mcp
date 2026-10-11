@@ -1,6 +1,6 @@
 ---
 name: test-tools
-description: Test every tool of the CBS MCP server (search_datasets, describe_dataset, list_codes, get_observations, upcoming_releases) — offline unit tests plus a live smoke test that launches the real server over stdio like VS Code does. Use when asked to test, verify, or smoke-test the MCP tools, or after changing src/cbs_mcp.
+description: Test every tool of the CBS + EU MCP server (CBS, Eurostat-family, agri-food, European Parliament, data.europa.eu tools) — offline unit tests plus a live smoke test that launches the real server over stdio like VS Code does. Use when asked to test, verify, or smoke-test the MCP tools, or after changing src/cbs_mcp.
 ---
 
 # Test the CBS MCP tools
@@ -31,6 +31,10 @@ checks the tool list, then calls each tool with happy-path and error cases:
 | list_codes | municipality lookup, place alias (Den Haag), newest year, measures, bad dimension |
 | get_observations | Amsterdam latest population (plausible value), unknown measure, over-broad query rejected |
 | upcoming_releases | next 30 days, `limit` honored |
+| eurostat_* | search (Eurostat + DG TAXUD), describe (incl. DG EMPL id with `$`), geo code lookup, NL house price data, over-broad rejected |
+| agri_* | endpoint list, NL pig prices, missing required param |
+| ep_* | Dutch MEPs, roll-call votes on a sitting day, adopted-text search |
+| dataeu_* | search, SPARQL (and write rejected), quality for NLD, use cases |
 
 Every response must also stay under ~2k tokens. The first run can take up to a minute or two
 while the search index builds.
@@ -40,7 +44,7 @@ while the search index builds.
 Show a compact PASS/FAIL table per tool with timings. For any FAIL:
 - Decide whether it's a code bug, a stale expectation (CBS data changed, e.g. population range
   or dataset id), or a network problem (retry once).
-- Point to the responsible code in `src/cbs_mcp/server.py` and propose a fix; don't change code
+- Point to the responsible code in `src/cbs_mcp/` (`server.py` for CBS; `eurostat.py`, `agrifood.py`, `europarl.py`, `dataeuropa.py` for EU tools) and propose a fix; don't change code
   unless the user asks.
 
 When adding a tool to the server, add cases for it to `CASES` in `scripts/smoke.py` and to

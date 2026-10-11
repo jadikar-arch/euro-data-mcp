@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import functools
 import logging
 import os
 import sys
@@ -17,8 +16,9 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from . import client
+from . import agrifood, client, dataeuropa, europarl, eurostat, web
 from .client import CBSError, NotFound, TTLCache, eq_any, get_rows, quote
+from .common import READ_ONLY, cell, compact_table, fmt_value, safe
 from .index import CATALOG_FIELDS, Index, fold, summarize
 
 log = logging.getLogger("cbs_mcp")
@@ -38,8 +38,15 @@ PLACE_ALIASES = {
 }
 
 INSTRUCTIONS = (
-    "Dutch official statistics (CBS). Workflow: search_datasets (Dutch keywords) → "
-    "describe_dataset → list_codes (find codes, e.g. a municipality) → get_observations."
+    "Official Dutch and EU open data.\n"
+    "- CBS (Netherlands, regional detail): search_datasets (Dutch keywords) → describe_dataset → "
+    "list_codes → get_observations.\n"
+    "- Eurostat (EU country comparisons; agency=empl/grow/taxud for DG data): eurostat_search "
+    "(English) → eurostat_describe → eurostat_codes → eurostat_data.\n"
+    "- EU agri-food prices/production: agri_endpoints → agri_data.\n"
+    "- European Parliament: ep_meps, ep_votes (plenary votes by date), ep_query (any endpoint).\n"
+    "- EU open data portal (catalogue of 1.9M datasets): dataeu_search → dataeu_dataset; "
+    "dataeu_sparql, dataeu_quality, dataeu_use_cases."
 )
 
 CACHE = TTLCache(ttl=REFRESH_HOURS * 3600)
@@ -48,32 +55,6 @@ _sync_task: asyncio.Task | None = None
 
 
 # ---- helpers ----------------------------------------------------------------
-
-
-def safe(fn):
-    """Turn known errors into short strings; never leak tracebacks to the model."""
-
-    @functools.wraps(fn)
-    async def wrapper(*args, **kwargs):
-        try:
-            return await fn(*args, **kwargs)
-        except CBSError as e:
-            return f"Error: {e}"
-        except Exception as e:  # noqa: BLE001
-            log.exception("tool %s failed", fn.__name__)
-            return f"Error: internal failure ({type(e).__name__}). Try again or simplify."
-
-    return wrapper
-
-
-def fmt_value(v: Any) -> str:
-    if isinstance(v, float):
-        return str(int(v)) if v.is_integer() else str(round(v, 6))
-    return str(v)
-
-
-def cell(s: Any) -> str:
-    return str(s).replace("|", "/").replace("\n", " ")
 
 
 @dataclass
@@ -275,10 +256,12 @@ async def lifespan(_server: FastMCP) -> AsyncIterator[None]:
         yield
     finally:
         await client.aclose()
+        await web.aclose()
 
 
 mcp = FastMCP("cbs", instructions=INSTRUCTIONS, lifespan=lifespan)
-READ_ONLY = {"readOnlyHint": True, "openWorldHint": True}
+for _module in (eurostat, agrifood, europarl, dataeuropa):
+    _module.register(mcp)
 
 
 @mcp.tool(annotations=READ_ONLY, output_schema=None)
@@ -494,13 +477,7 @@ async def get_observations(
     if not table:
         out.append("No values for these filters." + (f" Empty cells: {empty}" if empty else ""))
         return "\n".join(out)
-    # Columns constant across all rows are printed once.
-    keep = [i for i in range(len(cols)) if i == len(cols) - 1 or len({t[i] for t in table}) > 1]
-    fixed = [f"{cols[i]}={table[0][i]}" for i in range(len(cols)) if i not in keep and table[0][i]]
-    if fixed:
-        out.append("fixed: " + "; ".join(cell(f) for f in fixed))
-    out.append("|".join(cell(cols[i]) for i in keep))
-    out += ["|".join(cell(t[i]) for i in keep) for t in table]
+    out += compact_table(cols, table)  # columns constant across rows are printed once
     total = total if total is not None else len(rows)
     if total > len(rows):
         out.append(f"# truncated: {len(rows)} of {total} rows; narrow filters or raise limit")

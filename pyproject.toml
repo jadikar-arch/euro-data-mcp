@@ -1,7 +1,7 @@
 [project]
 name = "cbs-mcp"
 version = "0.1.0"
-description = "Token-efficient MCP server for CBS (Statistics Netherlands) open data"
+description = "Token-efficient MCP server for CBS (Statistics Netherlands) and EU open data (Eurostat, agri-food, European Parliament, data.europa.eu)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
