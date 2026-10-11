@@ -1,49 +1,44 @@
-# CBS Statistics for your AI assistant
+# Europa: official European open data for your AI assistant
 
-**Ask questions about the Netherlands in plain language, and get answers from official government
-statistics.**
+**Ask questions about European countries in plain language, and get answers from official
+statistics and open data.**
 
 This tool connects AI assistants such as **Claude**, **ChatGPT**, **VS Code Copilot** and **Cursor**
-to [CBS](https://www.cbs.nl/en-gb) (Statistics Netherlands). CBS is the Dutch national statistics
-office, and it publishes thousands of tables on population, housing, income, jobs, prices, health
-and more.
+to official data sources across Europe: national statistics offices and the EU's own sources
+(Eurostat, the European Commission, the European Parliament and the EU open data portal).
 
 Without this tool, your assistant has to guess or rely on old knowledge. With it, the assistant
-looks up the **latest official figures** itself and tells you which CBS table it used.
+looks up the **latest official figures** itself and tells you which table it used.
+
+### Countries and sources
+
+| | Sources | Good for |
+|---|---|---|
+| 🇪🇺 **EU** | Eurostat, European Commission (labour market, tax, postal, agri-food markets), European Parliament, data.europa.eu | Comparing countries, EU totals, farm prices, how the Parliament voted, finding open datasets |
+| 🇳🇱 **Netherlands** | CBS (Statistics Netherlands) | Dutch figures down to municipality and neighbourhood |
+
+More countries are being added. Each country is a self-contained package with its own guide for the
+assistant (see [For developers](#for-developers)).
 
 ---
 
 ## What can I ask?
 
-Write the way you'd ask a colleague. You can ask in any language.
+Write the way you'd ask a colleague. You can ask in any language. If you don't know which source
+has the answer, just ask; the assistant first looks up which source fits best.
 
 | You ask | The assistant finds |
 |---|---|
-| *"How many people live in Amsterdam?"* | **944,322** (August 2026), from the table *Bevolkingsontwikkeling; regio per maand* |
-| *"What did an average house cost in Utrecht last year?"* | **€549,113** (2025), from *Bestaande koopwoningen; gemiddelde verkoopprijzen* |
-| *"Compare unemployment in Rotterdam and The Hague over the last 5 years"* | A small table, year by year |
-| *"How has inflation developed since 2020?"* | Monthly consumer price figures (CPI) |
-| *"Which new CBS figures come out this week?"* | The CBS release calendar |
+| *"How many people live in Amsterdam?"* | **944,322** (August 2026), from the CBS table *Bevolkingsontwikkeling; regio per maand* |
+| *"What did an average house cost in Utrecht last year?"* | **€549,113** (2025), from CBS *Bestaande koopwoningen; gemiddelde verkoopprijzen* |
+| *"Compare house price growth in the Netherlands and Germany"* | Eurostat's house price index, quarter by quarter |
+| *"What is the implicit tax rate on labour in the Netherlands?"* | **31.87%** (2024), from the European Commission's tax data |
+| *"What do Dutch farmers get for their pigs this month?"* | Weekly EU pig prices per country |
+| *"Which Dutch MEPs are in Renew, and how did Parliament vote on 8 July?"* | MEP list and vote results from the European Parliament |
+| *"Find open datasets about air quality in the Netherlands"* | Datasets and download links from data.europa.eu |
 
-Other topics you can ask about: births and deaths, migration, household income, energy use, crime,
-tourism, education, healthcare, traffic, bankruptcies, and regional figures down to municipality
-and neighbourhood level.
-
-> **Good to know:** CBS publishes its tables in Dutch. Your assistant translates them, so you can
-> ask and get answers in English (or any other language).
-
-### European data, too
-
-The same tool also connects to official **European** sources, so you can compare the Netherlands
-with other countries or look beyond statistics:
-
-| You ask | Source |
-|---|---|
-| *"Compare house price growth in the Netherlands and Germany"* | **Eurostat**, the EU statistics office |
-| *"What is the implicit tax rate on labour in the Netherlands?"* | European Commission (tax, labour market and postal data) |
-| *"What do Dutch farmers get for their pigs this month?"* | EU agri-food market prices |
-| *"Which Dutch MEPs are in Renew, and how did Parliament vote on 8 July?"* | **European Parliament** |
-| *"Find open datasets about air quality in the Netherlands"* | **data.europa.eu**, the EU open data portal |
+> **Good to know:** national sources often publish in their own language (CBS in Dutch). Your
+> assistant translates, so you can ask and get answers in English or any other language.
 
 ---
 
@@ -76,14 +71,14 @@ When it says it's done, **close the window**.
 1. Open Claude Desktop and go to **Settings → Developer → Edit Config**.
    This opens a file called `claude_desktop_config.json`.
 2. Replace everything in the file with the text below (if the file already has other servers in
-   it, add only the `"cbs"` part):
+   it, add only the `"europa"` part):
 
    ```json
    {
      "mcpServers": {
-       "cbs": {
+       "europa": {
          "command": "uvx",
-         "args": ["cbs-mcp"]
+         "args": ["europa-mcp"]
        }
      }
    }
@@ -91,9 +86,9 @@ When it says it's done, **close the window**.
 
 3. Save the file and **quit Claude completely**, then reopen it. On a Mac, use Claude → Quit;
    closing the window isn't enough.
-4. Start a new chat and ask: *"How many people live in Amsterdam? Use the CBS tools."*
+4. Start a new chat and ask: *"How many people live in Amsterdam? Use the europa tools."*
 
-The first time, Claude asks for permission to use the CBS tools. Click **Allow**.
+The first time, Claude asks for permission to use the europa tools. Click **Allow**.
 
 ### Option B: VS Code (with GitHub Copilot)
 
@@ -104,12 +99,12 @@ The first time, Claude asks for permission to use the CBS tools. Click **Allow**
    ```json
    {
      "servers": {
-       "cbs": { "type": "stdio", "command": "uvx", "args": ["cbs-mcp"] }
+       "europa": { "type": "stdio", "command": "uvx", "args": ["europa-mcp"] }
      }
    }
    ```
 
-4. A small **Start** button appears above the `"cbs"` line. Click it.
+4. A small **Start** button appears above the `"europa"` line. Click it.
 5. Open Copilot Chat, switch it to **Agent** mode, and ask your question.
 
 ### Option C: Cursor
@@ -121,30 +116,30 @@ The first time, Claude asks for permission to use the CBS tools. Click **Allow**
    ```json
    {
      "mcpServers": {
-       "cbs": { "type": "stdio", "command": "uvx", "args": ["cbs-mcp"] }
+       "europa": { "type": "stdio", "command": "uvx", "args": ["europa-mcp"] }
      }
    }
    ```
 
-3. Check that **cbs** shows a green dot in the MCP settings, then ask your question in the chat.
+3. Check that **europa** shows a green dot in the MCP settings, then ask your question in the chat.
 
 ### Option D: ChatGPT or Claude in your web browser
 
 Websites can't start programs on your computer, so for this option the tool has to run on a
 **server on the internet**. Someone technical (a colleague or your IT team) does that once; see
 [Hosting it online](#hosting-it-online). They give you a web address that ends in `/mcp`, for
-example `https://cbs.example.com/mcp`.
+example `https://europa.example.com/mcp`.
 
 **Claude (claude.ai):**
 1. Go to **Customize → Connectors**, click **+**, and choose **Add custom connector**.
-2. Give it a name (*CBS*), paste the web address, and click **Add**.
-3. In a chat, click **+** → **Connectors** and switch **CBS** on.
+2. Give it a name (*Europa*), paste the web address, and click **Add**.
+3. In a chat, click **+** → **Connectors** and switch **Europa** on.
 
 **ChatGPT:**
 1. Go to **Settings → Apps → Advanced settings** and turn on **Developer mode**.
-2. Click **Create** to add a connector. Name it *CBS*, paste the web address, and set
+2. Click **Create** to add a connector. Name it *Europa*, paste the web address, and set
    authentication to **None**.
-3. In a chat, enable the CBS connector and ask your question.
+3. In a chat, enable the Europa connector and ask your question.
 
 > OpenAI moves these menus around from time to time, and custom connectors aren't available on
 > every ChatGPT plan. If you can't find the option, search the OpenAI help center for
@@ -156,7 +151,7 @@ example `https://cbs.example.com/mcp`.
 **Claude Code** (terminal):
 
 ```
-claude mcp add --transport stdio cbs -- uvx cbs-mcp
+claude mcp add --transport stdio europa -- uvx europa-mcp
 ```
 
 **OpenCode**: add to `opencode.json`:
@@ -165,12 +160,12 @@ claude mcp add --transport stdio cbs -- uvx cbs-mcp
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "cbs": { "type": "local", "command": ["uvx", "cbs-mcp"], "enabled": true }
+    "europa": { "type": "local", "command": ["uvx", "europa-mcp"], "enabled": true }
   }
 }
 ```
 
-**Any app that supports MCP:** run the command `uvx cbs-mcp` (local), or connect to the web
+**Any app that supports MCP:** run the command `uvx europa-mcp` (local), or connect to the web
 address `https://<your-server>/mcp` (online).
 
 </details>
@@ -179,20 +174,23 @@ address `https://<your-server>/mcp` (online).
 
 ## Tips for better answers
 
-- **Mention the place and the time:** *"in Eindhoven"*, *"in 2024"*, *"the latest figures"*.
-- **Ask for the source** if you want to check it: *"Which CBS table did you use?"* You can look it
-  up on [opendata.cbs.nl](https://opendata.cbs.nl) or [cbs.nl](https://www.cbs.nl).
-- **Ask for a comparison or a table:** *"Show this per province as a table"*.
-- **Mind the definitions.** CBS measures things precisely: *"population on 1 January"* differs from
-  *"average population over the year"*. Ask the assistant to explain the definition if it matters.
+- **Mention the place and the time:** *"in Eindhoven"*, *"in Germany and France"*, *"in 2024"*,
+  *"the latest figures"*.
+- **Ask for the source** if you want to check it: *"Which table did you use?"* You can look it up
+  on the source's website (e.g. [opendata.cbs.nl](https://opendata.cbs.nl) or
+  [ec.europa.eu/eurostat](https://ec.europa.eu/eurostat/databrowser)).
+- **Compare like with like.** For comparisons between countries, ask for Eurostat figures: they use
+  the same definitions everywhere. National offices often have more detail for their own country.
+- **Mind the definitions.** *"Population on 1 January"* differs from *"average population over the
+  year"*. Ask the assistant to explain the definition if it matters.
 
 ## Common questions
 
 **The very first question is a bit slow.**
-The first time, the tool downloads a list of all ~4,900 CBS tables so it can search them, which
-takes a few seconds. Later questions are fast.
+The first time, the tool downloads the lists of available tables (about 4,900 from CBS and 8,000
+from Eurostat) so it can search them. This takes up to a minute. Later questions are fast.
 
-**The assistant says it can't find the CBS tools.**
+**The assistant says it can't find the tools.**
 - Restart the app completely after changing the settings.
 - Make sure Step 1 finished. On a Mac, open Terminal and type `uvx --version`; it should print a
   version number.
@@ -200,21 +198,20 @@ takes a few seconds. Later questions are fast.
   copy the result (something like `/Users/yourname/.local/bin/uvx`). Paste that full path in the
   settings file instead of just `"uvx"`.
 
-**The assistant gives an answer, but not from CBS.**
-Add *"use the CBS tools"* to your question.
+**The assistant gives an answer, but not from these sources.**
+Add *"use the europa tools"* to your question.
 
-**Are new CBS figures included?**
-Yes. The tool always fetches figures directly from CBS. Its list of tables updates itself
-every 6 hours, so brand-new tables become searchable the same day.
+**Are new figures included?**
+Yes. The tool always fetches figures directly from the source. Its lists of tables update
+themselves every 6 hours, so brand-new tables become searchable the same day.
 
 **Does this cost anything? Is my data shared?**
-The tool is free, and CBS data is public ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
-The tool sends only data requests to CBS. Your conversation stays between you and your AI
-app, as usual.
+The tool is free, and the data is public. The tool sends only data requests to the sources. Your
+conversation stays between you and your AI app, as usual.
 
 **What can't it do?**
-It only knows what CBS publishes, and doesn't cover other countries or other sources. Figures
-are as recent as CBS has published them, usually a few weeks to months behind.
+It only knows what the connected sources publish (see [Countries and sources](#countries-and-sources)).
+Figures are as recent as the sources have published them, usually a few weeks to months behind.
 
 ---
 
@@ -223,31 +220,59 @@ are as recent as CBS has published them, usually a few weeks to months behind.
 *For the technical person setting up Option D.*
 
 ```bash
-docker build -t cbs-mcp .        # ~1 minute; includes the search index
-docker run -p 8000:8000 cbs-mcp  # MCP endpoint: http://<host>:8000/mcp
+docker build -t europa-mcp .        # a few minutes; includes the search indexes
+docker run -p 8000:8000 europa-mcp  # MCP endpoint: http://<host>:8000/mcp
 ```
 
 Put it behind HTTPS (any cloud host such as Cloud Run, Fly.io or Railway, or a reverse proxy) and
 share `https://<host>/mcp`. No login is needed because the data is public. Requests are rate-limited
-(`CBS_RATE_LIMIT_RPS`, default 5 per second). To try it quickly without deploying, run
-`uvx cbs-mcp --transport http` and expose it with `cloudflared tunnel --url http://localhost:8000`.
+(`EUROPA_RATE_LIMIT_RPS`, default 5 per second). To try it quickly without deploying, run
+`uvx europa-mcp --transport http` and expose it with `cloudflared tunnel --url http://localhost:8000`.
 
 ---
 
 ## For developers
 
 <details>
-<summary><b>Tools, architecture and configuration</b></summary>
+<summary><b>Architecture, tools and configuration</b></summary>
+
+### Architecture: one package and one skill per country
+
+```
+src/europa_mcp/
+  server.py         core: loads every country, serves the skills, find_data, country_guide, CLI
+  sourcemap.py      the find_data map (SQLite FTS5) and its ranking
+  common.py, web.py shared errors, text tables, settings and HTTP client (retries, short errors)
+  countries/
+    __init__.py     COUNTRIES registry and the country contract
+    eu/             Eurostat + DGs, agri-food, European Parliament, data.europa.eu
+    nl/             CBS (OData client, local search index, tools)
+  skills/
+    eu/SKILL.md     guide for the assistant: when to use which source, workflow, codes, pitfalls
+    nl/SKILL.md
+```
+
+Each `countries/<cc>/` package exposes `CODE`, `NAME`, `HINTS` (its `hints.json`), `SYNONYMS`,
+`register(mcp)`, `map_builders()`, `start()` and `stop()`. It also keeps its API findings in its
+own `NOTES.md`. The server serves every `skills/<cc>/SKILL.md` as an MCP resource
+(`skill://<cc>/SKILL.md`), and through the `country_guide` tool for apps that don't show
+resources to the model.
+
+**Adding a country:** use the `add-country` Claude Code skill in `.claude/skills/add-country`
+(probe the API, copy the templates, write the skill, test). Tool names are
+`<source>_<verb>` (e.g. `cbs_search`) so they stay unique as countries are added.
 
 ### Tools
 
 | Tool | Purpose |
 |---|---|
-| `search_datasets(query, catalog="CBS", include_discontinued=False, limit=10)` | Find tables by topic. Dutch keywords work best, and common English terms are translated. |
-| `describe_dataset(dataset_id)` | A table's measures and dimensions, with code counts and the latest period. |
-| `list_codes(dataset_id, dimension, query=None, limit=50)` | Code lookup, e.g. `Amsterdam → GM0363`. Use `"Measures"` for measure codes. |
-| `get_observations(dataset_id, measures, filters, latest=False, limit=500)` | Values. `latest=true` returns the newest period with data. |
-| `upcoming_releases(days=14, limit=30)` | The CBS release calendar. |
+| `find_data(query, sources=None, per_source=3, limit=12)` | **Start here when unsure which source fits.** Searches the source map (below) and returns the best datasets/endpoints per source, each with the exact next call. |
+| `country_guide(country)` | The country's skill text: sources, workflow, codes, pitfalls. |
+| `cbs_search(query, catalog="CBS", include_discontinued=False, limit=10)` | Find CBS tables by topic. Dutch keywords work best, and common English terms are translated. |
+| `cbs_describe(dataset_id)` | A table's measures and dimensions, with code counts and the latest period. |
+| `cbs_codes(dataset_id, dimension, query=None, limit=50)` | Code lookup, e.g. `Amsterdam → GM0363`. Use `"Measures"` for measure codes. |
+| `cbs_data(dataset_id, measures, filters, latest=False, limit=500)` | Values. `latest=true` returns the newest period with data. |
+| `cbs_releases(days=14, limit=30)` | The CBS release calendar. |
 | `eurostat_search(query, agency="eurostat", limit=10)` | Find Eurostat datasets (English). `agency`: `eurostat`, `empl`, `grow` or `taxud` (DG dissemination APIs). |
 | `eurostat_describe(dataset_id, agency)` | Dimensions with the codes in use (SDMX `referencepartial`), period range, observation count. |
 | `eurostat_codes(dataset_id, dimension, query=None, agency, limit=50)` | Code lookup, e.g. geo `Netherlands → NL`. |
@@ -263,7 +288,35 @@ share `https://<host>/mcp`. No login is needed because the data is public. Reque
 | `dataeu_quality(scope, id)` | Metadata quality (MQA) score and coverage per metric: global, country (ISO3) or catalogue. |
 | `dataeu_use_cases(query, country, sector, limit=10)` | Apps and projects built on EU open data. |
 
-EU sources used (one entry per API; see `NOTES.md` for the probe findings):
+### Source map (`find_data`)
+
+The APIs publish little "what is this about" metadata, so the server builds one searchable **map
+table** (SQLite FTS5, `sourcemap.db` in the cache directory) with one row per dataset or endpoint:
+`source | id | title | topic_path | period | updated | next_call | keywords`. Each source is
+enriched from the best signal it has:
+
+| Source | Rows | Enrichment |
+|---|---|---|
+| CBS | ~1,300 active tables | Measure and dimension titles from the CBS index |
+| Eurostat | ~7,500 datasets | Theme path from the table-of-contents tree (e.g. *Economy and finance > Prices*); extra theme locations as keywords |
+| DG EMPL / GROW / TAXUD | ~40 | Dataflow names; per-country copies (`LMP_EXPME$HR`) collapsed into their parent |
+| Agri-food | ~40 data endpoints | OpenAPI tag and summary, plus the values of the sector's code lookups (e.g. *Durum wheat*, *Feed barley* for `cereal/*`) |
+| European Parliament | ~20 list endpoints + `ep_meps`/`ep_votes` | OpenAPI tag and description |
+| data.europa.eu | its 4 tools | Hand-written |
+
+Hand-written metadata lives in each country's `hints.json`: source descriptions, extra keywords,
+and synonyms (e.g. *pork → pigmeat*, *huizenprijzen → house prices*). Search also expands
+English ↔ local-language terms through each country's `SYNONYMS` (for NL, the CBS synonym list), so Dutch queries find Eurostat datasets and English
+queries find CBS tables. Matches on the user's own words rank above synonym matches.
+
+The map is rebuilt in the background every `EUROPA_REFRESH_HOURS` (default 6).
+If one source fails, its previous rows are kept. To build it by hand or export it as a CSV for review:
+
+```bash
+uvx europa-mcp map --export source_map.csv
+```
+
+EU sources used (one entry per API; probe findings in `countries/eu/NOTES.md`):
 
 | Source | Base URL |
 |---|---|
@@ -279,12 +332,12 @@ The output is compact text with `|` separators, and values that are the same in 
 printed once under `fixed:`. A typical answer takes 3–4 calls of under 400 tokens each:
 
 ```
-search_datasets("bevolking regio")                         → 37230ned Bevolkingsontwikkeling; regio per maand
-list_codes("37230ned", "RegioS", "Amsterdam")              → GM0363|Amsterdam|Gemeenten per provincie
-get_observations("37230ned", ["M000098"], {"RegioS": ["GM0363"]}, latest=true)
+cbs_search("bevolking regio")                         → 37230ned Bevolkingsontwikkeling; regio per maand
+cbs_codes("37230ned", "RegioS", "Amsterdam")          → GM0363|Amsterdam|Gemeenten per provincie
+cbs_data("37230ned", ["M000098"], {"RegioS": ["GM0363"]}, latest=true)
 ```
 
-### Search index
+### CBS search index
 
 The CBS OData API (`https://datasets.cbs.nl/odata/v1`) has no ranked search: `$search` is ignored,
 and the catalog is Dutch-only. The server therefore keeps a **SQLite FTS5 index** of titles,
@@ -296,18 +349,21 @@ matches, then BM25, then status and recency.
 - **Sync every 6 h:** the server diffs each table's `Version` with CBS and refetches only the
   changes (~1 s when nothing changed). It removes deleted tables, invalidates cached metadata, and
   won't delete more than 20% of the catalog in one sync.
-- **Manual sync:** `cbs-mcp sync [--full] [--no-details]`.
+- **Manual sync:** `europa-mcp sync [--full] [--no-details]`.
 
 ### Configuration
 
 | Env var | Default | |
 |---|---|---|
-| `CBS_INDEX_PATH` | user cache dir | SQLite index location |
-| `CBS_INDEX_REFRESH_HOURS` | `6` | Sync interval |
-| `CBS_RATE_LIMIT_RPS` | `5` | HTTP mode: sustained requests per second (burst 20) |
-| `CBS_HOST` / `PORT` | `127.0.0.1` / `8000` | HTTP bind address |
-| `CBS_BASE_URL` | CBS OData v1 | API base URL |
-| `CBS_LOG_LEVEL` | `INFO` | Logs go to stderr only |
+| `EUROPA_CACHE_DIR` | user cache dir (`europa-mcp`) | Where the CBS index (`nl-cbs.db`) and the source map (`sourcemap.db`) are stored |
+| `EUROPA_REFRESH_HOURS` | `6` | Refresh interval of the indexes and the map |
+| `EUROPA_RATE_LIMIT_RPS` | `5` | HTTP mode: sustained requests per second (burst 20) |
+| `EUROPA_HOST` / `PORT` | `127.0.0.1` / `8000` | HTTP bind address |
+| `EUROPA_LOG_LEVEL` | `INFO` | Logs go to stderr only |
+| `CBS_BASE_URL`, `CBS_INDEX_PATH` | CBS OData v1, cache dir | CBS-specific overrides |
+
+The pre-rename names (`CBS_INDEX_REFRESH_HOURS`, `CBS_RATE_LIMIT_RPS`, `CBS_HOST`, `CBS_LOG_LEVEL`)
+still work as fallbacks.
 
 ### Development
 
@@ -315,18 +371,20 @@ matches, then BM25, then status and recency.
 uv sync
 uv run pytest            # mocked HTTP (respx)
 uv run pytest -m live    # end-to-end smoke test against the real API
-npx @modelcontextprotocol/inspector uv run cbs-mcp
+npx @modelcontextprotocol/inspector uv run europa-mcp
 ```
 
 Put the server command first. The Inspector parses flags such as `uvx --from .` as its own options.
-API findings are in [NOTES.md](NOTES.md).
+API findings are in each `countries/<cc>/NOTES.md`; core notes in [NOTES.md](NOTES.md).
 
-**Before the PyPI release**, the `uvx cbs-mcp` commands above won't work yet. Use
-`uvx --from git+https://github.com/<you>/cbs-mcp cbs-mcp`, or `uvx --from /path/to/checkout cbs-mcp`.
+**Before the PyPI release**, the `uvx europa-mcp` commands above won't work yet. Use
+`uvx --from git+https://github.com/<you>/europa-mcp europa-mcp`, or `uvx --from /path/to/checkout europa-mcp`.
 
 </details>
 
 ---
 
-*Data: [CBS Statistics Netherlands](https://www.cbs.nl), licensed CC BY 4.0. This project is not
-affiliated with CBS.*
+*Data: [CBS Statistics Netherlands](https://www.cbs.nl) (CC BY 4.0); [Eurostat](https://ec.europa.eu/eurostat),
+the European Commission, the [European Parliament](https://data.europarl.europa.eu) and
+[data.europa.eu](https://data.europa.eu) (reuse authorised under the Commission's reuse policy /
+CC BY 4.0). This project is not affiliated with any of these organisations.*

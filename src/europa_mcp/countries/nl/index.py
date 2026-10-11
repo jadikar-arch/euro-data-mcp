@@ -12,16 +12,14 @@ import os
 import re
 import sqlite3
 import time
-import unicodedata
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
-from platformdirs import user_cache_dir
+from ...common import STOPWORDS, NotFound, UserError, cache_dir, fold
+from .client import eq_any, get_rows
 
-from .client import CBSError, NotFound, eq_any, get_rows
-
-log = logging.getLogger("cbs_mcp")
+log = logging.getLogger("europa_mcp")
 
 CATALOG_FIELDS = "Identifier,Catalog,Version,Title,Description,Status,Modified,ObservationCount"
 BULK_THRESHOLD = 200  # above this many changes, refetch the whole catalog in one request
@@ -70,12 +68,6 @@ SYNONYMS: dict[str, tuple[str, ...]] = {
     "religion": ("religie",), "elections": ("verkiezingen",), "construction": ("bouw",),
 }
 
-STOPWORDS = set(
-    "de het een en van in op voor met per naar over bij uit door is zijn wat hoe hoeveel welke "
-    "the a an and of in on for with per to by from is are what how many much which latest "
-    "recent current newest number total data statistics cbs nederland netherlands dutch "
-    "aantal cijfers gegevens tabel hoeveelheid".split()
-)
 
 _PERIOD = re.compile(
     r"Gegevens beschikbaar\s*(?:vanaf|van|over|tot|per)?\s*:?\s*([^\n\r]+)", re.IGNORECASE
@@ -100,13 +92,8 @@ def summarize(body: str, n: int = 300) -> str:
 
 def default_path() -> Path:
     env = os.environ.get("CBS_INDEX_PATH")
-    return Path(env) if env else Path(user_cache_dir("cbs-mcp")) / "index.db"
+    return Path(env) if env else cache_dir() / "nl-cbs.db"
 
-
-def fold(s: str) -> str:
-    """Lowercase and strip accents (matches the FTS `remove_diacritics` tokenizer)."""
-    s = unicodedata.normalize("NFKD", s or "")
-    return "".join(c for c in s if not unicodedata.combining(c)).casefold()
 
 
 def query_groups(query: str) -> list[list[str]]:
@@ -275,7 +262,7 @@ class Index:
         async with self._lock:
             remote, _ = await get_rows("/Datasets", {"$select": "Identifier,Catalog,Version"})
             if not remote:
-                raise CBSError("CBS catalog returned no datasets; keeping the current index")
+                raise UserError("CBS catalog returned no datasets; keeping the current index")
             remote_ver = {r["Identifier"]: r.get("Version") for r in remote}
             local_ver = {
                 r["id"]: r["version"] for r in self.db.execute("SELECT id, version FROM datasets")
@@ -348,7 +335,7 @@ class Index:
                     meas, _ = await get_rows(f"{base}/MeasureCodes", {"$select": "Title"})
                 except NotFound:
                     return
-                except CBSError as e:
+                except UserError as e:
                     log.warning("details for %s failed: %s", r["id"], e)
                     return
             titles = [d.get("Title") or "" for d in dims] + [m.get("Title") or "" for m in meas]

@@ -8,8 +8,9 @@ import httpx
 import pytest
 import respx
 
-from cbs_mcp import client, server
-from cbs_mcp.index import Index
+from europa_mcp import server
+from europa_mcp.countries.nl import cbs, client
+from europa_mcp.countries.nl.index import Index
 
 BASE = client.BASE_URL
 
@@ -134,6 +135,13 @@ class FakeCBS:
         return httpx.Response(200, json=page(tables[path], p))
 
 
+@pytest.fixture(autouse=True)
+def no_background_tasks(monkeypatch):
+    """The server lifespan starts the CBS index sync and the map refresh; tests drive them directly."""
+    monkeypatch.setattr(cbs, "ensure_sync_task", lambda: None)
+    monkeypatch.setattr(server, "ensure_map_task", lambda: None)
+
+
 @pytest.fixture
 def fake_cbs():
     fake = FakeCBS()
@@ -147,8 +155,8 @@ async def index(tmp_path, fake_cbs, monkeypatch):
     """A synced index wired into the server; background sync disabled."""
     idx = Index(tmp_path / "index.db")
     await idx.sync()
-    monkeypatch.setattr(server, "INDEX", idx)
-    monkeypatch.setattr(server, "ensure_sync_task", lambda: None)
-    server.CACHE._data.clear()
+    monkeypatch.setattr(cbs, "INDEX", idx)
+    monkeypatch.setattr(cbs, "ensure_sync_task", lambda: None)
+    cbs.CACHE._data.clear()
     yield idx
     await client.aclose()

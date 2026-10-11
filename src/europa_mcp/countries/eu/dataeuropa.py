@@ -10,10 +10,8 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from .client import CBSError, NotFound
-from .common import READ_ONLY, cell, clip, safe
-from .index import fold
-from .web import Memo, fetch, fetch_json
+from ...common import NotFound, READ_ONLY, UserError, cell, clip, fold, safe
+from ...web import Memo, fetch, fetch_json
 
 PORTAL = "https://data.europa.eu"
 SEARCH = f"{PORTAL}/api/hub/search"
@@ -104,7 +102,7 @@ async def dataeu_dataset(dataset_id: str, language: str = "en", max_files: int =
     try:
         data = await fetch_json(f"{SEARCH}/datasets/{dataset_id.strip()}")
     except NotFound:
-        raise CBSError(f"Unknown dataset '{dataset_id}'. Use dataeu_search.") from None
+        raise UserError(f"Unknown dataset '{dataset_id}'. Use dataeu_search.") from None
     d = (data or {}).get("result") or {}
     out = [f"{d.get('id')}: {text(d.get('title'), language)}"]
     pub = d.get("publisher") or {}
@@ -150,9 +148,9 @@ async def dataeu_sparql(query: str, limit: int = 100) -> str:
     """Run a read-only SPARQL SELECT/ASK on data.europa.eu (DCAT metadata of all datasets).
     For text search use dataeu_search: CONTAINS over all titles times out."""
     if WRITE_SPARQL.search(re.sub(r'"[^"]*"|<[^>]*>', "", query)):
-        raise CBSError("Only read-only SELECT/ASK queries are allowed.")
+        raise UserError("Only read-only SELECT/ASK queries are allowed.")
     if not re.search(r"\b(SELECT|ASK)\b", query, re.I):
-        raise CBSError("Only SELECT or ASK queries are supported.")
+        raise UserError("Only SELECT or ASK queries are supported.")
     limit = max(1, min(limit, 1000))
     q = query.strip()
     if re.search(r"\bSELECT\b", q, re.I) and not re.search(r"\bLIMIT\s+\d+", q, re.I):
@@ -162,7 +160,7 @@ async def dataeu_sparql(query: str, limit: int = 100) -> str:
         headers={"Accept": "application/sparql-results+json"}, timeout=90,
     )
     if data is None or not isinstance(data, dict):
-        raise CBSError("SPARQL endpoint returned no JSON (query too heavy?). Add filters or LIMIT.")
+        raise UserError("SPARQL endpoint returned no JSON (query too heavy?). Add filters or LIMIT.")
     if "boolean" in data:
         return str(data["boolean"]).lower()
     cols = data.get("head", {}).get("vars", [])
@@ -186,17 +184,17 @@ async def dataeu_quality(scope: str = "global", id: str | None = None) -> str:
         url = f"{MQA}/global"
     elif scope in ("country", "catalogue", "catalog"):
         if not id:
-            raise CBSError(f"id is required for scope '{scope}'.")
+            raise UserError(f"id is required for scope '{scope}'.")
         ident = id.strip().upper() if scope == "country" else id.strip()
         if scope == "country" and len(ident) != 3:
-            raise CBSError("country id must be ISO 3166 alpha-3, e.g. NLD, DEU, FRA.")
+            raise UserError("country id must be ISO 3166 alpha-3, e.g. NLD, DEU, FRA.")
         url = f"{MQA}/{'countries' if scope == 'country' else 'catalogues'}/{ident}"
     else:
-        raise CBSError("scope must be 'global', 'country' or 'catalogue'.")
+        raise UserError("scope must be 'global', 'country' or 'catalogue'.")
     try:
         data = await fetch_json(url)
     except NotFound:
-        raise CBSError(f"No quality metrics for {scope} '{id}'.") from None
+        raise UserError(f"No quality metrics for {scope} '{id}'.") from None
     results = ((data or {}).get("result") or {}).get("results") or []
     if not results:
         return f"No quality metrics for {scope} '{id}'."

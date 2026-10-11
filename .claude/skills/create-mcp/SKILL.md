@@ -1,6 +1,6 @@
 ---
-name: cbs-mcp-builder
-description: Build a token-efficient FastMCP (Python) server for the CBS Dutch open data OData v4 API (datasets.cbs.nl/odata/v1). Use when creating, extending or debugging CBS data-extraction MCP tools.
+name: europa-mcp-builder
+description: Reference for the Netherlands package of europa-mcp - token-efficient tools over the CBS Dutch open data OData v4 API (datasets.cbs.nl/odata/v1). Use when extending or debugging the cbs_* tools; to add another country use add-country.
 ---
 
 # CBS OData → MCP server
@@ -45,16 +45,16 @@ Rules:
 
 ## Implementation
 
-- Layout: `src/cbs_mcp/{server.py, client.py}` and `tests/`. Use uv, `fastmcp`, `httpx` (async), and the `respx` test library.
+- Layout: `src/europa_mcp/countries/nl/{cbs.py, client.py, index.py}` and `tests/`. Use uv, `fastmcp`, `httpx` (async), and the `respx` test library.
 - `client.py` holds one shared `httpx.AsyncClient` with a timeout of 30s, retry on 429/5xx (3 attempts with backoff), and nextLink paging up to `limit`.
 - Build `$filter` safely: `Dim eq 'X' or Dim eq 'Y'`, with values quoted and escaped. Verify the syntax against the live API.
 - Return errors as short strings, e.g. `"Unknown dimension 'Regio'. Valid: RegioS, Perioden"`. Never return tracebacks.
 - Run stdio by default, and HTTP via `--transport http`. **Never print to stdout**; log to stderr.
-- `pyproject.toml`: `[project.scripts] cbs-mcp = "cbs_mcp.server:main"`.
+- `pyproject.toml`: `[project.scripts] europa-mcp = "europa_mcp.server:main"`.
 
 ## Verify (definition of done)
 
 - `pytest` passes, with mocked HTTP plus one live smoke test marked `@pytest.mark.live`.
-- `npx @modelcontextprotocol/inspector uvx --from . cbs-mcp` runs every tool successfully.
+- `npx @modelcontextprotocol/inspector uvx --from . europa-mcp` runs every tool successfully.
 - An end-to-end check passes: "population of Amsterdam latest year" resolves in 4 or fewer tool calls, and each response is under about 2k tokens.
-- The README has config snippets for Claude Code (`claude mcp add cbs -- uvx cbs-mcp`), VS Code (`.vscode/mcp.json`), OpenCode (`opencode.json`) and Cursor. Check each against its current docs.
+- The README has config snippets for Claude Code (`claude mcp add europa -- uvx europa-mcp`), VS Code (`.vscode/mcp.json`), OpenCode (`opencode.json`) and Cursor. Check each against its current docs.

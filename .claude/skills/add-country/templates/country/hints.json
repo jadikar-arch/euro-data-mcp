@@ -1,0 +1,9 @@
+{
+  "_comment": "Hand-written metadata for <Country name> sources, used to build the find_data map.",
+  "sources": {
+    "<SOURCE>": "<Country> only; <coverage, e.g. regional detail to municipality>; <title language>"
+  },
+  "synonyms": {},
+  "keywords": {},
+  "entries": []
+}

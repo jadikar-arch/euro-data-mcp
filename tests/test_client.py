@@ -2,8 +2,10 @@ import httpx
 import pytest
 import respx
 
-from cbs_mcp import client
-from cbs_mcp.client import BASE_URL, CBSError, NotFound, eq_any, get_json, get_rows, quote
+from europa_mcp.countries.nl import client
+from europa_mcp.common import NotFound
+from europa_mcp.common import UserError as CBSError
+from europa_mcp.countries.nl.client import BASE_URL, eq_any, get_json, get_rows, quote
 
 
 @pytest.fixture(autouse=True)

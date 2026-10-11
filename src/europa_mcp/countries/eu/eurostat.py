@@ -12,10 +12,8 @@ from urllib.parse import quote as urlquote
 
 from fastmcp import FastMCP
 
-from .client import CBSError, NotFound
-from .common import READ_ONLY, as_list, cell, clip, compact_table, fmt_value, safe
-from .index import fold
-from .web import Memo, fetch, fetch_json
+from ...common import NotFound, READ_ONLY, UserError, as_list, cell, clip, compact_table, fmt_value, fold, safe
+from ...web import Memo, fetch, fetch_json
 
 AGENCIES: dict[str, tuple[str, str]] = {
     "eurostat": ("https://ec.europa.eu/eurostat/api/dissemination", "ESTAT"),
@@ -40,7 +38,7 @@ def resolve_agency(name: str | None) -> tuple[str, str, str]:
     key = fold((name or "eurostat").strip())
     key = ALIASES.get(key, key)
     if key not in AGENCIES:
-        raise CBSError(f"Unknown agency '{name}'. Valid: {', '.join(AGENCIES)}")
+        raise UserError(f"Unknown agency '{name}'. Valid: {', '.join(AGENCIES)}")
     return key, *AGENCIES[key]
 
 
@@ -155,14 +153,14 @@ class Structure:
             if d.id.lower() == name.strip().lower() or fold(d.title) == fold(name):
                 return d
         valid = ", ".join(d.id for d in self.dims)
-        raise CBSError(f"Unknown dimension '{name}'. Valid: {valid}")
+        raise UserError(f"Unknown dimension '{name}'. Valid: {valid}")
 
 
 def parse_structure(xml: bytes, agency_key: str) -> Structure:
     root = ET.fromstring(xml)
     flow = next(root.iter(S + "Dataflow"), None)
     if flow is None:
-        raise CBSError("No dataflow in structure response.")
+        raise UserError("No dataflow in structure response.")
     ann = _annotations(flow)
     concepts = {c.get("id"): _name(c) for c in root.iter(S + "Concept")}
     lists = {
@@ -194,7 +192,7 @@ async def structure(dataset_id: str, agency_name: str | None) -> Structure:
     key, base, ag = resolve_agency(agency_name)
     ds = (dataset_id or "").strip().upper()
     if not ds:
-        raise CBSError("dataset_id is required. Use eurostat_search to find one.")
+        raise UserError("dataset_id is required. Use eurostat_search to find one.")
 
     async def load():
         try:
@@ -203,7 +201,7 @@ async def structure(dataset_id: str, agency_name: str | None) -> Structure:
                 {"references": "descendants", "detail": "referencepartial"},
             )
         except NotFound:
-            raise CBSError(
+            raise UserError(
                 f"Unknown dataset '{dataset_id}' at {key}. Use eurostat_search(query, agency)."
             ) from None
         return parse_structure(resp.content, key)
@@ -332,7 +330,7 @@ async def eurostat_data(
             code = by_lc.get(v.lower())
             if code is None:
                 sample = ", ".join(list(d.codes)[:8])
-                raise CBSError(
+                raise UserError(
                     f"Unknown code '{v}' for {d.id}. Examples: {sample}. Use eurostat_codes."
                 )
             codes.append(code)

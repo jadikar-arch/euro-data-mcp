@@ -1,4 +1,4 @@
-"""Live smoke test: launch the real cbs-mcp server over stdio and exercise every tool.
+"""Live smoke test: launch the real europa-mcp server over stdio and exercise every tool.
 
 Usage: .venv/bin/python .claude/skills/test-tools/scripts/smoke.py [tool_name ...]
 Exit code 0 = all checks passed, 1 = at least one failed.
@@ -17,13 +17,14 @@ from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
 ROOT = Path(__file__).resolve().parents[4]
-SERVER = ROOT / ".venv" / "bin" / "cbs-mcp"
+SERVER = ROOT / ".venv" / "bin" / "europa-mcp"
 MAX_CHARS = 8000  # ~2k tokens; tool outputs should stay well under this
 EXPECTED_TOOLS = {
-    "search_datasets", "describe_dataset", "list_codes", "get_observations", "upcoming_releases",
+    "cbs_search", "cbs_describe", "cbs_codes", "cbs_data", "cbs_releases",
     "eurostat_search", "eurostat_describe", "eurostat_codes", "eurostat_data",
     "agri_endpoints", "agri_data", "ep_meps", "ep_votes", "ep_query",
     "dataeu_search", "dataeu_dataset", "dataeu_sparql", "dataeu_quality", "dataeu_use_cases",
+    "find_data", "country_guide",
 }
 
 Check = Callable[[str], str | None]  # returns an error message, or None when OK
@@ -71,38 +72,49 @@ def releases(out: str) -> str | None:
 
 # (tool, label, args, checks)
 CASES: list[tuple[str, str, dict, list[Check]]] = [
-    ("search_datasets", "population tables", {"query": "bevolking regio"},
+    ("cbs_search", "population tables", {"query": "bevolking regio"},
      [no_error, starts("id|title|period|status|modified"), contains("37230ned")]),
-    ("search_datasets", "limit respected", {"query": "bevolking", "limit": 3},
+    ("cbs_search", "limit respected", {"query": "bevolking", "limit": 3},
      [no_error, max_rows(3)]),
-    ("search_datasets", "no match", {"query": "xyzzyqqq"},
+    ("cbs_search", "no match", {"query": "xyzzyqqq"},
      [starts("No datasets match")]),
-    ("describe_dataset", "37230ned", {"dataset_id": "37230ned"},
+    ("cbs_describe", "37230ned", {"dataset_id": "37230ned"},
      [no_error, starts("37230ned:"), contains("RegioS|", "Perioden|", "M000098")]),
-    ("describe_dataset", "case-insensitive id", {"dataset_id": "37230NED"},
+    ("cbs_describe", "case-insensitive id", {"dataset_id": "37230NED"},
      [no_error, starts("37230ned:")]),
-    ("describe_dataset", "unknown id", {"dataset_id": "nope0000"},
+    ("cbs_describe", "unknown id", {"dataset_id": "nope0000"},
      [starts("Error: Unknown dataset")]),
-    ("list_codes", "municipality", {"dataset_id": "37230ned", "dimension": "RegioS", "query": "Amsterdam"},
+    ("cbs_codes", "municipality", {"dataset_id": "37230ned", "dimension": "RegioS", "query": "Amsterdam"},
      [no_error, contains("GM0363|Amsterdam")]),
-    ("list_codes", "alias Den Haag", {"dataset_id": "37230ned", "dimension": "RegioS", "query": "Den Haag"},
+    ("cbs_codes", "alias Den Haag", {"dataset_id": "37230ned", "dimension": "RegioS", "query": "Den Haag"},
      [no_error, contains("GM0518")]),
-    ("list_codes", "newest year", {"dataset_id": "37230ned", "dimension": "Perioden", "query": "JJ", "limit": 1},
+    ("cbs_codes", "newest year", {"dataset_id": "37230ned", "dimension": "Perioden", "query": "JJ", "limit": 1},
      [no_error, latest_year]),
-    ("list_codes", "measures", {"dataset_id": "37230ned", "dimension": "Measures", "query": "bevolking"},
+    ("cbs_codes", "measures", {"dataset_id": "37230ned", "dimension": "Measures", "query": "bevolking"},
      [no_error, contains("M000098")]),
-    ("list_codes", "bad dimension", {"dataset_id": "37230ned", "dimension": "Nope"},
+    ("cbs_codes", "bad dimension", {"dataset_id": "37230ned", "dimension": "Nope"},
      [starts("Error: Unknown dimension")]),
-    ("get_observations", "Amsterdam latest population",
+    ("cbs_data", "Amsterdam latest population",
      {"dataset_id": "37230ned", "measures": ["M000098"], "filters": {"RegioS": ["GM0363"]}, "latest": True},
      [no_error, amsterdam_population]),
-    ("get_observations", "unknown measure",
+    ("cbs_data", "unknown measure",
      {"dataset_id": "37230ned", "measures": ["M999999"], "filters": {"RegioS": ["GM0363"]}},
      [starts("Error: Unknown measure")]),
-    ("get_observations", "too broad rejected", {"dataset_id": "37230ned"},
+    ("cbs_data", "too broad rejected", {"dataset_id": "37230ned"},
      [starts("Error: query too broad")]),
-    ("upcoming_releases", "next 30 days", {"days": 30, "limit": 10},
+    ("cbs_releases", "next 30 days", {"days": 30, "limit": 10},
      [no_error, releases, max_rows(10)]),
+    ("country_guide", "nl guide", {"country": "nl"},
+     [no_error, starts("# Netherlands"), contains("cbs_search")]),
+    # Cross-source map
+    ("find_data", "house prices (EU + NL)", {"query": "house prices"},
+     [no_error, contains("## Eurostat", "prc_hpi", "## CBS", "cbs_describe(")]),
+    ("find_data", "Dutch query", {"query": "bevolking"},
+     [no_error, contains("## CBS")]),
+    ("find_data", "agri-food synonym", {"query": "pork prices"},
+     [no_error, contains("pigmeat/prices", "agri_data(")]),
+    ("find_data", "parliament", {"query": "how did MEPs vote"},
+     [no_error, contains("ep_votes(")]),
     # Eurostat family
     ("eurostat_search", "house prices", {"query": "house price index", "limit": 5},
      [no_error, starts("id|title|period|updated"), contains("prc_hpi_q"), max_rows(5)]),

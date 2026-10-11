@@ -9,7 +9,8 @@ import pytest
 import respx
 from fastmcp import Client
 
-from cbs_mcp import agrifood, dataeuropa, europarl, eurostat, server, web
+from europa_mcp import server, web
+from europa_mcp.countries.eu import agrifood, dataeuropa, europarl, eurostat
 
 ESTAT = eurostat.AGENCIES["eurostat"][0]
 

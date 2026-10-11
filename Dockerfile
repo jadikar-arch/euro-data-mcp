@@ -5,13 +5,13 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir .
 
-ENV CBS_INDEX_PATH=/data/index.db \
-    CBS_HOST=0.0.0.0 \
+ENV EUROPA_CACHE_DIR=/data \
+    EUROPA_HOST=0.0.0.0 \
     PORT=8000
 
-# Bake the search index into the image (~1 min) so the first request never waits.
-# The server keeps it current with incremental syncs at runtime.
-RUN cbs-mcp sync
+# Bake the CBS index and the find_data map into the image so the first request never waits.
+# The server keeps both current at runtime.
+RUN europa-mcp map
 
 EXPOSE 8000
-CMD ["cbs-mcp", "--transport", "http"]
+CMD ["europa-mcp", "--transport", "http"]

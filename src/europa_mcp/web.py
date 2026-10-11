@@ -10,7 +10,10 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from .client import ATTEMPTS, RETRY_STATUS, CBSError, NotFound
+from .common import NotFound, UserError
+
+RETRY_STATUS = {429, 500, 502, 503, 504}
+ATTEMPTS = 3
 
 _client: httpx.AsyncClient | None = None
 
@@ -20,7 +23,7 @@ def get_client() -> httpx.AsyncClient:
     if _client is None or _client.is_closed:
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(60.0, connect=15.0),
-            headers={"User-Agent": "cbs-mcp"},
+            headers={"User-Agent": "europa-mcp"},
             follow_redirects=True,
         )
     return _client
@@ -55,7 +58,7 @@ async def fetch(
     headers: dict[str, str] | None = None,
     timeout: float | None = None,
 ) -> httpx.Response:
-    """GET with retry; raises NotFound on 404 and CBSError on other failures."""
+    """GET with retry; raises NotFound on 404 and UserError on other failures."""
     host = urlsplit(url).netloc
     client = get_client()
     kwargs: dict[str, Any] = {"params": params, "headers": headers}
@@ -65,19 +68,19 @@ async def fetch(
         try:
             resp = await client.get(url, **kwargs)
         except httpx.TimeoutException:
-            raise CBSError(f"{host} timed out; narrow the request.") from None
+            raise UserError(f"{host} timed out; narrow the request.") from None
         except httpx.TransportError as e:
             if attempt == ATTEMPTS - 1:
-                raise CBSError(f"{host} unreachable: {type(e).__name__}") from None
+                raise UserError(f"{host} unreachable: {type(e).__name__}") from None
         else:
             if resp.status_code == 404:
                 raise NotFound(_message(resp))
             if resp.status_code < 400:
                 return resp
             if resp.status_code not in RETRY_STATUS:
-                raise CBSError(f"{host} error {resp.status_code}: {_message(resp)}")
+                raise UserError(f"{host} error {resp.status_code}: {_message(resp)}")
             if attempt == ATTEMPTS - 1:
-                raise CBSError(f"{host} error {resp.status_code} after {ATTEMPTS} attempts")
+                raise UserError(f"{host} error {resp.status_code} after {ATTEMPTS} attempts")
             retry_after = resp.headers.get("Retry-After", "")
             if retry_after.isdigit():
                 await asyncio.sleep(min(int(retry_after), 10))
@@ -94,7 +97,7 @@ async def fetch_json(url: str, params: Any = None, **kw) -> Any:
     try:
         return resp.json()
     except ValueError:
-        raise CBSError(f"{urlsplit(url).netloc} returned non-JSON ({resp.headers.get('content-type')})") from None
+        raise UserError(f"{urlsplit(url).netloc} returned non-JSON ({resp.headers.get('content-type')})") from None
 
 
 class Memo:

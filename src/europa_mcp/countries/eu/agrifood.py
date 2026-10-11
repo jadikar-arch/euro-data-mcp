@@ -6,10 +6,8 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from .client import CBSError, NotFound
-from .common import READ_ONLY, as_list, cell, compact_table, fmt_value, safe
-from .index import fold
-from .web import Memo, fetch_json
+from ...common import NotFound, READ_ONLY, UserError, as_list, cell, compact_table, fmt_value, fold, safe
+from ...web import Memo, fetch_json
 
 BASE = "https://api.tech.ec.europa.eu/agrifood"
 SPEC = Memo(ttl=24 * 3600)
@@ -53,7 +51,7 @@ def _resolve(name: str, eps: dict[str, Any]) -> str:
     if key.lower() in by_lc:
         return by_lc[key.lower()]
     near = [k for k in eps if fold(key.split("/")[0]) in fold(k)][:8]
-    raise CBSError(
+    raise UserError(
         f"Unknown endpoint '{name}'." + (f" Did you mean: {', '.join(near)}?" if near else "")
         + " See agri_endpoints."
     )
@@ -95,7 +93,7 @@ async def agri_data(endpoint: str, params: dict[str, Any] | None = None, limit: 
     for name, val in (params or {}).items():
         real = by_lc.get(name.lower())
         if real is None:
-            raise CBSError(
+            raise UserError(
                 f"Unknown param '{name}' for {key}. Valid: {', '.join(allowed) or 'none'}"
             )
         vals = as_list(val)
@@ -103,7 +101,7 @@ async def agri_data(endpoint: str, params: dict[str, Any] | None = None, limit: 
             query[real] = ",".join(vals)
     missing = [p for p, (req, _) in allowed.items() if req and p not in query]
     if missing:
-        raise CBSError(f"{key} requires: {', '.join(missing)}")
+        raise UserError(f"{key} requires: {', '.join(missing)}")
     try:
         data = await fetch_json(f"{BASE}/api/{key}", query)
     except NotFound as e:

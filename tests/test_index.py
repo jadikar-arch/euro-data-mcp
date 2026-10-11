@@ -1,4 +1,4 @@
-from cbs_mcp.index import parse_description, query_groups
+from europa_mcp.countries.nl.index import parse_description, query_groups
 
 
 def test_parse_description_splits_period_and_boilerplate():

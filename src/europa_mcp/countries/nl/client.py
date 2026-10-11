@@ -11,20 +11,13 @@ from typing import Any
 
 import httpx
 
-log = logging.getLogger("cbs_mcp")
+from ...common import NotFound, UserError
+from ...web import ATTEMPTS, RETRY_STATUS
+
+log = logging.getLogger("europa_mcp")
 
 BASE_URL = os.environ.get("CBS_BASE_URL", "https://datasets.cbs.nl/odata/v1").rstrip("/")
-RETRY_STATUS = {429, 500, 502, 503, 504}
-ATTEMPTS = 3
 SERVER_PAGE = 100_000  # rows per page before the server emits @odata.nextLink
-
-
-class CBSError(Exception):
-    """A user-facing error: the message is safe to return to the model."""
-
-
-class NotFound(CBSError):
-    pass
 
 
 _client: httpx.AsyncClient | None = None
@@ -36,7 +29,7 @@ def get_client() -> httpx.AsyncClient:
         _client = httpx.AsyncClient(
             base_url=BASE_URL,
             timeout=httpx.Timeout(30.0),
-            headers={"Accept": "application/json", "User-Agent": "cbs-mcp"},
+            headers={"Accept": "application/json", "User-Agent": "europa-mcp"},
             follow_redirects=True,
         )
     return _client
@@ -66,16 +59,16 @@ async def get_json(path: str, params: dict[str, Any] | None = None) -> dict[str,
             resp = await client.get(path, params=params)
         except httpx.TransportError as e:
             if attempt == ATTEMPTS - 1:
-                raise CBSError(f"CBS API unreachable: {type(e).__name__}") from None
+                raise UserError(f"CBS API unreachable: {type(e).__name__}") from None
         else:
             if resp.status_code == 404:
                 raise NotFound(f"Not found: {path}")
             if resp.status_code < 400:
                 return resp.json()
             if resp.status_code not in RETRY_STATUS:
-                raise CBSError(f"CBS API error {resp.status_code}: {_error_message(resp)}")
+                raise UserError(f"CBS API error {resp.status_code}: {_error_message(resp)}")
             if attempt == ATTEMPTS - 1:
-                raise CBSError(f"CBS API error {resp.status_code} after {ATTEMPTS} attempts")
+                raise UserError(f"CBS API error {resp.status_code} after {ATTEMPTS} attempts")
             retry_after = resp.headers.get("Retry-After", "")
             if retry_after.isdigit():
                 await asyncio.sleep(min(int(retry_after), 10))

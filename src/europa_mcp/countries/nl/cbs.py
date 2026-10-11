@@ -1,29 +1,23 @@
-"""FastMCP server exposing token-efficient tools over the CBS OData v4 API."""
+"""CBS (Statistics Netherlands) OData v4 tools: search, describe, codes, data, releases."""
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import logging
-import os
-import sys
 import time
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastmcp import FastMCP
 
-from . import agrifood, client, dataeuropa, europarl, eurostat, web
-from .client import CBSError, NotFound, TTLCache, eq_any, get_rows, quote
-from .common import READ_ONLY, cell, compact_table, fmt_value, safe
-from .index import CATALOG_FIELDS, Index, fold, summarize
+from ...common import READ_ONLY, NotFound, UserError, cell, compact_table, fmt_value, fold, safe, setting
+from .client import TTLCache, eq_any, get_rows, quote
+from .index import CATALOG_FIELDS, Index, summarize
 
-log = logging.getLogger("cbs_mcp")
+log = logging.getLogger("europa_mcp")
 
-REFRESH_HOURS = float(os.environ.get("CBS_INDEX_REFRESH_HOURS", "6"))
+REFRESH_HOURS = float(setting("REFRESH_HOURS", "6", legacy="CBS_INDEX_REFRESH_HOURS"))
 MAX_EST_ROWS = 100_000  # reject observation queries estimated above this
 MAX_FILTER_VALUES = 200
 FULL_CODELIST_MAX = 5_000  # above this, resolve code titles by filtered lookups
@@ -36,18 +30,6 @@ PLACE_ALIASES = {
     "friesland": "fryslan", "frisia": "fryslan",
     "netherlands": "nederland", "the netherlands": "nederland",
 }
-
-INSTRUCTIONS = (
-    "Official Dutch and EU open data.\n"
-    "- CBS (Netherlands, regional detail): search_datasets (Dutch keywords) → describe_dataset → "
-    "list_codes → get_observations.\n"
-    "- Eurostat (EU country comparisons; agency=empl/grow/taxud for DG data): eurostat_search "
-    "(English) → eurostat_describe → eurostat_codes → eurostat_data.\n"
-    "- EU agri-food prices/production: agri_endpoints → agri_data.\n"
-    "- European Parliament: ep_meps, ep_votes (plenary votes by date), ep_query (any endpoint).\n"
-    "- EU open data portal (catalogue of 1.9M datasets): dataeu_search → dataeu_dataset; "
-    "dataeu_sparql, dataeu_quality, dataeu_use_cases."
-)
 
 CACHE = TTLCache(ttl=REFRESH_HOURS * 3600)
 INDEX: Index | None = None
@@ -89,11 +71,12 @@ def get_index() -> Index:
     return INDEX
 
 
+
 async def resolve(dataset_id: str) -> Dataset:
     """Canonicalize a (case-insensitive) dataset id via the index, else the live catalog."""
     dataset_id = (dataset_id or "").strip()
     if not dataset_id:
-        raise CBSError("dataset_id is required. Use search_datasets to find one.")
+        raise UserError("dataset_id is required. Use cbs_search to find one.")
     idx = get_index()
     row = idx.get(dataset_id)
     if row is None:
@@ -106,7 +89,7 @@ async def resolve(dataset_id: str) -> Dataset:
             limit=1,
         )
         if not rows:
-            raise CBSError(f"Unknown dataset '{dataset_id}'. Use search_datasets to find one.")
+            raise UserError(f"Unknown dataset '{dataset_id}'. Use cbs_search to find one.")
         idx.ingest(rows)  # self-repair: dataset is live but was missing locally
         row = idx.get(dataset_id)
         assert row is not None
@@ -124,7 +107,7 @@ async def ds_rows(ds: Dataset, entity: str, params: dict[str, Any], limit: int |
     except NotFound:
         get_index().remove(ds.id)
         CACHE.invalidate(ds.id)
-        raise CBSError(f"Dataset {ds.id} (or {entity}) no longer exists at CBS.") from None
+        raise UserError(f"Dataset {ds.id} (or {entity}) no longer exists at CBS.") from None
 
 
 async def dimensions(ds: Dataset) -> list[Dim]:
@@ -232,7 +215,7 @@ def pick_dim(dims: list[Dim], name: str) -> Dim:
         if d.id.lower() == name.lower() or fold(d.title) == fold(name):
             return d
     valid = ", ".join(d.id for d in dims)
-    raise CBSError(f"Unknown dimension '{name}'. Valid: {valid}, Measures")
+    raise UserError(f"Unknown dimension '{name}'. Valid: {valid}, Measures")
 
 
 async def wait_for_index(timeout: float = 90.0) -> bool:
@@ -247,34 +230,16 @@ async def wait_for_index(timeout: float = 90.0) -> bool:
     return idx.count() > 0
 
 
-# ---- tools ------------------------------------------------------------------
-
-@asynccontextmanager
-async def lifespan(_server: FastMCP) -> AsyncIterator[None]:
-    ensure_sync_task()
-    try:
-        yield
-    finally:
-        await client.aclose()
-        await web.aclose()
-
-
-mcp = FastMCP("cbs", instructions=INSTRUCTIONS, lifespan=lifespan)
-for _module in (eurostat, agrifood, europarl, dataeuropa):
-    _module.register(mcp)
-
-
-@mcp.tool(annotations=READ_ONLY, output_schema=None)
 @safe
-async def search_datasets(
+async def cbs_search(
     query: str, catalog: str = "CBS", include_discontinued: bool = False, limit: int = 10
 ) -> str:
     """Find CBS tables by topic. Start here for any statistics question.
     query: Dutch topic keywords (e.g. 'bevolking regio', 'koopwoningen prijzen'); leave out
-    places and years, they are codes picked later with list_codes."""
+    places and years, they are codes picked later with cbs_codes."""
     limit = max(1, min(limit, 50))
     if not await wait_for_index():
-        raise CBSError("Search index is still being built; retry in a minute.")
+        raise UserError("Search index is still being built; retry in a minute.")
     rows, total = get_index().search(query, catalog, include_discontinued, limit)
     if not rows:
         hint = "" if include_discontinued else " or include_discontinued=true"
@@ -289,11 +254,10 @@ async def search_datasets(
     return "\n".join(lines)
 
 
-@mcp.tool(annotations=READ_ONLY, output_schema=None)
 @safe
-async def describe_dataset(dataset_id: str) -> str:
+async def cbs_describe(dataset_id: str) -> str:
     """Show a table's measures and dimensions (with code counts) before querying it.
-    Use the measure codes and dimension ids with list_codes / get_observations."""
+    Use the measure codes and dimension ids with cbs_codes / cbs_data."""
     ds = await resolve(dataset_id)
     dims, meas = await asyncio.gather(dimensions(ds), measure_codes(ds))
     counts = await asyncio.gather(*(code_count(ds, d) for d in dims))
@@ -317,13 +281,12 @@ async def describe_dataset(dataset_id: str) -> str:
     out.append(f"measures (code|title|unit), {len(meas)} total:")
     out += [f"{m['code']}|{cell(m['title'])}|{m['unit']}" for m in meas[:MAX_MEASURES_SHOWN]]
     if len(meas) > MAX_MEASURES_SHOWN:
-        out.append(f"# {len(meas) - MAX_MEASURES_SHOWN} more: list_codes(id, 'Measures', query)")
+        out.append(f"# {len(meas) - MAX_MEASURES_SHOWN} more: cbs_codes(id, 'Measures', query)")
     return "\n".join(out)
 
 
-@mcp.tool(annotations=READ_ONLY, output_schema=None)
 @safe
-async def list_codes(
+async def cbs_codes(
     dataset_id: str, dimension: str, query: str | None = None, limit: int = 50
 ) -> str:
     """Look up codes of a dimension (or 'Measures') by title, e.g. 'Amsterdam' → GM0363.
@@ -336,7 +299,7 @@ async def list_codes(
     else:
         dim = pick_dim(await dimensions(ds), dimension)
         if not dim.codes_set:
-            raise CBSError(f"Dimension '{dim.id}' has no code list.")
+            raise UserError(f"Dimension '{dim.id}' has no code list.")
         items = [
             {**c, "extra": c["group"] if dim.kind != "Time" else
              ("" if c["status"] in ("", "Definitief") else c["status"])}
@@ -364,9 +327,8 @@ async def list_codes(
     return "\n".join(lines)
 
 
-@mcp.tool(annotations=READ_ONLY, output_schema=None)
 @safe
-async def get_observations(
+async def cbs_data(
     dataset_id: str,
     measures: list[str] | None = None,
     filters: dict[str, list[str]] | None = None,
@@ -387,7 +349,7 @@ async def get_observations(
         vals = [vals] if isinstance(vals, str) else [str(v) for v in vals]
         vals = list(dict.fromkeys(v.strip() for v in vals if str(v).strip()))
         if len(vals) > MAX_FILTER_VALUES:
-            raise CBSError(f"Too many codes for {dim.id} ({len(vals)}); max {MAX_FILTER_VALUES}.")
+            raise UserError(f"Too many codes for {dim.id} ({len(vals)}); max {MAX_FILTER_VALUES}.")
         if vals:
             flt[dim.id] = vals
 
@@ -397,8 +359,8 @@ async def get_observations(
         hit = meas_by_lc.get(m.strip().lower())
         if hit is None:
             sample = ", ".join(x["code"] for x in all_meas[:8])
-            raise CBSError(
-                f"Unknown measure '{m}'. Examples: {sample}. Use list_codes(id, 'Measures', query)."
+            raise UserError(
+                f"Unknown measure '{m}'. Examples: {sample}. Use cbs_codes(id, 'Measures', query)."
             )
         sel_meas.append(hit["code"])
 
@@ -419,7 +381,7 @@ async def get_observations(
         return (
             f"Error: query too broad (~{int(est):,} rows). Add filters on: "
             f"{', '.join(open_dims + ([] if sel_meas else ['measures']))}. "
-            "Find codes with list_codes; use latest=true for the newest period."
+            "Find codes with cbs_codes; use latest=true for the newest period."
         )
 
     clauses = [eq_any(dim_id, vals) for dim_id, vals in flt.items()]
@@ -486,9 +448,8 @@ async def get_observations(
     return "\n".join(out)
 
 
-@mcp.tool(annotations=READ_ONLY, output_schema=None)
 @safe
-async def upcoming_releases(days: int = 14, limit: int = 30) -> str:
+async def cbs_releases(days: int = 14, limit: int = 30) -> str:
     """List CBS tables scheduled to get new data in the next `days` days."""
     days, limit = max(1, min(days, 90)), max(1, min(limit, 200))
     now = datetime.now(timezone.utc).replace(microsecond=0)
@@ -549,49 +510,6 @@ def ensure_sync_task() -> None:
         _sync_task = asyncio.get_running_loop().create_task(_sync_loop())
 
 
-
-
-# ---- CLI --------------------------------------------------------------------
-
-
-def main() -> None:
-    logging.basicConfig(
-        stream=sys.stderr, level=os.environ.get("CBS_LOG_LEVEL", "INFO"),
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    p = argparse.ArgumentParser(prog="cbs-mcp", description="CBS open data MCP server")
-    p.add_argument("command", nargs="?", default="serve", choices=["serve", "sync"])
-    p.add_argument("--transport", default="stdio", choices=["stdio", "http"])
-    p.add_argument("--host", default=os.environ.get("CBS_HOST", "127.0.0.1"))
-    p.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
-    p.add_argument("--full", action="store_true", help="sync: rebuild the whole index")
-    p.add_argument("--no-details", action="store_true", help="sync: skip measure/dimension titles")
-    args = p.parse_args()
-
-    if args.command == "sync":
-        async def run_sync() -> None:
-            try:
-                stats = await get_index().sync(full=args.full, details=not args.no_details)
-                log.info("sync done: %s (index: %s)", stats, get_index().path)
-            finally:
-                await client.aclose()
-
-        asyncio.run(run_sync())
-        return
-
-    if args.transport == "http":
-        from fastmcp.server.middleware.rate_limiting import RateLimitingMiddleware
-
-        rps = float(os.environ.get("CBS_RATE_LIMIT_RPS", "5"))
-        mcp.add_middleware(RateLimitingMiddleware(max_requests_per_second=rps, burst_capacity=20))
-        mcp.run(
-            transport="http", host=args.host, port=args.port, show_banner=False,
-            uvicorn_config={"log_config": None},  # use our stderr logging, not stdout
-        )
-    else:
-        mcp.run(transport="stdio", show_banner=False)
-
-
-if __name__ == "__main__":
-    main()
+def register(mcp: FastMCP) -> None:
+    for fn in (cbs_search, cbs_describe, cbs_codes, cbs_data, cbs_releases):
+        mcp.tool(annotations=READ_ONLY, output_schema=None)(fn)

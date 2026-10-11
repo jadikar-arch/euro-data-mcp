@@ -9,10 +9,8 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from .client import CBSError, NotFound
-from .common import READ_ONLY, as_list, cell, clip, safe
-from .index import fold
-from .web import Memo, fetch_json
+from ...common import NotFound, READ_ONLY, UserError, as_list, cell, clip, fold, safe
+from ...web import Memo, fetch_json
 
 BASE = "https://data.europarl.europa.eu/api/v2"
 SITE = "https://data.europarl.europa.eu/"
@@ -26,6 +24,10 @@ DROP = {"@context", "structuredLabel", "decisionAboutId_XMLLiteral", "decisionAb
         "identifierYear", "notation_codictPersonId", "upperFamilyName", "upperGivenName",
         "inverse_refers_to", "inverse_decided_on_a_realization_of"}
 MAX_LIST = 6
+# English/common names → the API's group labels (PPE, S&D, PfE, ECR, Renew, Verts/ALE, The Left, NI, ESN)
+GROUP_ALIASES = {"epp": "ppe", "greens": "verts/ale", "greens/efa": "verts/ale", "efa": "verts/ale",
+                 "left": "the left", "gue/ngl": "the left", "non-attached": "ni", "nonattached": "ni",
+                 "patriots": "pfe", "socialists": "s&d", "sd": "s&d"}
 
 SPEC = Memo(ttl=24 * 3600)
 MEPS = Memo(ttl=6 * 3600)
@@ -96,7 +98,7 @@ def match_path(endpoint: str, templates: dict[str, set[str]]) -> tuple[str, set[
                 best = (literal, params)
     if best is None:
         roots = sorted({t.split("/")[0] for t in templates})
-        raise CBSError(f"Unknown endpoint '{endpoint}'. Roots: {', '.join(roots)}")
+        raise UserError(f"Unknown endpoint '{endpoint}'. Roots: {', '.join(roots)}")
     return ep, best[1]
 
 
@@ -184,7 +186,7 @@ async def ep_meps(
     name: str | None = None, country: str | None = None, group: str | None = None, limit: int = 50
 ) -> str:
     """List current Members of the European Parliament; filter by name, country (ISO2, e.g. NL)
-    or political group (e.g. EPP, S&D, Renew). Details: ep_query('meps/{id}')."""
+    or political group (e.g. EPP, S&D, Renew, Greens). Details: ep_query('meps/{id}')."""
     meps = await current_meps()
     if name:
         words = fold(name).split()
@@ -192,7 +194,8 @@ async def ep_meps(
     if country:
         meps = [m for m in meps if m["country"].upper() == country.strip().upper()]
     if group:
-        g = fold(group).replace(" ", "")
+        g = fold(group).strip()
+        g = GROUP_ALIASES.get(g, g).replace(" ", "")
         meps = [m for m in meps if g in fold(m["group"]).replace(" ", "")]
     if not meps:
         return "No current MEPs match. For former MEPs use ep_query('meps', {'parliamentary-term': 9})."
@@ -238,7 +241,7 @@ async def ep_votes(
     """Plenary votes on a sitting day (YYYY-MM-DD): item, outcome and for/against/abstain counts.
     query filters by topic text; mep_id adds how that MEP voted (roll-call votes only)."""
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date.strip()):
-        raise CBSError("date must be YYYY-MM-DD (a plenary sitting day).")
+        raise UserError("date must be YYYY-MM-DD (a plenary sitting day).")
     try:
         decisions, titles = await sitting(date.strip())
     except NotFound:
@@ -297,7 +300,7 @@ async def ep_query(
     query: dict[str, Any] = dict(FMT)
     for k, v in (params or {}).items():
         if k not in allowed:
-            raise CBSError(f"Unknown param '{k}' for {ep}. Valid: {', '.join(sorted(allowed))}")
+            raise UserError(f"Unknown param '{k}' for {ep}. Valid: {', '.join(sorted(allowed))}")
         vals = as_list(v)
         if vals:
             query[k] = vals if len(vals) > 1 else vals[0]
