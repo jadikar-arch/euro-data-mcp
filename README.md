@@ -66,6 +66,9 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 When it says it's done, **close the window**.
 
+> The commands below download the tool straight from GitHub (it isn't on PyPI yet). While the
+> repository is private, only people with access to it can install it this way.
+
 ### Option A: Claude Desktop app
 
 1. Open Claude Desktop and go to **Settings → Developer → Edit Config**.
@@ -78,7 +81,7 @@ When it says it's done, **close the window**.
      "mcpServers": {
        "europa": {
          "command": "uvx",
-         "args": ["europa-mcp"]
+         "args": ["--from", "git+https://github.com/jadikar-arch/cbs-fastmcp-server", "europa-mcp"]
        }
      }
    }
@@ -99,7 +102,7 @@ The first time, Claude asks for permission to use the europa tools. Click **Allo
    ```json
    {
      "servers": {
-       "europa": { "type": "stdio", "command": "uvx", "args": ["europa-mcp"] }
+       "europa": { "type": "stdio", "command": "uvx", "args": ["--from", "git+https://github.com/jadikar-arch/cbs-fastmcp-server", "europa-mcp"] }
      }
    }
    ```
@@ -116,7 +119,7 @@ The first time, Claude asks for permission to use the europa tools. Click **Allo
    ```json
    {
      "mcpServers": {
-       "europa": { "type": "stdio", "command": "uvx", "args": ["europa-mcp"] }
+       "europa": { "type": "stdio", "command": "uvx", "args": ["--from", "git+https://github.com/jadikar-arch/cbs-fastmcp-server", "europa-mcp"] }
      }
    }
    ```
@@ -151,7 +154,7 @@ example `https://europa.example.com/mcp`.
 **Claude Code** (terminal):
 
 ```
-claude mcp add --transport stdio europa -- uvx europa-mcp
+claude mcp add --transport stdio europa -- uvx --from git+https://github.com/jadikar-arch/cbs-fastmcp-server europa-mcp
 ```
 
 **OpenCode**: add to `opencode.json`:
@@ -160,12 +163,12 @@ claude mcp add --transport stdio europa -- uvx europa-mcp
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "europa": { "type": "local", "command": ["uvx", "europa-mcp"], "enabled": true }
+    "europa": { "type": "local", "command": ["uvx", "--from", "git+https://github.com/jadikar-arch/cbs-fastmcp-server", "europa-mcp"], "enabled": true }
   }
 }
 ```
 
-**Any app that supports MCP:** run the command `uvx europa-mcp` (local), or connect to the web
+**Any app that supports MCP:** run the command `uvx --from git+https://github.com/jadikar-arch/cbs-fastmcp-server europa-mcp` (local), or connect to the web
 address `https://<your-server>/mcp` (online).
 
 </details>
@@ -227,7 +230,7 @@ docker run -p 8000:8000 europa-mcp  # MCP endpoint: http://<host>:8000/mcp
 Put it behind HTTPS (any cloud host such as Cloud Run, Fly.io or Railway, or a reverse proxy) and
 share `https://<host>/mcp`. No login is needed because the data is public. Requests are rate-limited
 (`EUROPA_RATE_LIMIT_RPS`, default 5 per second). To try it quickly without deploying, run
-`uvx europa-mcp --transport http` and expose it with `cloudflared tunnel --url http://localhost:8000`.
+`uv run europa-mcp --transport http` from a checkout and expose it with `cloudflared tunnel --url http://localhost:8000`.
 
 ---
 
@@ -280,10 +283,10 @@ resources to the model.
 | `agri_endpoints(query=None)` | DG AGRI agri-food endpoints (prices, production, trade, CMEF indicators) and their params, read from the OpenAPI spec. |
 | `agri_data(endpoint, params, limit=200)` | Rows from one endpoint; params are validated against the spec. |
 | `ep_meps(name, country, group, limit=50)` | Current MEPs. |
-| `ep_votes(date, query, roll_call_only, mep_id, limit=40)` | Plenary votes on a sitting day with counts, and optionally one MEP's vote. |
+| `ep_votes(date, query, roll_call_only, mep_id, language="en", limit=40)` | Plenary votes on a sitting day with counts, and optionally one MEP's vote. |
 | `ep_query(endpoint, params, language="en", limit=10, offset=0)` | Any European Parliament API v2 GET endpoint, with labels in one language and nested data compacted. |
 | `dataeu_search(query, country, format, catalogue, page, limit=10)` | Search data.europa.eu (1.9M datasets). |
-| `dataeu_dataset(dataset_id)` | Description, publisher, licence and download URLs. |
+| `dataeu_dataset(dataset_id, language="en", max_files=15)` | Description, publisher, licence and download URLs. |
 | `dataeu_sparql(query, limit=100)` | Read-only SPARQL SELECT/ASK on the portal's DCAT graph. |
 | `dataeu_quality(scope, id)` | Metadata quality (MQA) score and coverage per metric: global, country (ISO3) or catalogue. |
 | `dataeu_use_cases(query, country, sector, limit=10)` | Apps and projects built on EU open data. |
@@ -313,7 +316,7 @@ The map is rebuilt in the background every `EUROPA_REFRESH_HOURS` (default 6).
 If one source fails, its previous rows are kept. To build it by hand or export it as a CSV for review:
 
 ```bash
-uvx europa-mcp map --export source_map.csv
+uv run europa-mcp map --export source_map.csv
 ```
 
 EU sources used (one entry per API; probe findings in `countries/eu/NOTES.md`):
@@ -377,8 +380,10 @@ npx @modelcontextprotocol/inspector uv run europa-mcp
 Put the server command first. The Inspector parses flags such as `uvx --from .` as its own options.
 API findings are in each `countries/<cc>/NOTES.md`; core notes in [NOTES.md](NOTES.md).
 
-**Before the PyPI release**, the `uvx europa-mcp` commands above won't work yet. Use
-`uvx --from git+https://github.com/<you>/europa-mcp europa-mcp`, or `uvx --from /path/to/checkout europa-mcp`.
+The package is not on PyPI yet, so the setup commands above install straight from GitHub
+(`uvx --from git+https://github.com/jadikar-arch/cbs-fastmcp-server europa-mcp`). To run your own
+checkout instead, use `uvx --from /path/to/checkout europa-mcp`. Once it is published, the shorter
+`uvx europa-mcp` will work.
 
 </details>
 
