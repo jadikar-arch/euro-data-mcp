@@ -59,7 +59,14 @@ description: EU-level official data - Eurostat statistics (all EU/EEA countries)
 
 - `dataeu_search(query, country="nl", format="CSV")`: 1.9M datasets from EU and national portals.
   Use it when no statistics table fits, or the user wants files or APIs to download.
+  Filters: `category` (EU theme: HEAL, ECON, TRAN, ENVI, AGRI…), `hvd=True` (High-Value
+  Datasets only), `min_quality="good"` (metadata scoring). Each row has a short `about` text.
   `dataeu_dataset(id)` gives download URLs and licence.
+- `dataeu_facets(query, country, by="catalogue,format,category")`: counts only, no datasets.
+  Call it first on broad topics: results are noisy (Germany's 850k are mostly `gdi-de` zoning
+  plans), so pick a `catalogue`, `format` or `category` from it before `dataeu_search`.
+- `find_data` knows the ~200 portals (catalogues) by description; its `catalogue="…"` hint
+  routes a topic to the right national portal.
 - `dataeu_sparql(query)`: read-only DCAT queries (counts by publisher, format…). Don't use it
   for text search; full-text `CONTAINS` over all titles times out.
 - `dataeu_quality(scope="country", id="NLD")`: country ids are **ISO3** here.

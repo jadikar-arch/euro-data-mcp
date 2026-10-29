@@ -298,6 +298,13 @@
     },
     {
       "source": "data.europa.eu",
+      "id": "dataeu_facets",
+      "title": "Which portals, formats and themes hold open datasets on a topic (counts before searching)",
+      "keywords": "overview breakdown counts catalogues portals formats categories themes publishers licences high value datasets hvd",
+      "call": "dataeu_facets(query=\"...\", country=\"nl\")"
+    },
+    {
+      "source": "data.europa.eu",
       "id": "dataeu_sparql",
       "title": "SPARQL over the DCAT metadata graph of all EU open datasets",
       "keywords": "sparql rdf linked data dcat metadata counts publishers formats",

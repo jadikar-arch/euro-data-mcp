@@ -17,7 +17,19 @@ PORTAL = "https://data.europa.eu"
 SEARCH = f"{PORTAL}/api/hub/search"
 MQA = f"{PORTAL}/api/mqa/cache"
 USE_CASES = Memo(ttl=24 * 3600)
-SEARCH_FIELDS = "id,title,country,catalog,distributions.format,modified,issued,catalog_record"
+SEARCH_FIELDS = "id,title,description.en,country,catalog,distributions.format,modified,issued,catalog_record"
+CATEGORIES = {  # EU data themes (facet 'categories')
+    "AGRI": "Agriculture, fisheries, forestry and food", "ECON": "Economy and finance",
+    "EDUC": "Education, culture and sport", "ENER": "Energy", "ENVI": "Environment",
+    "GOVE": "Government and public sector", "HEAL": "Health", "INTR": "International issues",
+    "JUST": "Justice, legal system and public safety", "REGI": "Regions and cities",
+    "SOCI": "Population and society", "TECH": "Science and technology", "TRAN": "Transport",
+}
+QUALITY = ("excellent", "good", "sufficient")  # metadata scoring, best first ('bad' is the rest)
+FACETS = {  # dataeu_facets `by` → API facet id
+    "catalogue": "catalog", "format": "format", "category": "categories", "country": "country",
+    "publisher": "publisher", "licence": "license", "quality": "scoring",
+}
 WRITE_SPARQL = re.compile(r"\b(INSERT|DELETE|LOAD|CLEAR|DROP|CREATE|COPY|MOVE|ADD)\b", re.I)
 PREFIXES = {
     "http://www.w3.org/ns/dcat#": "dcat:", "http://purl.org/dc/terms/": "dct:",
@@ -36,6 +48,11 @@ def text(v: Any, lang: str = "en") -> str:
     if isinstance(v, list):
         return ", ".join(text(x, lang) for x in v if x)
     return str(v or "")
+
+
+def plain(v: Any, n: int) -> str:
+    """Description text without HTML tags, clipped."""
+    return clip(re.sub(r"<[^>]+>", " ", str(v or "")), n)
 
 
 def formats(ds: dict[str, Any]) -> str:
@@ -58,13 +75,21 @@ def dmy_to_iso(s: str) -> str:
     return "-".join(reversed(parts)) if len(parts) == 3 else (s or "")[:10]
 
 
-@safe
-async def dataeu_search(
-    query: str, country: str | None = None, format: str | None = None,
-    catalogue: str | None = None, page: int = 0, limit: int = 10,
-) -> str:
-    """Search 1.9M open datasets from EU institutions and national portals (data.europa.eu).
-    country: ISO2 (e.g. 'nl'); format: e.g. 'CSV'; catalogue: portal id. Details: dataeu_dataset."""
+def category_code(c: str) -> str:
+    """'heal' / 'Health' / 'transport' → EU theme code."""
+    key = c.strip().upper()
+    if key in CATEGORIES:
+        return key
+    hits = [k for k, name in CATEGORIES.items() if fold(c.strip()) in fold(name)]
+    if len(hits) != 1:
+        raise UserError(f"Unknown category '{c}'. Use one of: {', '.join(CATEGORIES)}.")
+    return hits[0]
+
+
+def search_facets(
+    country: str | None = None, format: str | None = None, catalogue: str | None = None,
+    category: str | None = None, hvd: bool = False, min_quality: str | None = None,
+) -> dict[str, list[str]]:
     facets: dict[str, list[str]] = {}
     if country:
         facets["country"] = [country.strip().lower()]
@@ -72,6 +97,28 @@ async def dataeu_search(
         facets["format"] = [format.strip().upper()]
     if catalogue:
         facets["catalog"] = [catalogue.strip()]
+    if category:
+        facets["categories"] = [category_code(category)]
+    if hvd:
+        facets["is_hvd"] = ["true"]
+    if min_quality:
+        q = min_quality.strip().lower().removesuffix("scoring")
+        if q not in QUALITY:
+            raise UserError(f"min_quality must be one of: {', '.join(QUALITY)}.")
+        facets["scoring"] = [f"{x}Scoring" for x in QUALITY[:QUALITY.index(q) + 1]]
+    return facets
+
+
+@safe
+async def dataeu_search(
+    query: str, country: str | None = None, format: str | None = None,
+    catalogue: str | None = None, category: str | None = None, hvd: bool = False,
+    min_quality: str | None = None, page: int = 0, limit: int = 10,
+) -> str:
+    """Search 1.9M open datasets from EU institutions and national portals (data.europa.eu).
+    country: ISO2; format: 'CSV'; catalogue: portal id; category: EU theme (HEAL, ECON, TRAN…);
+    hvd: High-Value Datasets only; min_quality: excellent|good|sufficient. Filters: dataeu_facets."""
+    facets = search_facets(country, format, catalogue, category, hvd, min_quality)
     limit = max(1, min(limit, 50))
     params = {
         "q": query, "filter": "dataset", "limit": limit, "page": max(0, page),
@@ -84,15 +131,49 @@ async def dataeu_search(
     rows = res.get("results") or []
     if not rows:
         return f"No datasets match '{query}'" + (f" with {facets}" if facets else "") + "."
-    lines = ["id|title|country|catalogue|formats|modified"]
+    lines = ["id|title|country|catalogue|formats|modified|about"]
     for r in rows:
         lines.append("|".join(cell(x) for x in (
             r.get("id", ""), clip(text(r.get("title")), 110), (r.get("country") or {}).get("id", ""),
             (r.get("catalog") or {}).get("id", ""), formats(r), modified(r),
+            plain((r.get("description") or {}).get("en"), 140),
         )))
     total = res.get("count") or 0
     if total > (page + 1) * limit:
         lines.append(f"# {len(rows)} of {total:,}; page={page + 1} for more or add filters")
+    return "\n".join(lines)
+
+
+@safe
+async def dataeu_facets(
+    query: str = "", by: str = "catalogue,format,category", country: str | None = None,
+    format: str | None = None, catalogue: str | None = None, category: str | None = None,
+    hvd: bool = False, min_quality: str | None = None, top: int = 10,
+) -> str:
+    """Where are the matching data.europa.eu datasets? Counts per catalogue, format, category,
+    country, publisher, licence or quality (by: comma-separated). Use it to pick dataeu_search filters."""
+    wanted = [b.strip().lower() for b in by.split(",") if b.strip()]
+    if bad := [b for b in wanted if b not in FACETS]:
+        raise UserError(f"Unknown by '{', '.join(bad)}'. Use: {', '.join(FACETS)}.")
+    facets = search_facets(country, format, catalogue, category, hvd, min_quality)
+    params: dict[str, Any] = {"filter": "dataset", "limit": 0}
+    if query:
+        params["q"] = query
+    if facets:
+        params["facets"] = json.dumps(facets)
+    data = await fetch_json(f"{SEARCH}/search", params)
+    res = (data or {}).get("result") or {}
+    found = {f.get("id"): f.get("items") or [] for f in res.get("facets") or []}
+    top = max(1, min(top, 50))
+    lines = [f"{res.get('count') or 0:,} datasets match" + (f" '{query}'" if query else "")
+             + (f" with {facets}" if facets else "")]
+    for b in wanted or list(FACETS)[:3]:
+        items = [i for i in found.get(FACETS[b], []) if i.get("count")]
+        lines.append(f"{b}|datasets|name")
+        lines += ["|".join(cell(x) for x in (i.get("id"), f"{i['count']:,}", clip(text(i.get("title")), 80)))
+                  for i in items[:top]]
+        if len(items) > top:
+            lines.append(f"# {top} of {len(items)} {b} values")
     return "\n".join(lines)
 
 
@@ -257,5 +338,5 @@ async def dataeu_use_cases(
 
 
 def register(mcp: FastMCP) -> None:
-    for fn in (dataeu_search, dataeu_dataset, dataeu_sparql, dataeu_quality, dataeu_use_cases):
+    for fn in (dataeu_search, dataeu_facets, dataeu_dataset, dataeu_sparql, dataeu_quality, dataeu_use_cases):
         mcp.tool(annotations=READ_ONLY, output_schema=None)(fn)

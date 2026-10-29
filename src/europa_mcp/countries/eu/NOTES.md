@@ -12,6 +12,8 @@ Deduplicated sources. The search URL was listed twice; `hub/repo/index.html` is 
   - Files are at `https://data.europarl.europa.eu/` + `is_exemplified_by`.
 - **data.europa.eu**:
   - Search `api/hub/search/search?q=&filter=dataset&facets={"country":["nl"],"format":["CSV"]}&includes=…&aggregation=false`; dataset detail at `/datasets/{id}`.
+  - `includes=description.en` keeps one language (10 rows: 5 KB instead of 114 KB with all 25). Values in one facet list are ORed (`scoring: [excellentScoring, goodScoring]`); facets `categories` (AGRI…TRAN), `is_hvd` ("true"), `scoring`. `limit=0` with aggregation on returns counts only.
+  - Paging stops at 10,000 hits (page×limit); beyond that only `/scroll`. So the find_data map holds the 213 catalogues (`filter=catalogue`, with `count`, description, country, homepage), not the datasets.
   - SPARQL `data.europa.eu/sparql`: 1.9M datasets, results capped at 50k rows; a `CONTAINS` scan over all titles gives a 504.
   - MQA `api/mqa/cache/{global,countries/NLD,catalogues/{id}}`: country IDs are ISO3; each metric is a score out of 7.5, and `coverage` is already a percentage. The reporter API only serves PDFs (`reporter/report/en?catalogueId=`), so link to it.
   - Use cases: `/en/export-use-cases` (CSV, 270 KB, dates dd/mm/yyyy). SHACL validation returns 503 (and is publisher tooling), so skip it. The repo API serves the same DCAT metadata as search but as slow RDF (60 s timeout), so skip it.

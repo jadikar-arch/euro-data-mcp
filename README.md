@@ -1,14 +1,19 @@
-# Europa: official European open data for your AI assistant
+# Europa: ask a question, get real European data to analyse
 
-**Ask questions about European countries in plain language, and get answers from official
-statistics and open data.**
+**European open data is hard to find, even for data scientists. Europa lets you get it by asking
+in plain language, so your AI assistant can analyse it and build dashboards on real numbers.**
 
-This tool connects AI assistants such as **Claude**, **ChatGPT**, **VS Code Copilot** and **Cursor**
-to official data sources across Europe: national statistics offices and the EU's own sources
-(Eurostat, the European Commission, the European Parliament and the EU open data portal).
+Official data about Europe and its countries is public, but it is spread across hundreds of
+portals, thousands of tables with cryptic codes, and APIs in different formats and languages.
+Finding the right table and pulling the right slice can take hours. Ask ChatGPT or Claude
+instead, and they can't fetch the data at all: they guess from old training knowledge.
 
-Without this tool, your assistant has to guess or rely on old knowledge. With it, the assistant
-looks up the **latest official figures** itself and tells you which table it used.
+Europa closes that gap. It connects AI assistants such as **Claude**, **ChatGPT**,
+**VS Code Copilot** and **Cursor** to official sources: national statistics offices and the EU's
+own sources (Eurostat, the European Commission, the European Parliament and the EU open data
+portal). You ask a question; the assistant finds the right dataset, retrieves the **latest
+official figures**, and tells you which table it used. From there it can analyse, compare,
+chart, or build a dashboard on data you can trace back to the source.
 
 ### Countries and sources
 
@@ -16,6 +21,7 @@ looks up the **latest official figures** itself and tells you which table it use
 |---|---|---|
 | 🇪🇺 **EU** | Eurostat, European Commission (labour market, tax, postal, agri-food markets), European Parliament, data.europa.eu | Comparing countries, EU totals, farm prices, how the Parliament voted, finding open datasets |
 | 🇳🇱 **Netherlands** | CBS (Statistics Netherlands) | Dutch figures down to municipality and neighbourhood |
+| 🇩🇪 **Germany** | Destatis (Federal Statistical Office) tables, GovData (168,000 open datasets) | German figures down to state and district; finding German open data files, maps and services |
 
 More countries are being added. Each country is a self-contained package with its own guide for the
 assistant (see [For developers](#for-developers)).
@@ -36,6 +42,9 @@ has the answer, just ask; the assistant first looks up which source fits best.
 | *"What do Dutch farmers get for their pigs this month?"* | Weekly EU pig prices per country |
 | *"Which Dutch MEPs are in Renew, and how did Parliament vote on 8 July?"* | MEP list and vote results from the European Parliament |
 | *"Find open datasets about air quality in the Netherlands"* | Datasets and download links from data.europa.eu |
+| *"How many people live in Bavaria?"* | **13,245,503** (31 Dec 2025), from Destatis table *12411-0010 Bevölkerung: Bundesländer* |
+| *"What was German inflation last month?"* | **+3.3%** (September 2026), from Destatis *61111-0002 Verbraucherpreisindex* |
+| *"What open data does Hamburg publish about cycling?"* | Datasets, files and map services from GovData |
 
 > **Good to know:** national sources often publish in their own language (CBS in Dutch). Your
 > assistant translates, so you can ask and get answers in English or any other language.
@@ -190,8 +199,8 @@ address `https://<your-server>/mcp` (online).
 ## Common questions
 
 **The very first question is a bit slow.**
-The first time, the tool downloads the lists of available tables (about 4,900 from CBS and 8,000
-from Eurostat) so it can search them. This takes up to a minute. Later questions are fast.
+The first time, the tool downloads the lists of available tables (about 4,900 from CBS, 8,000
+from Eurostat and 3,000 from Destatis) so it can search them. This takes up to a minute. Later questions are fast.
 
 **The assistant says it can't find the tools.**
 - Restart the app completely after changing the settings.
@@ -250,9 +259,11 @@ src/europa_mcp/
     __init__.py     COUNTRIES registry and the country contract
     eu/             Eurostat + DGs, agri-food, European Parliament, data.europa.eu
     nl/             CBS (OData client, local search index, tools)
+    de/             GovData (CKAN catalogue) and Destatis GENESIS tables
   skills/
     eu/SKILL.md     guide for the assistant: when to use which source, workflow, codes, pitfalls
     nl/SKILL.md
+    de/SKILL.md
 ```
 
 Each `countries/<cc>/` package exposes `CODE`, `NAME`, `HINTS` (its `hints.json`), `SYNONYMS`,
@@ -285,11 +296,16 @@ resources to the model.
 | `ep_meps(name, country, group, limit=50)` | Current MEPs. |
 | `ep_votes(date, query, roll_call_only, mep_id, language="en", limit=40)` | Plenary votes on a sitting day with counts, and optionally one MEP's vote. |
 | `ep_query(endpoint, params, language="en", limit=10, offset=0)` | Any European Parliament API v2 GET endpoint, with labels in one language and nested data compacted. |
-| `dataeu_search(query, country, format, catalogue, page, limit=10)` | Search data.europa.eu (1.9M datasets). |
+| `dataeu_search(query, country, format, catalogue, category, hvd, min_quality, page, limit=10)` | Search data.europa.eu (1.9M datasets) with a short description per row. |
+| `dataeu_facets(query, by, country, format, catalogue, category, hvd, min_quality, top=10)` | Dataset counts per catalogue, format, category, country, publisher, licence or quality, for picking filters. |
 | `dataeu_dataset(dataset_id, language="en", max_files=15)` | Description, publisher, licence and download URLs. |
 | `dataeu_sparql(query, limit=100)` | Read-only SPARQL SELECT/ASK on the portal's DCAT graph. |
 | `dataeu_quality(scope, id)` | Metadata quality (MQA) score and coverage per metric: global, country (ISO3) or catalogue. |
 | `dataeu_use_cases(query, country, sector, limit=10)` | Apps and projects built on EU open data. |
+| `govdata_search(query, theme, publisher, format, level, page=0, limit=10)` | Search GovData, Germany's open data catalogue (168k datasets, German titles; English terms are translated). Filters: DCAT theme (`envi`, `soci`…), publisher, file format, level (federal/state/district/municipality). |
+| `govdata_dataset(dataset_id, max_files=15)` | Description, publisher, licence, level and numbered files. |
+| `govdata_preview(dataset_id, file=1, limit=20)` | First rows of a CSV or JSON file (reads at most 1 MB). |
+| `govdata_table(table_id, query, last_n, limit=100)` | Values of a Destatis GENESIS table (e.g. `12411-0010`), newest first, filtered by label words. |
 
 ### Source map (`find_data`)
 
@@ -306,10 +322,12 @@ enriched from the best signal it has:
 | Agri-food | ~40 data endpoints | OpenAPI tag and summary, plus the values of the sector's code lookups (e.g. *Durum wheat*, *Feed barley* for `cereal/*`) |
 | European Parliament | ~20 list endpoints + `ep_meps`/`ep_votes` | OpenAPI tag and description |
 | data.europa.eu | its 4 tools | Hand-written |
+| Destatis | ~3,000 GENESIS tables | Theme from GovData groups, keywords from the dataset tags (regions, statistic, measures) |
+| GovData | 13 themes + ~200 theme × publisher slices | 168k datasets are too many for one row each, so each row says what kind of data a publisher has on a theme (*Environment data from Land Schleswig-Holstein: 4,210 datasets*), with its top tags and formats and a ready `govdata_search` call |
 
 Hand-written metadata lives in each country's `hints.json`: source descriptions, extra keywords,
 and synonyms (e.g. *pork → pigmeat*, *huizenprijzen → house prices*). Search also expands
-English ↔ local-language terms through each country's `SYNONYMS` (for NL, the CBS synonym list), so Dutch queries find Eurostat datasets and English
+English ↔ local-language terms through each country's `SYNONYMS` (for NL, the CBS synonym list; for DE, a German list in `countries/de/__init__.py`), so Dutch queries find Eurostat datasets and English
 queries find CBS tables. Matches on the user's own words rank above synonym matches.
 
 The map is rebuilt in the background every `EUROPA_REFRESH_HOURS` (default 6).
@@ -328,6 +346,13 @@ EU sources used (one entry per API; probe findings in `countries/eu/NOTES.md`):
 | Agri-food (DG AGRI) | `https://api.tech.ec.europa.eu/agrifood/api` |
 | European Parliament | `https://data.europarl.europa.eu/api/v2` |
 | data.europa.eu search, SPARQL, MQA, use cases | `https://data.europa.eu/api/hub/search`, `/sparql`, `/api/mqa/cache`, `/en/export-use-cases` |
+
+German sources (probe findings in `countries/de/NOTES.md`):
+
+| Source | Base URL |
+|---|---|
+| GovData (CKAN action API) | `https://ckan.govdata.de/api/3/action` |
+| Destatis GENESIS table downloads (keyless CSV) | `https://genesis.destatis.de/genesisWS/downloads/00/tables/<id>_00.csv` |
 
 Not wrapped: the data.europa.eu registry (`/api/hub/repo`) serves the same metadata as search, but as slow RDF. The MQA reporter only serves PDFs, so `dataeu_quality` links to it instead. SHACL validation is publisher tooling and currently returns 503.
 
@@ -389,7 +414,7 @@ checkout instead, use `uvx --from /path/to/checkout europa-mcp`. Once it is publ
 
 ---
 
-*Data: [CBS Statistics Netherlands](https://www.cbs.nl) (CC BY 4.0); [Eurostat](https://ec.europa.eu/eurostat),
+*Data: [CBS Statistics Netherlands](https://www.cbs.nl) (CC BY 4.0); [Destatis](https://www.destatis.de) and [GovData](https://www.govdata.de) (Datenlizenz Deutschland or the licence given per dataset); [Eurostat](https://ec.europa.eu/eurostat),
 the European Commission, the [European Parliament](https://data.europarl.europa.eu) and
 [data.europa.eu](https://data.europa.eu) (reuse authorised under the Commission's reuse policy /
 CC BY 4.0). This project is not affiliated with any of these organisations.*

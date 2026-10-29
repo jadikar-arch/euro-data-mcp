@@ -1,0 +1,10 @@
+{
+  "_comment": "Hand-written metadata for German sources, used to build the find_data map. English→German terms live in SYNONYMS in __init__.py.",
+  "sources": {
+    "Destatis": "Germany only; official statistics tables (GENESIS) for Germany, states and districts; German titles",
+    "GovData": "Germany's open data catalogue: 168k datasets from federal, state and municipal publishers (files, maps, APIs); German titles"
+  },
+  "synonyms": {},
+  "keywords": {},
+  "entries": []
+}

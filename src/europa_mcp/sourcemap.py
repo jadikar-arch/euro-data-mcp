@@ -88,12 +88,12 @@ def merge_synonyms(
     syn: dict[str, list[str]] = {}
     for table in to_local:
         for en, local in table.items():
-            syn.setdefault(en, []).extend(local)
-            for word in local:
-                syn.setdefault(word, []).append(en)
+            syn.setdefault(fold(en), []).extend(local)
+            for word in local:  # keys folded like query tokens ('bevölkerung' → 'bevolkerung')
+                syn.setdefault(fold(word), []).append(en)
     for table in extra:
         for k, v in table.items():
-            syn.setdefault(k, []).extend(v)
+            syn.setdefault(fold(k), []).extend(v)
     return syn
 
 

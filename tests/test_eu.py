@@ -10,7 +10,7 @@ import respx
 from fastmcp import Client
 
 from europa_mcp import server, web
-from europa_mcp.countries.eu import agrifood, dataeuropa, europarl, eurostat
+from europa_mcp.countries.eu import agrifood, dataeuropa, europarl, eurostat, mapping
 
 ESTAT = eurostat.AGENCIES["eurostat"][0]
 
@@ -328,8 +328,25 @@ def test_match_path_prefers_literal_segments():
 @pytest.fixture
 def fake_portal():
     with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{dataeuropa.SEARCH}/search", params={"filter": "catalogue"}).respond(200, json={"result": {
+            "results": [
+                {"id": "govdata", "title": {"en": "GovData"}, "count": 169190,
+                 "description": {"de": "Das Datenportal für Deutschland", "en": "The data portal for Germany"},
+                 "language": [{"id": "de"}], "country": {"label": "Germany"}, "source_type": "dcat-ap",
+                 "publisher": {"name": "GKSt GovData"}, "homepage": "https://www.govdata.de",
+                 "modified": "2026-10-01T08:00:00Z"},
+                {"id": "empty", "title": {"en": "Empty"}, "count": 0},
+            ]}})
+        mock.get(f"{dataeuropa.SEARCH}/search", params={"limit": "0"}).respond(200, json={"result": {
+            "count": 5291, "results": [], "facets": [
+                {"id": "catalog", "items": [{"id": "dataportaal", "title": "Dataportaal", "count": 3356},
+                                            {"id": "ngr-nl", "title": "Georegister", "count": 1874},
+                                            {"id": "none", "title": "Nothing", "count": 0}]},
+                {"id": "categories", "items": [{"id": "ENVI", "title": {"en": "Environment"}, "count": 943}]},
+            ]}})
         search = mock.get(f"{dataeuropa.SEARCH}/search").respond(200, json={"result": {"count": 1806, "results": [{
             "id": "4420-food-prices", "title": {"nl": "Voedselprijzen", "en": "Food prices"},
+            "description": {"en": "<p>Average consumer prices | per product.</p>"},
             "country": {"id": "nl"}, "catalog": {"id": "dataportaal"},
             "distributions": [{"format": {"id": "JSON"}}, {"format": {"id": "JSON"}}, {"format": {"id": "CSV"}}],
             "catalog_record": {"modified": "2026-08-12T00:06:15Z"},
@@ -367,11 +384,37 @@ async def test_dataeu_search(fake_portal):
     search, _ = fake_portal
     out = await call("dataeu_search", query="food prices", country="NL", format="csv", limit=1)
     assert out.splitlines() == [
-        "id|title|country|catalogue|formats|modified",
-        "4420-food-prices|Food prices|nl|dataportaal|JSON,CSV|2026-08-12",
+        "id|title|country|catalogue|formats|modified|about",
+        "4420-food-prices|Food prices|nl|dataportaal|JSON,CSV|2026-08-12|Average consumer prices / per product.",
         "# 1 of 1,806; page=1 for more or add filters",
     ]
     assert json.loads(search.calls.last.request.url.params["facets"]) == {"country": ["nl"], "format": ["CSV"]}
+    await call("dataeu_search", query="x", category="food")
+    assert json.loads(search.calls.last.request.url.params["facets"]) == {"categories": ["AGRI"]}
+    await call("dataeu_search", query="x", category="health", hvd=True, min_quality="Good")
+    assert json.loads(search.calls.last.request.url.params["facets"]) == {
+        "categories": ["HEAL"], "is_hvd": ["true"], "scoring": ["excellentScoring", "goodScoring"]}
+    assert (await call("dataeu_search", query="x", category="space")).startswith("Error: Unknown category 'space'")
+    assert (await call("dataeu_search", query="x", min_quality="top")).startswith("Error: min_quality must be")
+
+
+async def test_dataeu_facets(fake_portal):
+    out = await call("dataeu_facets", query="air quality", country="nl", by="catalogue,category", top=1)
+    assert out.splitlines() == [
+        "5,291 datasets match 'air quality' with {'country': ['nl']}",
+        "catalogue|datasets|name", "dataportaal|3,356|Dataportaal", "# 1 of 2 catalogue values",
+        "category|datasets|name", "ENVI|943|Environment",
+    ]
+    assert (await call("dataeu_facets", by="size")).startswith("Error: Unknown by 'size'")
+
+
+async def test_dataeu_catalogue_map(fake_portal):
+    assert await mapping.build_dataeu() == [{
+        "source": "data.europa.eu", "id": "govdata", "title": "GovData: 169,190 datasets",
+        "path": "data.europa.eu > Germany",
+        "keywords": "The data portal for Germany Das Datenportal für Deutschland GKSt GovData govdata.de dcat-ap Germany",
+        "period": "", "updated": "2026-10-01", "call": 'dataeu_search("...", catalogue="govdata")',
+    }]
 
 
 async def test_dataeu_dataset(fake_portal):

@@ -23,7 +23,8 @@ EXPECTED_TOOLS = {
     "cbs_search", "cbs_describe", "cbs_codes", "cbs_data", "cbs_releases",
     "eurostat_search", "eurostat_describe", "eurostat_codes", "eurostat_data",
     "agri_endpoints", "agri_data", "ep_meps", "ep_votes", "ep_query",
-    "dataeu_search", "dataeu_dataset", "dataeu_sparql", "dataeu_quality", "dataeu_use_cases",
+    "dataeu_search", "dataeu_facets", "dataeu_dataset", "dataeu_sparql", "dataeu_quality", "dataeu_use_cases",
+    "govdata_search", "govdata_dataset", "govdata_preview", "govdata_table",
     "find_data", "country_guide",
 }
 
@@ -148,6 +149,10 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
     # data.europa.eu
     ("dataeu_search", "NL datasets", {"query": "air quality", "country": "nl", "limit": 5},
      [no_error, starts("id|title|country"), max_rows(6)]),
+    ("dataeu_search", "health, good quality", {"query": "hospital", "category": "health", "min_quality": "good", "limit": 3},
+     [no_error, starts("id|title|country|catalogue|formats|modified|about"), max_rows(4)]),
+    ("dataeu_facets", "NL air quality by catalogue", {"query": "air quality", "country": "nl", "by": "catalogue,format", "top": 5},
+     [no_error, contains("datasets match", "catalogue|datasets|name", "format|datasets|name")]),
     ("dataeu_sparql", "format counts",
      {"query": "SELECT ?f (COUNT(*) AS ?n) WHERE { ?d <http://purl.org/dc/terms/format> ?f } GROUP BY ?f ORDER BY DESC(?n)", "limit": 3},
      [no_error, starts("f|n")]),
@@ -157,6 +162,29 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
      [no_error, contains("score", "metric|level")]),
     ("dataeu_use_cases", "Dutch use cases", {"country": "Netherlands", "limit": 3},
      [no_error, max_rows(4)]),
+    # Germany: GovData catalogue + Destatis GENESIS tables
+    ("country_guide", "de guide", {"country": "de"},
+     [no_error, starts("# Germany"), contains("govdata_table")]),
+    ("find_data", "German query", {"query": "Bevölkerung Bundesländer"},
+     [no_error, contains("## Destatis", 'govdata_table("12411-0010")')]),
+    ("find_data", "GovData slice", {"query": "groundwater measurements", "sources": ["GovData"]},
+     [no_error, contains("govdata_search(")]),
+    ("govdata_search", "English terms translated", {"query": "population berlin", "limit": 5},
+     [no_error, contains("id|title"), contains("berlin"), max_rows(6)]),
+    ("govdata_search", "Destatis values column", {"query": "Bevölkerung Bundesländer", "publisher": "statistisches", "limit": 5},
+     [no_error, contains('govdata_table("')]),
+    ("govdata_search", "bad theme", {"query": "x", "theme": "space"},
+     [starts("Error: Unknown theme")]),
+    ("govdata_dataset", "Destatis dataset", {"dataset_id": "umgeschlagene-guter-umgeschlagene-container-binnenschifffahrt-bundeslander-monate"},
+     [no_error, contains('values: govdata_table("46321-0101")', "files (n|format|name|url)")]),
+    ("govdata_preview", "Destatis file redirects", {"dataset_id": "umgeschlagene-guter-umgeschlagene-container-binnenschifffahrt-bundeslander-monate"},
+     [contains('govdata_table("46321-0101")')]),
+    ("govdata_table", "population by state", {"table_id": "12411-0010", "query": "Bayern", "last_n": 2},
+     [no_error, contains("fixed: label=Bayern", "Stichtag 31.12."), max_rows(8)]),
+    ("govdata_table", "CPI monthly", {"table_id": "61111-0002", "last_n": 1},
+     [no_error, contains("Verbraucherpreisindex 2020=100|")]),
+    ("govdata_table", "unknown table", {"table_id": "99999-9999"},
+     [starts("Error: Unknown Destatis table")]),
 ]
 
 

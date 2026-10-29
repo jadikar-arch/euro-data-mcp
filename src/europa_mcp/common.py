@@ -41,12 +41,14 @@ class NotFound(UserError):
     pass
 
 
-# Query words that never help ranking (English + Dutch; extend per language as countries are added).
+# Query words that never help ranking (English + Dutch + German; extend per language as countries are added).
 STOPWORDS = set(
     "de het een en van in op voor met per naar over bij uit door is zijn wat hoe hoeveel welke "
     "the a an and of in on for with per to by from is are what how many much which latest "
     "recent current newest number total data statistics cbs nederland netherlands dutch "
-    "aantal cijfers gegevens tabel hoeveelheid".split()
+    "aantal cijfers gegevens tabel hoeveelheid "
+    "der die das des dem den und oder fur vom im mit wie viel viele welche zahl anzahl daten "
+    "deutschland germany german destatis govdata".split()
 )
 
 

@@ -36,6 +36,7 @@ checks the tool list, then calls each tool with happy-path and error cases:
 | ep_* | Dutch MEPs, roll-call votes on a sitting day, adopted-text search |
 | find_data / country_guide | house prices (EU + NL), Dutch query, agri-food synonym, parliament; nl guide |
 | dataeu_* | search, SPARQL (and write rejected), quality for NLD, use cases |
+| govdata_* | English query translated, Destatis values column, bad theme, Destatis dataset/preview redirect, population by state, CPI, unknown table; de guide and German find_data |
 
 Every response must also stay under ~2k tokens. The first run can take up to a minute or two
 while the search index builds.

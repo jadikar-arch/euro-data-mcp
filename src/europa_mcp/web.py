@@ -100,6 +100,27 @@ async def fetch_json(url: str, params: Any = None, **kw) -> Any:
         raise UserError(f"{urlsplit(url).netloc} returned non-JSON ({resp.headers.get('content-type')})") from None
 
 
+async def fetch_prefix(url: str, max_bytes: int) -> tuple[bytes, bool, str]:
+    """The first `max_bytes` of a file (no retries): (body, truncated, content type)."""
+    host = urlsplit(url).netloc
+    try:
+        async with get_client().stream("GET", url) as resp:
+            if resp.status_code == 404:
+                raise NotFound(f"{host}: file not found")
+            if resp.status_code >= 400:
+                raise UserError(f"{host} error {resp.status_code}")
+            body = b""
+            async for chunk in resp.aiter_bytes():
+                body += chunk
+                if len(body) > max_bytes:
+                    return body[:max_bytes], True, resp.headers.get("content-type", "")
+            return body, False, resp.headers.get("content-type", "")
+    except httpx.TimeoutException:
+        raise UserError(f"{host} timed out.") from None
+    except httpx.TransportError as e:
+        raise UserError(f"{host} unreachable: {type(e).__name__}") from None
+
+
 class Memo:
     """Async TTL memo with per-key locks so concurrent callers share one download."""
 

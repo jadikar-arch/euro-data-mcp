@@ -28,6 +28,7 @@ def map_builders():
         "DG": mapping.build_dg,
         "Agrifood": mapping.build_agrifood,
         "European Parliament": mapping.build_europarl,
+        "data.europa.eu": mapping.build_dataeu,
         "eu-curated": mapping.build_curated,
     }
 

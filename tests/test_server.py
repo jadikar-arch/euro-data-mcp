@@ -18,7 +18,8 @@ async def test_tools_listed_with_short_docs(index):
         "cbs_search", "cbs_describe", "cbs_codes", "cbs_data", "cbs_releases",
         "eurostat_search", "eurostat_describe", "eurostat_codes", "eurostat_data",
         "agri_endpoints", "agri_data", "ep_meps", "ep_votes", "ep_query",
-        "dataeu_search", "dataeu_dataset", "dataeu_sparql", "dataeu_quality", "dataeu_use_cases",
+        "dataeu_search", "dataeu_facets", "dataeu_dataset", "dataeu_sparql", "dataeu_quality", "dataeu_use_cases",
+        "govdata_search", "govdata_dataset", "govdata_preview", "govdata_table",
         "find_data", "country_guide",
     }
     for t in tools.values():
@@ -117,7 +118,7 @@ async def test_country_guides_served_as_tool_and_skill_resources():
     assert (await call("country_guide", country="xx")).startswith("Unknown country. Available: eu")
     async with Client(server.mcp) as c:
         uris = {str(r.uri) for r in await c.list_resources()}
-        assert {"skill://nl/SKILL.md", "skill://eu/SKILL.md"} <= uris
+        assert {"skill://nl/SKILL.md", "skill://eu/SKILL.md", "skill://de/SKILL.md"} <= uris
         text = (await c.read_resource("skill://nl/SKILL.md"))[0].text
     assert "cbs_search" in text
 

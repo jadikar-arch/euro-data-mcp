@@ -6,11 +6,12 @@ import asyncio
 import csv
 import logging
 import re
+from urllib.parse import urlparse
 
 from ...common import clip
 from ...sourcemap import Entry, keyword_hint, words_of
 from ...web import fetch, fetch_json
-from . import HINTS, agrifood, europarl, eurostat
+from . import HINTS, agrifood, dataeuropa, europarl, eurostat
 
 log = logging.getLogger("europa_mcp")
 
@@ -141,6 +142,33 @@ async def build_europarl() -> list[Entry]:
             "keywords": f"{words_of(ep)} {keyword_hint(kw, 'European Parliament', ep)} "
                         f"{clip(desc, 300)} {tags.get(tag, '')}",
             "period": "", "updated": "", "call": f'ep_query("{ep}")',
+        })
+    return out
+
+
+async def build_dataeu() -> list[Entry]:
+    """data.europa.eu catalogues (national/regional portals, EU bodies), so find_data can say which
+    portal to search; the 1.9M datasets themselves stay behind dataeu_search."""
+    data = await fetch_json(f"{dataeuropa.SEARCH}/search",
+                            {"filter": "catalogue", "limit": 1000, "aggregation": "false"})
+    out = []
+    for c in (data.get("result") or {}).get("results") or []:
+        n = c.get("count") or 0
+        if not n:
+            continue
+        country = (c.get("country") or {}).get("label", "")
+        desc = c.get("description") or {}
+        langs = ["en", *(lang.get("id", "") for lang in c.get("language") or [])]
+        about = " ".join(dict.fromkeys(dataeuropa.plain(desc[lang], 300) for lang in langs if desc.get(lang)))
+        site = urlparse(str(c.get("homepage") or "")).netloc.removeprefix("www.")
+        out.append({
+            "source": "data.europa.eu", "id": c["id"],
+            "title": f"{clip(dataeuropa.text(c.get('title')), 80)}: {n:,} datasets",
+            "path": f"data.europa.eu > {country}" if country else "data.europa.eu",
+            "keywords": " ".join(x for x in (
+                about, (c.get("publisher") or {}).get("name", ""), site, c.get("source_type", ""), country) if x),
+            "period": "", "updated": str(c.get("modified") or "")[:10],
+            "call": f'dataeu_search("...", catalogue="{c["id"]}")',
         })
     return out
 
