@@ -284,7 +284,7 @@ async def test_find_data_reaches_german_tables_in_english_and_german(tmp_path, f
     monkeypatch.setattr(server, "SOURCE_MAP", m)
     for q in ("population by state", "Bevölkerung Bundesländer"):
         out = await call("find_data", query=q, sources=["Destatis"])
-        assert '12411-0010|Bevölkerung: Bundesländer, Stichtag|Population and society||govdata_table("12411-0010")' in out
+        assert '|Destatis|12411-0010|Bevölkerung: Bundesländer, Stichtag|||govdata_table("12411-0010")' in out
 
 
 async def test_destatis_table_found_by_url_whatever_the_publisher(fake):

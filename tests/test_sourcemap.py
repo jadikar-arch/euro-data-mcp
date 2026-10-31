@@ -112,15 +112,78 @@ async def call(**args) -> str:
     return "".join(getattr(b, "text", "") for b in result.content)
 
 
-async def test_find_data_groups_by_source_with_next_call(smap):
+async def test_find_data_returns_a_ranked_list_for_the_user_to_choose_from(smap):
     out = await call(query="house prices")
     lines = out.splitlines()
-    assert lines[0] == "id|title|topic|period|next call"
-    assert lines[1].startswith("## Eurostat: EU/EEA country comparisons")
-    assert lines[2] == ('prc_hpi_q|House price index - quarterly data|Prices|2005-Q1–2026-Q2|'
+    assert lines[0].startswith("Ranked matches for 'house prices' (best first")
+    assert lines[1] == "rank|match|source|id|title|period|breakdowns|next call"
+    assert lines[2] == ('1|100%|Eurostat|prc_hpi_q|House price index - quarterly data|2005-Q1–2026-Q2||'
                         'eurostat_describe("prc_hpi_q")')
-    assert "## Destatis:" in out and 'govdata_table("61262-0001")' in out
+    assert any(ln.split("|")[2:4] == ["Destatis", "61262-0001"] for ln in lines[3:])
+    assert lines[-3].startswith("# sources: Eurostat = EU/EEA country comparisons")
+    assert lines[-2] == server.ASK_USER_NOTE
     assert lines[-1].startswith('# not it? dataeu_search("house prices")')
+
+
+def test_breakdowns_are_shown_to_people_choosing(tmp_path, monkeypatch):
+    m = SourceMap(tmp_path / "m.db", synonyms={})
+    m.replace("Eurostat", toc_entries(TOC, breakdowns={"prc_hpi_q": ("regional regions nuts2", "NUTS 2 regions")}))
+    rows = m.search("house prices")
+    assert rows[0]["detail"] == "NUTS 2 regions"
+    assert server.option_label(1, rows[0]) == (
+        "1. House price index - quarterly data (Eurostat prc_hpi_q; 2005-Q1–2026-Q2; by NUTS 2 regions)")
+
+
+async def choose(smap, answer, mode="auto"):
+    """Run find_data in a client that supports elicitation and answers with `answer`.
+    mode='auto' negotiates the 2026-07-28 protocol (input_required round trip); 'legacy' an older
+    one where the server asks in the middle of the call."""
+    asked = []
+
+    async def handler(message, response_type, params, context):
+        asked.append((message, params.requested_schema))
+        return answer(params.requested_schema) if callable(answer) else answer
+
+    async with Client(server.mcp, elicitation_handler=handler, mode=mode) as c:
+        r = await c.call_tool("find_data", {"query": "prices"}, raise_on_error=False)
+    return "".join(getattr(b, "text", "") for b in r.content), asked
+
+
+def options(schema) -> list[str]:
+    value = schema["properties"]["value"]
+    return value.get("enum") or [o["const"] for o in value.get("oneOf", [])]
+
+
+async def test_user_picks_a_dataset_in_older_apps_too(smap):
+    out, asked = await choose(smap, lambda schema: {"value": options(schema)[0]}, mode="legacy")
+    assert asked and out.startswith("The user chose rank 1 of ") and "\nNext call: " in out
+
+
+async def test_user_picks_a_dataset_in_the_app(smap):
+    from fastmcp.client.elicitation import ElicitResult
+
+    out, asked = await choose(smap, lambda schema: {"value": options(schema)[1]})
+    assert asked and asked[0][0] == "Which dataset should be used for 'prices'? Best matches first."
+    opts = options(asked[0][1])
+    assert opts[0].startswith("1. ") and opts[-1] == "None of these"
+    assert out.startswith("The user chose rank 2 of ") and "\nNext call: " in out
+
+    out, _ = await choose(smap, lambda schema: {"value": "None of these"})
+    assert out.startswith("The user said none of the") and 'dataeu_search("prices")' in out
+
+    out, _ = await choose(smap, ElicitResult(action="decline"))
+    assert out.startswith("Ranked matches for 'prices'") and server.CLOSED_NOTE in out
+    assert "|0%|" not in out  # a fresh ranking, not the saved state
+
+
+async def test_no_picker_when_the_app_cannot_show_one_or_ask_user_is_off(smap):
+    out = await call(query="prices")  # plain client: no elicitation capability
+    assert out.startswith("Ranked matches") and server.ASK_USER_NOTE in out
+    out, asked = await choose(smap, lambda schema: {"value": options(schema)[0]})
+    assert asked  # sanity: this client can show a picker
+    async with Client(server.mcp, elicitation_handler=lambda *a: None) as c:
+        r = await c.call_tool("find_data", {"query": "prices", "ask_user": False}, raise_on_error=False)
+    assert "".join(getattr(b, "text", "") for b in r.content).startswith("Ranked matches")
 
 
 async def test_find_data_source_filter_and_errors(smap):
@@ -171,9 +234,9 @@ def test_parse_metabase_turns_dimensions_into_breakdown_words():
         "urb_cpop1\tcities\tNL002C", "bad line",
     ])
     out = parse_metabase(text)
-    assert out["demo_r_d2jan"] == "age sex gender men women regional regions nuts2"
-    assert out["une_rt_m"] == "sex gender men women"  # EA20 is an aggregate, not a NUTS region
-    assert out["urb_cpop1"] == "cities city urban"
+    assert out["demo_r_d2jan"] == ("age sex gender men women regional regions nuts2", "age, sex, NUTS 2 regions")
+    assert out["une_rt_m"] == ("sex gender men women", "sex")  # EA20 is an aggregate, not a NUTS region
+    assert out["urb_cpop1"] == ("cities city urban", "cities")
 
 
 def test_breakdowns_route_by_region_questions(tmp_path):
@@ -184,7 +247,7 @@ def test_breakdowns_route_by_region_questions(tmp_path):
         '"        Population on 1 January by broad age group, sex and NUTS 3 region"\t"demo_r_pjanaggr3"\t"dataset"\t"01.10.2026"\t" "\t"1990"\t"2025"\t1\n'
     )
     m = SourceMap(tmp_path / "m.db", synonyms={})
-    m.replace("Eurostat", toc_entries(toc, breakdowns={"demo_r_pjanaggr3": "regional regions nuts3"}))
+    m.replace("Eurostat", toc_entries(toc, breakdowns={"demo_r_pjanaggr3": ("regional regions nuts3", "NUTS 3 regions")}))
     assert m.search("population by region")[0]["id"] == "demo_r_pjanaggr3"
 
 
@@ -223,3 +286,25 @@ def test_headline_needs_its_own_words_not_just_the_title(tmp_path):
     assert m.search("employment rate")[0]["id"] == "lfsi_emp_a"
     assert m.search("part-time employment")[0]["id"] == "tesem100"
     assert m.search("bankruptcies")[0]["id"] == "sts_rb_q"  # plural finds the singular
+
+
+def test_old_cache_gets_the_breakdown_column_and_a_rebuild(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    db = sqlite3.connect(path)
+    db.executescript("""
+        CREATE TABLE entries(source TEXT NOT NULL, id TEXT NOT NULL, title TEXT, path TEXT, keywords TEXT,
+            period TEXT, updated TEXT, call TEXT, builder TEXT NOT NULL, PRIMARY KEY(source, id));
+        CREATE TABLE map_meta(source TEXT PRIMARY KEY, built REAL, count INTEGER);
+        INSERT INTO entries VALUES('Eurostat','x','t','','','','','c','Eurostat');
+        INSERT INTO map_meta VALUES('Eurostat', 1.0, 1);""")
+    db.commit()
+    db.close()
+
+    async def build():
+        return []
+
+    m = SourceMap(path, builders={"Eurostat": build})
+    assert "detail" in {r[1] for r in m.db.execute("PRAGMA table_info(entries)")}
+    assert m.missing() == ["Eurostat"]  # rebuilt on the next ensure()

@@ -24,7 +24,8 @@ log = logging.getLogger("europa_mcp")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS entries(
     source TEXT NOT NULL, id TEXT NOT NULL, title TEXT, path TEXT, keywords TEXT,
-    period TEXT, updated TEXT, call TEXT, builder TEXT NOT NULL, PRIMARY KEY(source, id));
+    period TEXT, updated TEXT, call TEXT, builder TEXT NOT NULL, detail TEXT DEFAULT '',
+    PRIMARY KEY(source, id));
 CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
     source UNINDEXED, id UNINDEXED, title, path, keywords, builder UNINDEXED,
     tokenize='unicode61 remove_diacritics 2');
@@ -143,6 +144,10 @@ class SourceMap:
         self.db = sqlite3.connect(str(self.path), check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
+        if "detail" not in {r[1] for r in self.db.execute("PRAGMA table_info(entries)")}:  # pre-0.4 cache
+            with self.db:  # add the column and forget the builds, so the next ensure() refills it
+                self.db.execute("ALTER TABLE entries ADD COLUMN detail TEXT DEFAULT ''")
+                self.db.execute("DELETE FROM map_meta")
         self._lock = asyncio.Lock()
         self.synonyms = synonyms or {}
         self.builders = builders or {}
@@ -197,8 +202,9 @@ class SourceMap:
                     kw += " research development"
                 row = (e["source"], e["id"], e.get("title", ""), e.get("path", ""), kw)
                 self.db.execute(
-                    "INSERT OR REPLACE INTO entries VALUES(?,?,?,?,?,?,?,?,?)",
-                    (*row, e.get("period", ""), e.get("updated", ""), e.get("call", ""), builder),
+                    "INSERT OR REPLACE INTO entries(source, id, title, path, keywords, period, updated, call,"
+                    " builder, detail) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    (*row, e.get("period", ""), e.get("updated", ""), e.get("call", ""), builder, e.get("detail", "")),
                 )
                 self.db.execute("INSERT INTO entries_fts VALUES(?,?,?,?,?,?)", (*row, builder))
             self.db.execute("INSERT OR REPLACE INTO map_meta VALUES(?,?,?)", (builder, time.time(), len(entries)))
@@ -271,12 +277,12 @@ class SourceMap:
 
     def export(self, out: Path) -> int:
         rows = self.db.execute(
-            "SELECT source, id, title, path, period, updated, call, keywords FROM entries ORDER BY source, id")
+            "SELECT source, id, title, path, period, updated, call, detail, keywords FROM entries ORDER BY source, id")
         with out.open("w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["source", "id", "title", "topic_path", "period", "updated", "next_call", "keywords"])
+            w.writerow(["source", "id", "title", "topic_path", "period", "updated", "next_call", "breakdowns", "keywords"])
             n = 0
             for r in rows:
-                w.writerow([*tuple(r)[:7], clip(r["keywords"], 500)])
+                w.writerow([*tuple(r)[:8], clip(r["keywords"], 500)])
                 n += 1
         return n

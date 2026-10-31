@@ -35,12 +35,21 @@ DIM_WORDS = {
     "c_dest": "destination",
 }
 NUTS_WORDS = {1: "regional regions nuts1", 2: "regional regions nuts2", 3: "regional regions nuts3 districts"}
+# The same breakdowns as a short label for people choosing between datasets.
+DIM_LABELS = {
+    "sex": "sex", "age": "age", "nace_r2": "industry", "nace_r1": "industry", "isced11": "education",
+    "isced97": "education", "citizen": "citizenship", "c_birth": "country of birth", "partner": "partner",
+    "isco08": "occupation", "isco88": "occupation", "deg_urb": "urbanisation", "hhcomp": "household type",
+    "hhtyp": "household type", "quant_inc": "income group", "icd10": "cause", "siec": "fuel",
+    "sizeclas": "enterprise size", "size_emp": "enterprise size", "c_dest": "destination",
+}
 AGGREGATE_GEO = ("EU", "EA", "EFTA", "EEA")
 
 
-def parse_metabase(text: str) -> dict[str, str]:
-    """Eurostat metabase (dataset<TAB>dimension<TAB>code, one line per code) → dataset id → words
-    describing its breakdowns: the dimension words above plus the deepest NUTS level in `geo`."""
+def parse_metabase(text: str) -> dict[str, tuple[str, str]]:
+    """Eurostat metabase (dataset<TAB>dimension<TAB>code, one line per code) → dataset id →
+    (search words, display label) for its breakdowns: the dimensions above plus the deepest NUTS
+    level in `geo`, e.g. ('age sex … regional regions nuts2', 'age, sex, NUTS 2 regions')."""
     dims: dict[str, set[str]] = {}
     nuts: dict[str, int] = {}
     cities: set[str] = set()
@@ -60,23 +69,27 @@ def parse_metabase(text: str) -> dict[str, str]:
                 nuts[ds] = max(nuts.get(ds, 0), len(code) - 2)
         elif dim in DIM_WORDS:
             dims.setdefault(ds, set()).add(dim)
-    out: dict[str, str] = {}
+    out: dict[str, tuple[str, str]] = {}
     for ds in set(dims) | set(nuts) | cities:
-        words = [DIM_WORDS[d] for d in sorted(dims.get(ds, ()))]
+        found = sorted(dims.get(ds, ()))
+        words = [DIM_WORDS[d] for d in found]
+        labels = [DIM_LABELS[d] for d in found]
         if ds in nuts:
             words.append(NUTS_WORDS[nuts[ds]])
+            labels.append(f"NUTS {nuts[ds]} regions")
         if ds in cities:
             words.append("cities city urban")
-        out[ds] = " ".join(dict.fromkeys(" ".join(words).split()))
+            labels.append("cities")
+        out[ds] = (" ".join(dict.fromkeys(" ".join(words).split())), ", ".join(dict.fromkeys(labels)))
     return out
 
 
 def toc_entries(
-    text: str, headline: dict[str, str] | None = None, breakdowns: dict[str, str] | None = None,
+    text: str, headline: dict[str, str] | None = None, breakdowns: dict[str, tuple[str, str]] | None = None,
 ) -> list[Entry]:
     """Eurostat TOC: indentation (4 spaces per level) gives each dataset its theme path.
     `headline` (id → everyday words) marks the most-asked datasets, which find_data ranks first;
-    `breakdowns` (id → words, from parse_metabase) says how each dataset can be broken down."""
+    `breakdowns` (id → (words, label), from parse_metabase) says how each dataset can be broken down."""
     headline, breakdowns = headline or {}, breakdowns or {}
     out: dict[str, Entry] = {}
     stack: list[str] = []
@@ -97,12 +110,14 @@ def toc_entries(
                 out[code]["keywords"] += " " + path
             continue
         start, end = r[5].strip(), r[6].strip()
+        by_words, by_label = breakdowns.get(code, ("", ""))
         out[code] = {
             "source": "Eurostat", "id": code, "title": title, "path": path,
             "keywords": " ".join(x for x in (
-                code, "table" if kind == "table" else "", breakdowns.get(code, ""),
-                f"{HEADLINE_MARK} {headline[code]} {breakdowns.get(code, '')} {HEADLINE_END}" if code in headline else "",
+                code, "table" if kind == "table" else "", by_words,
+                f"{HEADLINE_MARK} {headline[code]} {by_words} {HEADLINE_END}" if code in headline else "",
             ) if x),
+            "detail": by_label,
             "period": f"{start}–{end}" if start else "", "updated": eurostat.iso_date(r[3]),
             "call": f'eurostat_describe("{code}")',
         }
@@ -117,7 +132,7 @@ async def build_eurostat() -> list[Entry]:
     )
     if isinstance(toc, BaseException):
         raise toc
-    breakdowns: dict[str, str] = {}
+    breakdowns: dict[str, tuple[str, str]] = {}
     if isinstance(meta, BaseException):  # optional enrichment: titles alone still work
         log.warning("eurostat metabase unavailable (%s); map built without breakdowns", meta)
     else:

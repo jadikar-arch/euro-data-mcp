@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import os
 import sys
@@ -18,7 +19,8 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from fastmcp import FastMCP
+import mcp.types as mcp_types
+from fastmcp import Context, FastMCP
 from fastmcp.server.providers.skills import SkillsDirectoryProvider
 
 from .common import READ_ONLY, UserError, cell, clip, fold, safe, setting
@@ -36,9 +38,10 @@ for _c in COUNTRIES:
 
 INSTRUCTIONS = (
     "Official open data from European countries and EU institutions.\n"
-    "1. Start with find_data(topic) unless you already know the dataset id: it maps a topic (any "
-    "language) to the best datasets/endpoints across all sources, with the exact next call. Several "
-    "rows can fit; choose by title, period and breakdowns (e.g. 'by NUTS 2 region').\n"
+    "1. Start with find_data(topic) unless you already know the dataset id: it ranks the best "
+    "datasets/endpoints across all sources, with the exact next call. The user chooses: in apps that "
+    "support it they pick from the list themselves; otherwise show them the ranked list (rank, title, "
+    "period, breakdowns) and wait for their choice before fetching data, unless they already named one.\n"
     "2. Before using a country's tools the first time, read its guide: country_guide(code) "
     "(also served as resource skill://<code>/SKILL.md).\n"
     "3. Every data answer ends with a 'source:' line (link + licence); pass it on to the user.\n"
@@ -107,16 +110,18 @@ mcp.add_provider(SkillsDirectoryProvider(roots=SKILLS_DIR))
 # ---- core tools ---------------------------------------------------------------
 
 
-@mcp.tool(annotations=READ_ONLY, output_schema=None)
-@safe
-async def find_data(
-    query: str, sources: list[str] | None = None, per_source: int = 3, limit: int = 12
-) -> str:
-    """Start here when unsure which source answers a question: maps a topic (any language) to the
-    best datasets/endpoints across all countries and EU sources, with the exact next call.
-    query: the topic only (e.g. 'house prices', 'pork prices', 'MEP votes'); leave out places/years."""
+NONE_OF_THESE = "None of these"
+PICK = "dataset"  # key of the input request that asks the user to pick
+CLOSED = "closed"  # the user dismissed the picker
+CLOSED_NOTE = "# The user closed the picker without choosing; ask them in the chat which dataset to use."
+ASK_USER_NOTE = ("# Show the user these options (rank, title, period, breakdowns) and let them choose before "
+                 "fetching data, unless they already named a dataset.")
+
+
+def ranked_matches(query: str, sources: list[str] | None, per_source: int, limit: int) -> list[dict[str, Any]]:
+    """Best map entries, best first: only rows nearly as relevant as the top one, at most
+    `per_source` per source so one source can't crowd out the others."""
     smap = get_map()
-    await smap.ensure()
     names = sorted({r[0] for r in smap.db.execute("SELECT DISTINCT source FROM entries")})
     wanted = None
     if sources:
@@ -124,28 +129,138 @@ async def find_data(
         if not wanted:
             raise UserError(f"Unknown sources {sources}. Valid: {', '.join(names)}")
     ranked = smap.search(query, wanted)
-    per_source, limit = max(1, min(per_source, 10)), max(1, min(limit, 40))
     best = ranked[0]["coverage"] if ranked else 0
-    picked: dict[str, list[dict[str, Any]]] = {}
+    picked, per = [], {}
     for r in ranked:
-        if r["coverage"] < best - 0.34 or sum(map(len, picked.values())) >= limit:
-            continue  # keep only rows nearly as relevant as the best one
-        rows = picked.setdefault(r["source"], [])
-        if len(rows) < per_source:
-            rows.append(r)
+        if r["coverage"] < best - 0.34 or len(picked) >= limit:
+            continue
+        if per.get(r["source"], 0) < per_source:
+            per[r["source"]] = per.get(r["source"], 0) + 1
+            picked.append(r)
+    return picked
+
+
+def match_table(query: str, rows: list[dict[str, Any]]) -> list[str]:
+    out = [f"Ranked matches for '{query}' (best first; match = share of the question's words found).",
+           "rank|match|source|id|title|period|breakdowns|next call"]
+    for n, r in enumerate(rows, 1):
+        out.append("|".join(cell(x) for x in (
+            n, f"{round(r['coverage'] * 100)}%", r["source"], r["id"], clip(r["title"], 90), r["period"],
+            clip(r.get("detail") or "", 60), r["call"],
+        )))
+    shown = dict.fromkeys(r["source"] for r in rows)
+    out.append("# sources: " + "; ".join(f"{s} = {SOURCES[s]}" for s in shown if SOURCES.get(s)))
+    return out
+
+
+def option_label(n: int, r: dict[str, Any]) -> str:
+    facts = "; ".join(x for x in (f"{r['source']} {r['id']}", r["period"],
+                                  f"by {r['detail']}" if r.get("detail") else "") if x)
+    return f"{n}. {clip(r['title'], 90)} ({facts})"
+
+
+def modern_protocol(ctx: Context) -> bool:
+    """2026-07-28 connections: no asking mid-call; the tool returns input_required instead."""
+    try:
+        return bool(ctx._is_modern_protocol())  # FastMCP has no public accessor yet
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def can_elicit(ctx: Context | None) -> bool:
+    """Does the connected app support elicitation (asking the user from the server)?"""
+    try:
+        caps = ctx.session.client_params.capabilities if ctx else None
+    except Exception:  # noqa: BLE001 - no session (e.g. called outside a request)
+        return False
+    return getattr(caps, "elicitation", None) is not None
+
+
+def chosen(choice: str, query: str, rows: list[dict[str, Any]]) -> str | None:
+    """The user's pick as the tool answer (None when the choice can't be read)."""
+    if choice == NONE_OF_THESE:
+        return (f"The user said none of the {len(rows)} matches for '{query}' fit. Ask what they need, "
+                f'or search more widely: dataeu_search("{query}").')
+    head = choice.split(".", 1)[0]
+    n = int(head) if head.isdigit() else 0
+    if not 1 <= n <= len(rows):
+        return None
+    r = rows[n - 1]
+    facts = "; ".join(x for x in (r.get("period"), f"breakdowns: {r['detail']}" if r.get("detail") else "") if x)
+    return (f"The user chose rank {n} of {len(rows)}: {r['source']} {r['id']} \"{r['title']}\""
+            + (f" ({facts})" if facts else "") + f".\nNext call: {r['call']}")
+
+
+def pick_question(query: str) -> str:
+    return f"Which dataset should be used for '{query}'? Best matches first."
+
+
+async def ask_user_to_choose(ctx: Context, query: str, rows: list[dict[str, Any]]) -> str | None:
+    """Older protocol: ask in the middle of the call. None: the user didn't answer."""
+    options = [option_label(n, r) for n, r in enumerate(rows, 1)] + [NONE_OF_THESE]
+    try:
+        res = await ctx.elicit(pick_question(query), options, response_title="Dataset")
+    except Exception as e:  # noqa: BLE001 - the client refused or failed; fall back to the list
+        log.info("elicitation failed: %s", e)
+        return None
+    if getattr(res, "action", "") != "accept":
+        return None
+    return chosen(str(getattr(res, "data", "")), query, rows)
+
+
+def input_required(query: str, rows: list[dict[str, Any]]) -> mcp_types.InputRequiredResult:
+    """2026-07-28 protocol: end this call with a question; the app asks the user and calls again."""
+    options = [option_label(n, r) for n, r in enumerate(rows, 1)] + [NONE_OF_THESE]
+    schema = {"type": "object", "required": ["value"], "properties": {
+        "value": {"type": "string", "title": "Dataset", "enum": options}}}
+    keep = ("source", "id", "title", "period", "detail", "call")
+    return mcp_types.InputRequiredResult(
+        input_requests={PICK: mcp_types.ElicitRequest(params=mcp_types.ElicitRequestFormParams(
+            message=pick_question(query), requested_schema=schema))},
+        request_state=json.dumps([{k: r.get(k) or "" for k in keep} for r in rows]),
+    )
+
+
+def answered(ctx: Context | None, query: str) -> str | None:
+    """2026-07-28 protocol, second round: the user's answer to input_required, if there is one."""
+    try:
+        responses = ctx.input_responses if ctx else None
+    except Exception:  # noqa: BLE001
+        return None
+    if not responses or PICK not in responses:
+        return None
+    rows = json.loads(ctx.request_state or "[]")
+    res = responses[PICK]
+    if getattr(res, "action", "") != "accept" or not rows:
+        return CLOSED
+    return chosen(str((getattr(res, "content", None) or {}).get("value", "")), query, rows)
+
+
+@mcp.tool(annotations=READ_ONLY, output_schema=None)
+@safe
+async def find_data(
+    query: str, sources: list[str] | None = None, per_source: int = 4, limit: int = 10,
+    ask_user: bool = True, ctx: Context | None = None,
+) -> str:
+    """Start here: ranks the best datasets/endpoints for a topic (any language) across all sources, with the
+    next call. ask_user: let the user pick in the app when it supports it; else show the ranked list and ask.
+    query: the topic only (e.g. 'house prices', 'pork prices', 'MEP votes'); leave out places/years."""
+    reply = answered(ctx, query) if ask_user else None
+    if reply is not None and reply != CLOSED:
+        return reply
+    await get_map().ensure()
+    rows = ranked_matches(query, sources, max(1, min(per_source, 10)), max(1, min(limit, 20)))
     fallback = f'# not it? dataeu_search("{query}") searches 1.9M datasets from EU and national portals'
-    if not picked:
+    if not rows:
         return f"No mapped source matches '{query}'.\n{fallback}"
-    out = ["id|title|topic|period|next call"]
-    for source, rows in picked.items():
-        out.append(f"## {source}: {SOURCES.get(source, '')}")
-        for r in rows:
-            topic = r["path"] if r["path"] != SOURCES.get(source) else ""
-            out.append("|".join(cell(x) for x in (
-                r["id"], clip(r["title"], 90), clip(topic.split(" > ", 1)[-1], 60), r["period"], r["call"],
-            )))
-    out.append(fallback)
-    return "\n".join(out)
+    if reply == CLOSED:
+        return "\n".join([*match_table(query, rows), CLOSED_NOTE, fallback])
+    if ask_user and len(rows) > 1 and can_elicit(ctx):
+        if modern_protocol(ctx):
+            return input_required(query, rows)
+        if (pick := await ask_user_to_choose(ctx, query, rows)) is not None:
+            return pick
+    return "\n".join([*match_table(query, rows), *([ASK_USER_NOTE] if len(rows) > 1 else []), fallback])
 
 
 @mcp.tool(annotations=READ_ONLY, output_schema=None)

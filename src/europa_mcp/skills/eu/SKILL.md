@@ -22,7 +22,9 @@ that link and licence with the numbers (and the dataset id), so they can check a
 
 ## Eurostat and DGs
 
-1. `find_data(topic)` or `eurostat_search(query, agency="eurostat")` (same ranking): ids such as
+1. `find_data(topic)` returns a ranked list (rank, match %, title, period, breakdowns) and lets the
+   **user** choose: a picker in apps that support it, otherwise show them the list and wait for
+   their pick before fetching. `eurostat_search(query, agency="eurostat")` uses the same ranking. Ids such as
    `prc_hpi_q`; `tps…`/`tec…`/`tes…`/`sdg_…` ids are Eurostat's curated "main tables" (few
    breakdowns, quick answers); `…_r_…`/`tgs…` ids have regions. Several rows can be right: pick by
    title, period and breakdowns, not just the first row.

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 (2026-10-31)
+
+**The user chooses the dataset**
+- `find_data` returns one ranked list across all sources: rank, match %, source, id, title,
+  period, breakdowns (e.g. "age, sex, NUTS 2 regions") and the next call, plus a legend of the sources.
+- In apps that support MCP elicitation, the ranked options open as a picker (plus "None of these")
+  and the tool continues with the user's pick. Both protocol styles are handled: the 2026-07-28
+  input-required round trip and the older in-call request. Elsewhere the list comes back with an
+  instruction to show it to the user and wait for their choice. `ask_user=False` turns this off.
+- Server instructions: no fetching before the user has chosen, unless they already named a dataset.
+- Map: new `detail` column with each dataset's breakdowns (from the Eurostat metabase); older
+  caches get the column and an immediate rebuild.
+
 ## 0.3.0 (2026-10-31)
 
 **Search: map first, then the API, measured**

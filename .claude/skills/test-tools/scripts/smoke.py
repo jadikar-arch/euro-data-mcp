@@ -55,18 +55,25 @@ def cites_source(out: str) -> str | None:
 
 
 def first_row_id(*ids: str) -> Check:
+    """find_data's rank-1 row: rank|match|source|id|…"""
     def check(out: str) -> str | None:
-        lines = out.splitlines()
-        row = next((ln for ln in lines if not ln.startswith(("id|", "##", "#"))), "")
-        return None if row.split("|")[0] in ids else f"first row {row[:60]!r}, want one of {ids}"
+        row = next((ln for ln in out.splitlines() if ln.startswith("1|")), "")
+        got = row.split("|")[3] if row.count("|") >= 3 else ""
+        return None if got in ids else f"rank 1 is {row[:70]!r}, want one of {ids}"
     return check
+
+
+def ranked(out: str) -> str | None:
+    lines = out.splitlines()
+    ok = len(lines) > 2 and lines[1] == "rank|match|source|id|title|period|breakdowns|next call"
+    return None if ok else "not a ranked list"
 
 
 # (tool, label, args, checks)
 CASES: list[tuple[str, str, dict, list[Check]]] = [
     # Cross-source map
     ("find_data", "house prices (EU + DE)", {"query": "house prices"},
-     [no_error, contains("## Eurostat", "prc_hpi")]),
+     [no_error, ranked, contains("|Eurostat|prc_hpi", "let them choose")]),
     ("find_data", "headline: unemployment rate", {"query": "unemployment rate"},
      [no_error, first_row_id("une_rt_m", "une_rt_a", "une_rt_q", "tps00203", "teilm020")]),
     ("find_data", "French query", {"query": "chômage"},
@@ -131,7 +138,7 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
     ("country_guide", "de guide", {"country": "de"},
      [no_error, starts("# Germany"), contains("govdata_table")]),
     ("find_data", "German query", {"query": "Bevölkerung Bundesländer"},
-     [no_error, contains("## Destatis", 'govdata_table("12411-0010")')]),
+     [no_error, ranked, contains("|Destatis|", 'govdata_table("12411-0010")')]),
     ("find_data", "GovData slice", {"query": "groundwater measurements", "sources": ["GovData"]},
      [no_error, contains("govdata_search(")]),
     ("govdata_search", "English terms translated", {"query": "population berlin", "limit": 5},

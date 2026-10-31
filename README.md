@@ -37,6 +37,20 @@ assistant (see [For developers](#for-developers)).
 Write the way you'd ask a colleague. You can ask in any language. If you don't know which source
 has the answer, just ask; the assistant first looks up which source fits best.
 
+**You choose the dataset.** Before fetching any numbers, Europa shows the best matching datasets,
+ranked, with how well each matches, the period it covers and how it can be broken down (by age,
+sex, region…). You pick one; then the assistant fetches it. In apps that support it (MCP
+"elicitation") the choice opens as a picker; in others the assistant lists the options and asks.
+
+```
+find_data("unemployment rate")
+rank|match|source|id|title|period|breakdowns
+1|100%|Eurostat|tps00203|Unemployment rate|2014–2025|age, sex
+2|100%|Eurostat|tgs00010|Unemployment rate by NUTS 2 region|2014–2025|age, education, sex, NUTS 2 regions
+3|100%|Eurostat|une_rt_q|Unemployment by sex and age - quarterly data|2003-Q1–2026-Q2|age, sex
+4|100%|Eurostat|une_rt_m|Unemployment by sex and age - monthly data|1983-01–2026-09|age, sex
+```
+
 | You ask | The assistant finds |
 |---|---|
 | *"Compare unemployment in Germany, France and the Netherlands"* | **4.1%, 8.5% and 4.0%** (September 2026), from Eurostat *une_rt_m Unemployment by sex and age - monthly data* |
@@ -294,7 +308,7 @@ resources to the model.
 
 | Tool | Purpose |
 |---|---|
-| `find_data(query, sources=None, per_source=3, limit=12)` | **Start here when unsure which source fits.** Searches the source map (below) and returns the best datasets/endpoints per source, each with the exact next call. |
+| `find_data(query, sources=None, per_source=4, limit=10, ask_user=True)` | **Start here.** Ranks the best datasets/endpoints across all sources (rank, match %, source, id, title, period, breakdowns, next call) and **lets the user choose**: in apps that support MCP elicitation a picker opens with the ranked options; elsewhere the assistant shows the list and asks. |
 | `country_guide(country)` | The country's skill text: sources, workflow, codes, pitfalls. |
 | `eurostat_search(query, agency="eurostat", limit=10)` | Find Eurostat datasets (English). `agency`: `eurostat`, `empl`, `grow` or `taxud` (DG dissemination APIs). |
 | `eurostat_describe(dataset_id, agency)` | Dimensions with the codes in use (SDMX `referencepartial`), period range, observation count. |
