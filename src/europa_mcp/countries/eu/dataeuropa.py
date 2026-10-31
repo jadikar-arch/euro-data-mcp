@@ -10,14 +10,16 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ...common import NotFound, READ_ONLY, UserError, cell, clip, fold, safe
+from ...common import NotFound, READ_ONLY, UserError, cell, clip, fold, safe, source_line
+from ...preview import preview
 from ...web import Memo, fetch, fetch_json
 
 PORTAL = "https://data.europa.eu"
 SEARCH = f"{PORTAL}/api/hub/search"
 MQA = f"{PORTAL}/api/mqa/cache"
 USE_CASES = Memo(ttl=24 * 3600)
-SEARCH_FIELDS = "id,title,description.en,country,catalog,distributions.format,modified,issued,catalog_record"
+SEARCH_FIELDS = "id,title,country,catalog,distributions.format,modified,issued,catalog_record"
+SORTS = {"relevance": "relevance+desc", "newest": "modified+desc"}
 CATEGORIES = {  # EU data themes (facet 'categories')
     "AGRI": "Agriculture, fisheries, forestry and food", "ECON": "Economy and finance",
     "EDUC": "Education, culture and sport", "ENER": "Energy", "ENVI": "Environment",
@@ -113,16 +115,21 @@ def search_facets(
 async def dataeu_search(
     query: str, country: str | None = None, format: str | None = None,
     catalogue: str | None = None, category: str | None = None, hvd: bool = False,
-    min_quality: str | None = None, page: int = 0, limit: int = 10,
+    min_quality: str | None = None, sort: str = "relevance", language: str = "en",
+    page: int = 0, limit: int = 10,
 ) -> str:
     """Search 1.9M open datasets from EU institutions and national portals (data.europa.eu).
-    country: ISO2; format: 'CSV'; catalogue: portal id; category: EU theme (HEAL, ECON, TRAN…);
-    hvd: High-Value Datasets only; min_quality: excellent|good|sufficient. Filters: dataeu_facets."""
+    country: ISO2; format: 'CSV'; catalogue: portal id; category: EU theme (HEAL, ECON, TRAN…); hvd: High-Value
+    only; min_quality: excellent|good|sufficient; sort: relevance|newest; language: ISO2 for titles/descriptions."""
     facets = search_facets(country, format, catalogue, category, hvd, min_quality)
+    if sort.strip().lower() not in SORTS:
+        raise UserError(f"sort must be one of: {', '.join(SORTS)}.")
+    lang = language.strip().lower()[:2] or "en"
     limit = max(1, min(limit, 50))
     params = {
-        "q": query, "filter": "dataset", "limit": limit, "page": max(0, page),
-        "aggregation": "false", "includes": SEARCH_FIELDS,
+        "q": query, "filter": "dataset", "limit": limit, "page": max(0, page), "aggregation": "false",
+        "includes": f"{SEARCH_FIELDS},description.en" + (f",description.{lang}" if lang != "en" else ""),
+        "sort": SORTS[sort.strip().lower()].replace("+", " "),
     }
     if facets:
         params["facets"] = json.dumps(facets)
@@ -134,9 +141,9 @@ async def dataeu_search(
     lines = ["id|title|country|catalogue|formats|modified|about"]
     for r in rows:
         lines.append("|".join(cell(x) for x in (
-            r.get("id", ""), clip(text(r.get("title")), 110), (r.get("country") or {}).get("id", ""),
+            r.get("id", ""), clip(text(r.get("title"), lang), 110), (r.get("country") or {}).get("id", ""),
             (r.get("catalog") or {}).get("id", ""), formats(r), modified(r),
-            plain((r.get("description") or {}).get("en"), 140),
+            plain(text(r.get("description"), lang), 140),
         )))
     total = res.get("count") or 0
     if total > (page + 1) * limit:
@@ -203,17 +210,50 @@ async def dataeu_dataset(dataset_id: str, language: str = "en", max_files: int =
     out.append(f"description: {clip(text(d.get('description'), language), 600)}")
     dists = d.get("distributions") or []
     if dists:
-        out.append("files (format|title|licence|url):")
-        for x in dists[:max_files]:
-            url = (x.get("download_url") or x.get("access_url") or [""])
-            url = url[0] if isinstance(url, list) else url
-            lic = x.get("license") or {}
+        out.append("files (n|format|title|licence|url); first rows: dataeu_preview(id, file=n):")
+        for i, x in enumerate(dists[:max_files], 1):
             out.append("|".join(cell(v) for v in (
-                (x.get("format") or {}).get("id", ""), clip(text(x.get("title"), language), 60),
-                lic.get("label") or lic.get("id") or "", url,
+                i, dist_format(x), clip(text(x.get("title"), language), 60), dist_licence(x), dist_url(x),
             )))
         if len(dists) > max_files:
             out.append(f"# {max_files} of {len(dists)} files")
+    return "\n".join(out)
+
+
+def dist_url(x: dict[str, Any]) -> str:
+    url = x.get("download_url") or x.get("access_url") or [""]
+    return str(url[0] if isinstance(url, list) and url else url or "")
+
+
+def dist_format(x: dict[str, Any]) -> str:
+    return str((x.get("format") or {}).get("id", "")) if isinstance(x.get("format"), dict) else ""
+
+
+def dist_licence(x: dict[str, Any]) -> str:
+    lic = x.get("license") or {}
+    return str(lic.get("label") or lic.get("id") or "") if isinstance(lic, dict) else str(lic)
+
+
+@safe
+async def dataeu_preview(dataset_id: str, file: int = 1, limit: int = 20) -> str:
+    """First rows of a CSV or JSON file of a data.europa.eu dataset (file = n from dataeu_dataset).
+    Use it to check the columns and values before downloading."""
+    try:
+        data = await fetch_json(f"{SEARCH}/datasets/{dataset_id.strip()}")
+    except NotFound:
+        raise UserError(f"Unknown dataset '{dataset_id}'. Use dataeu_search.") from None
+    d = (data or {}).get("result") or {}
+    dists = d.get("distributions") or []
+    if not dists:
+        raise UserError(f"Dataset '{dataset_id}' lists no files. Portal: {PORTAL}/data/datasets/{dataset_id}")
+    if not 1 <= file <= len(dists):
+        raise UserError(f"file must be 1..{len(dists)}; see dataeu_dataset('{dataset_id}').")
+    x = dists[file - 1]
+    url = dist_url(x)
+    if not url:
+        raise UserError(f"File {file} has no URL.")
+    out = await preview(f"{d.get('id')} file {file}", url, dist_format(x), limit)
+    out.append(source_line(url, dist_licence(x) or "not stated; check the publisher"))
     return "\n".join(out)
 
 
@@ -338,5 +378,6 @@ async def dataeu_use_cases(
 
 
 def register(mcp: FastMCP) -> None:
-    for fn in (dataeu_search, dataeu_facets, dataeu_dataset, dataeu_sparql, dataeu_quality, dataeu_use_cases):
+    for fn in (dataeu_search, dataeu_facets, dataeu_dataset, dataeu_preview, dataeu_sparql, dataeu_quality,
+               dataeu_use_cases):
         mcp.tool(annotations=READ_ONLY, output_schema=None)(fn)

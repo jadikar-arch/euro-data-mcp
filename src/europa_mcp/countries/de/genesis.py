@@ -14,9 +14,11 @@ from dataclasses import dataclass, field
 
 from fastmcp import FastMCP
 
-from ...common import NotFound, READ_ONLY, UserError, clip, compact_table, fold, safe
+from ...common import NotFound, READ_ONLY, UserError, clip, compact_table, fold, safe, source_line
 from ...web import Memo, fetch
 
+TABLE_PAGE = "https://www-genesis.destatis.de/genesis/online?operation=table&code={}"
+DESTATIS_LICENCE = "Datenlizenz Deutschland – Namensnennung – 2.0 (dl-de/by-2-0), © Statistisches Bundesamt (Destatis)"
 DOWNLOAD = "https://genesis.destatis.de/genesisWS/downloads/00/tables/{}_00.csv"
 TABLES = Memo(ttl=6 * 3600)
 ID_RE = re.compile(r"^\d{5}-\d{4}[A-Za-z]?$")
@@ -176,6 +178,7 @@ async def govdata_table(table_id: str, query: str | None = None, last_n: int | N
         out.append("# symbols: " + "; ".join(SYMBOLS[s] for s in sorted(used)))
     if t.notes:
         out.append("notes: " + clip(t.notes, 300))
+    out.append(source_line(TABLE_PAGE.format(tid), DESTATIS_LICENCE))
     return "\n".join(out)
 
 

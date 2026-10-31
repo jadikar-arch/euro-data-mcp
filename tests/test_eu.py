@@ -148,6 +148,8 @@ async def test_eurostat_data_table_newest_first(fake_eurostat):
     assert lines[1] == "fixed: Unit of measure=Index, 2015=100"
     assert lines[2] == "Geopolitical entity|Time|flag|value"
     assert lines[3:5] == ["Germany|2026-Q2||153.5", "Netherlands|2026-Q2|p|222.62"]
+    assert lines[-1] == ("source: https://ec.europa.eu/eurostat/databrowser/view/prc_hpi_q/default/table?lang=en"
+                         " · licence: CC BY 4.0, © European Union (Eurostat)")
     sent = fake_eurostat.calls.last.request.url.params
     assert sent.get_list("geo") == ["NL", "DE"] and sent["lastTimePeriod"] == "2"
 
@@ -200,8 +202,11 @@ async def test_agri_endpoints(fake_agri):
 
 async def test_agri_data(fake_agri):
     out = await call("agri_data", endpoint="/api/pigmeat/prices", params={"memberstatecodes": ["NL", "DE"]})
-    assert out.splitlines() == [
+    assert out.splitlines()[:-1] == [
         "fixed: unit=100 KG; weekNumber=40", "memberStateCode|price", "NL|€108.79", "DE|€155.34"]
+    assert out.splitlines()[-1] == (
+        f"source: {agrifood.BASE}/api/pigmeat/prices?memberStateCodes=NL%2CDE"
+        " · licence: CC BY 4.0, © European Union (DG AGRI agri-food data portal)")
     assert fake_agri.calls.last.request.url.params["memberStateCodes"] == "NL,DE"
     assert (await call("agri_data", endpoint="pigmeat/prices", params={"foo": 1})).startswith(
         "Error: Unknown param 'foo' for pigmeat/prices. Valid: memberStateCodes, beginDate")
@@ -279,19 +284,21 @@ def fake_ep():
 
 async def test_ep_meps_filters(fake_ep):
     out = await call("ep_meps", country="nl", group="renew")
-    assert out == "id|name|country|group\n2|Bart GROOTHUIS|NL|Renew"
+    assert out.splitlines()[:2] == ["id|name|country|group", "2|Bart GROOTHUIS|NL|Renew"]
+    assert out.splitlines()[2].startswith(f"source: {europarl.BASE}/meps/show-current · licence:")
     assert "Lara WOLTERS" in await call("ep_meps", name="wolters")
 
 
 async def test_ep_votes(fake_ep):
     out = await call("ep_votes", date="2026-07-08")
-    assert out.splitlines() == [
+    assert out.splitlines()[:-1] == [
         "topic|item|outcome|method|for|against|abstain",
         "Water resilience|After § 5|REJECTED|HAND|||",
         "Report on Ukraine|§ 41|ADOPTED|ELECTRONIC_ROLLCALL|517|102|43",
     ]
+    assert out.splitlines()[-1].startswith(f"source: {europarl.BASE}/meetings/MTG-PL-2026-07-08/decisions")
     out = await call("ep_votes", date="2026-07-08", mep_id="42")
-    assert out.splitlines()[1:] == ["Report on Ukraine|§ 41|ADOPTED|ELECTRONIC_ROLLCALL|517|102|43|against"]
+    assert out.splitlines()[1:-1] == ["Report on Ukraine|§ 41|ADOPTED|ELECTRONIC_ROLLCALL|517|102|43|against"]
     assert (await call("ep_votes", date="2026-08-01")).startswith("No plenary votes on 2026-08-01")
     assert (await call("ep_votes", date="8 July")).startswith("Error: date must be YYYY-MM-DD")
 
@@ -302,7 +309,8 @@ async def test_ep_query_compacts_documents(fake_ep):
     assert "files: https://data.europarl.europa.eu/distribution/doc/TA_en.pdf" in out
     assert "work_type: document-types/TEXT_ADOPTED" in out
     assert "eurovoc" not in out and "Huisvesting" not in out
-    assert out.endswith("# 1 of 30; use offset=1 or narrow params")
+    assert out.splitlines()[-2] == "# 1 of 30; use offset=1 or narrow params"
+    assert out.splitlines()[-1].startswith(f"source: {europarl.BASE}/adopted-texts · licence:")
     sent = fake_ep.calls.last.request.url.params
     assert sent["search-language"] == "en" and sent["format"] == "application/ld+json"
 
@@ -355,8 +363,14 @@ def fake_portal():
             "id": "4420-food-prices", "title": {"en": "Food prices"}, "description": {"en": "Average prices."},
             "country": {"label": "Netherlands"}, "quality_meas": {"scoring": 185},
             "distributions": [{"format": {"id": "CSV"}, "title": {"en": "Data"},
-                               "download_url": ["https://x/data.csv"], "license": {"label": "CC BY 4.0"}}],
+                               "download_url": ["https://x/data.csv"], "license": {"label": "CC BY 4.0"}},
+                              {"format": {"id": "PDF"}, "access_url": ["https://x/report.pdf"]},
+                              {"format": {"id": "CSV"}, "download_url": ["https://intranet.example/x.csv"]},
+                              {"format": {"id": "CSV"}, "download_url": ["https://x/moved.csv"]}],
         }})
+        mock.get("https://x/data.csv").respond(200, text="product;price\nbread;2.10\nmilk;1.05\n",
+                                               headers={"content-type": "text/csv"})
+        mock.get("https://x/moved.csv").respond(302, headers={"location": "http://rebind.example/secret.csv"})
         mock.get(f"{dataeuropa.SEARCH}/datasets/nope").respond(404, json={"message": "not found"})
         sparql = mock.get(f"{dataeuropa.PORTAL}/sparql").respond(200, json={
             "head": {"vars": ["d", "n"]},
@@ -420,7 +434,8 @@ async def test_dataeu_catalogue_map(fake_portal):
 async def test_dataeu_dataset(fake_portal):
     out = await call("dataeu_dataset", dataset_id="4420-food-prices")
     assert "country: Netherlands" in out and "quality score: 185" in out
-    assert "CSV|Data|CC BY 4.0|https://x/data.csv" in out
+    assert "1|CSV|Data|CC BY 4.0|https://x/data.csv" in out
+    assert "dataeu_preview(id, file=n)" in out
     assert await call("dataeu_dataset", dataset_id="nope") == "Error: Unknown dataset 'nope'. Use dataeu_search."
 
 
@@ -442,3 +457,32 @@ async def test_dataeu_quality_and_use_cases(fake_portal):
     out = await call("dataeu_use_cases", country="netherlands")
     assert out.splitlines()[1].startswith("New app|Netherlands|Environment|2021-02-17")
     assert "Papelea" not in out
+
+
+async def test_dataeu_search_sort_and_language(fake_portal):
+    search, _ = fake_portal
+    out = await call("dataeu_search", query="food prices", sort="newest", language="nl", limit=1)
+    sent = search.calls.last.request.url.params
+    assert sent["sort"] == "modified desc"
+    assert sent["includes"].endswith(",description.en,description.nl")
+    assert "4420-food-prices|Voedselprijzen|" in out  # title in the requested language
+    assert (await call("dataeu_search", query="x", sort="oldest")).startswith("Error: sort must be one of")
+
+
+async def test_dataeu_preview(fake_portal):
+    out = await call("dataeu_preview", dataset_id="4420-food-prices", file=1)
+    assert out.splitlines() == [
+        "4420-food-prices file 1: CSV, 2 columns", "product|price", "bread|2.10", "milk|1.05",
+        "# showing 2 of 2 rows", "source: https://x/data.csv · licence: CC BY 4.0",
+    ]
+    assert (await call("dataeu_preview", dataset_id="4420-food-prices", file=2)).startswith(
+        "Error: 4420-food-prices file 2 is PDF; only CSV/JSON")
+    assert (await call("dataeu_preview", dataset_id="4420-food-prices", file=9)).startswith("Error: file must be 1..4")
+    assert await call("dataeu_preview", dataset_id="nope") == "Error: Unknown dataset 'nope'. Use dataeu_search."
+
+
+async def test_dataeu_preview_refuses_private_hosts_and_redirects(fake_portal):
+    # A hostname that resolves to a private address, and a public URL redirecting to one.
+    for n in (3, 4):
+        out = await call("dataeu_preview", dataset_id="4420-food-prices", file=n)
+        assert out.startswith("Error: Can't preview"), out

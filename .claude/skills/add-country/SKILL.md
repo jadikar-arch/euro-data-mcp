@@ -7,7 +7,7 @@ description: Add a European country's official open data API(s) to the europa-mc
 
 Argument: the country (name or ISO 3166-1 alpha-2 code) and, if known, the API URLs.
 
-Layout of one country (copy from `templates/`; `nl` is the reference implementation):
+Layout of one country (copy from `templates/`; `de` is the reference implementation):
 
 ```
 src/europa_mcp/countries/<cc>/__init__.py   contract: CODE, NAME, HINTS, SYNONYMS, register, map_builders, start, stop
@@ -31,7 +31,7 @@ src/europa_mcp/skills/<cc>/SKILL.md         usage guide for the model (served as
   the data query syntax, paging and size limits, error shapes, the rate limit, and the languages
   the titles come in (is English available?).
 - Reuse protocol code when the API family already exists here: SDMX 2.1 / JSON-stat →
-  `countries/eu/eurostat.py` (`parse_structure`, `jsonstat_rows`); OData v4 → `countries/nl/client.py`.
+  `countries/eu/eurostat.py` (`parse_structure`, `jsonstat_rows`); plain REST/JSON → `countries/de/genesis.py`.
 - Write `NOTES.md`, then **stop and propose the tool list** to the user.
 
 ## 2. Implement

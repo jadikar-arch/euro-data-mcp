@@ -9,7 +9,7 @@ import re
 from urllib.parse import urlparse
 
 from ...common import clip
-from ...sourcemap import Entry, keyword_hint, words_of
+from ...sourcemap import HEADLINE_MARK, Entry, keyword_hint, words_of
 from ...web import fetch, fetch_json
 from . import HINTS, agrifood, dataeuropa, europarl, eurostat
 
@@ -20,8 +20,10 @@ LOOKUP_TIMEOUT = 20.0
 SKIP_LOOKUPS = ("cn8", "taric")  # customs code lists: slow (up to 90 s) and only numbers
 
 
-def toc_entries(text: str) -> list[Entry]:
-    """Eurostat TOC: indentation (4 spaces per level) gives each dataset its theme path."""
+def toc_entries(text: str, headline: dict[str, str] | None = None) -> list[Entry]:
+    """Eurostat TOC: indentation (4 spaces per level) gives each dataset its theme path.
+    `headline` (id → everyday words) marks the most-asked datasets, which find_data ranks first."""
+    headline = headline or {}
     out: dict[str, Entry] = {}
     stack: list[str] = []
     reader = csv.reader(text.splitlines(), delimiter="\t")
@@ -43,7 +45,9 @@ def toc_entries(text: str) -> list[Entry]:
         start, end = r[5].strip(), r[6].strip()
         out[code] = {
             "source": "Eurostat", "id": code, "title": title, "path": path,
-            "keywords": f"{code} {'table' if kind == 'table' else ''}".strip(),
+            "keywords": " ".join(x for x in (
+                code, "table" if kind == "table" else "", headline.get(code, ""),
+                HEADLINE_MARK if code in headline else "") if x),
             "period": f"{start}–{end}" if start else "", "updated": eurostat.iso_date(r[3]),
             "call": f'eurostat_describe("{code}")',
         }
@@ -53,7 +57,7 @@ def toc_entries(text: str) -> list[Entry]:
 async def build_eurostat() -> list[Entry]:
     base = eurostat.AGENCIES["eurostat"][0]
     resp = await fetch(f"{base}/catalogue/toc/txt", {"lang": "en"})
-    return toc_entries(resp.text)
+    return toc_entries(resp.text, HINTS["headline"].get("Eurostat"))
 
 
 async def build_dg() -> list[Entry]:

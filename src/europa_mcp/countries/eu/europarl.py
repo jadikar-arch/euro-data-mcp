@@ -9,10 +9,11 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ...common import NotFound, READ_ONLY, UserError, as_list, cell, clip, fold, safe
+from ...common import NotFound, READ_ONLY, UserError, as_list, cell, clip, fold, safe, source_line
 from ...web import Memo, fetch_json
 
 BASE = "https://data.europarl.europa.eu/api/v2"
+EP_LICENCE = "reuse authorised with attribution, © European Union (European Parliament)"
 SITE = "https://data.europarl.europa.eu/"
 FMT = {"format": "application/ld+json"}
 LANGS = {"bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "ga", "hr", "hu", "it", "lt",
@@ -205,6 +206,7 @@ async def ep_meps(
     ]
     if len(meps) > limit:
         lines.append(f"# {limit} of {len(meps)}; filter by country/group or raise limit")
+    lines.append(source_line(f"{BASE}/meps/show-current", EP_LICENCE))
     return "\n".join(lines)
 
 
@@ -281,6 +283,7 @@ async def ep_votes(
     lines = [head] + ["|".join(cell(x) for x in r) for r in rows[:limit]]
     if len(rows) > limit:
         lines.append(f"# {limit} of {len(rows)}; narrow query or raise limit")
+    lines.append(source_line(f"{BASE}/meetings/MTG-PL-{date}/decisions", EP_LICENCE))
     return "\n".join(lines)
 
 
@@ -327,6 +330,7 @@ async def ep_query(
             out.append("- " + "\n  ".join(lines))
     if total and total > offset + len(items):
         out.append(f"# {len(items)} of {total}; use offset={offset + len(items)} or narrow params")
+    out.append(source_line(f"{BASE}/{ep}", EP_LICENCE))
     return "\n".join(out)
 
 

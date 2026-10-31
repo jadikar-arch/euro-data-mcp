@@ -31,6 +31,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
 CREATE TABLE IF NOT EXISTS map_meta(source TEXT PRIMARY KEY, built REAL, count INTEGER);
 """
 CANDIDATES = 600
+HEADLINE_MARK = "zqheadline"  # token in an entry's keywords: rank first among equally good matches
+# (made-up word: Eurostat theme paths contain "Headline indicators", so a real word collides)
 PREFIX_MIN = 6  # shorter terms match whole words only ('house' must not match 'household')
 
 Entry = dict[str, str]
@@ -185,6 +187,9 @@ class SourceMap:
             SELECT e.*, bm25(entries_fts, 0, 0, 8.0, 3.0, 1.0, 0) AS score
             FROM entries_fts JOIN entries e ON e.source = entries_fts.source AND e.id = entries_fts.id
             WHERE {where} ORDER BY score LIMIT {CANDIDATES}"""
+        # Headline datasets always reach the reranking, even when a broad word ('employment')
+        # matches thousands of titles that crowd them out of the bm25 candidates.
+        headline_params = [f"keywords:{HEADLINE_MARK} AND ({expr})", *params[1:]]
 
         pats = term_regex(groups)
         own = term_regex([alts[:1] for alts in groups])  # the user's own words, no synonyms
@@ -193,11 +198,17 @@ class SourceMap:
             text = fold(text)
             return sum(bool(p.search(text)) for p in patterns)
 
-        ranked = []
-        for r in self.db.execute(sql, params):
+        ranked, seen = [], set()
+        rows = [*self.db.execute(sql, params), *self.db.execute(sql, headline_params)]
+        for r in rows:
             r = dict(r)
+            if (r["source"], r["id"]) in seen:
+                continue
+            seen.add((r["source"], r["id"]))
             text = f"{r['title']} {r['path']} {r['keywords']}"
-            key = (-hits(text), -hits(text, own), -hits(r["title"]), -hits(r["title"], own), r["score"])
+            covered = hits(text)
+            headline = covered == len(groups) and HEADLINE_MARK in r["keywords"].split()
+            key = (-covered, -headline, -hits(text, own), -hits(r["title"]), -hits(r["title"], own), r["score"])
             ranked.append((key, r))
         ranked.sort(key=lambda t: t[0])
         return [{**r, "coverage": -k[0] / len(groups)} for k, r in ranked]

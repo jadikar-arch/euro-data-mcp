@@ -6,7 +6,9 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ...common import NotFound, READ_ONLY, UserError, as_list, cell, compact_table, fmt_value, fold, safe
+from urllib.parse import urlencode
+
+from ...common import EC_LICENCE, NotFound, READ_ONLY, UserError, as_list, cell, compact_table, fmt_value, fold, safe, source_line
 from ...web import Memo, fetch_json
 
 BASE = "https://api.tech.ec.europa.eu/agrifood"
@@ -123,6 +125,8 @@ async def agri_data(endpoint: str, params: dict[str, Any] | None = None, limit: 
         lines = compact_table(cols, table, keep_last=False)
     if total > limit:
         lines.append(f"# truncated: {limit} of {total} rows; narrow params (dates, member states)")
+    url = f"{BASE}/api/{key}" + (f"?{urlencode(query)}" if query else "")
+    lines.append(source_line(url, EC_LICENCE.replace("European Union", "European Union (DG AGRI agri-food data portal)")))
     return "\n".join(lines)
 
 

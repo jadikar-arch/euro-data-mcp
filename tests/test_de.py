@@ -9,7 +9,7 @@ import pytest
 import respx
 from fastmcp import Client
 
-from europa_mcp import server, web
+from europa_mcp import preview, server, web
 from europa_mcp.countries.de import genesis, govdata, mapping
 from europa_mcp.sourcemap import SourceMap
 
@@ -73,6 +73,9 @@ DATASETS = {
         "bevolkerung-bundeslander-stichtag", org=govdata.DESTATIS, title="Bevölkerung: Bundesländer, Stichtag",
         identifier="https://genesis.destatis.de/genesisWS/downloads/00/tables/12411-0010_00",
         resources=[{"format": CSV_URI, "url": genesis.DOWNLOAD.format("12411-0010")}]),
+    "container-binnenschifffahrt": package(  # a Destatis table listed under another publisher
+        "container-binnenschifffahrt", org="mcloud",
+        identifier="https://genesis.destatis.de/genesisWS/downloads/00/tables/46321-0101_00"),
 }
 ORGS = [
     {"name": "berlin-open-data", "title": "Berlin Open Data", "package_count": 1000},
@@ -242,8 +245,9 @@ async def test_preview_csv_and_refusals(fake):
     out = await call("govdata_preview", dataset_id="einwohner-berlin", file=1)
     assert out.splitlines()[:4] == ["einwohner-berlin file 1: CSV, 2 columns", "Bezirk|Einwohner",
                                     "Mitte|397134", "Pankow|424307"]
+    assert out.splitlines()[-1].startswith("source: https://daten.berlin.de/einwohner.csv · licence: ")
     assert (await call("govdata_preview", dataset_id="einwohner-berlin", file=2)).startswith(
-        "Error: File 2 is PDF; only CSV/JSON can be previewed")
+        "Error: einwohner-berlin file 2 is PDF; only CSV/JSON can be previewed")
     assert (await call("govdata_preview", dataset_id="einwohner-berlin", file=3)).startswith("Error: Can't preview")
     assert (await call("govdata_preview", dataset_id="einwohner-berlin", file=9)).startswith("Error: file must be 1..3")
     out = await call("govdata_preview", dataset_id="bevolkerung-bundeslander-stichtag")
@@ -252,8 +256,8 @@ async def test_preview_csv_and_refusals(fake):
 
 def test_json_rows_reads_geojson_and_wrapped_lists():
     geo = {"type": "FeatureCollection", "features": [{"properties": {"name": "A", "n": 1}}]}
-    assert govdata.json_rows(geo) == [["name", "n"], ["A", "1"]]
-    assert govdata.json_rows({"meta": 1, "data": [{"a": {"b": 2}}]}) == [["a"], ['{"b": 2}']]
+    assert preview.json_rows(geo) == [["name", "n"], ["A", "1"]]
+    assert preview.json_rows({"meta": 1, "data": [{"a": {"b": 2}}]}) == [["a"], ['{"b": 2}']]
 
 
 # ---- find_data map ---------------------------------------------------------------------
@@ -281,3 +285,9 @@ async def test_find_data_reaches_german_tables_in_english_and_german(tmp_path, f
     for q in ("population by state", "Bevölkerung Bundesländer"):
         out = await call("find_data", query=q, sources=["Destatis"])
         assert '12411-0010|Bevölkerung: Bundesländer, Stichtag|Population and society||govdata_table("12411-0010")' in out
+
+
+async def test_destatis_table_found_by_url_whatever_the_publisher(fake):
+    out = await call("govdata_dataset", dataset_id="container-binnenschifffahrt")
+    assert 'values: govdata_table("46321-0101")' in out
+    assert govdata.table_id("https://example.org/tables/46321-0101_00") == ""  # not a Destatis URL

@@ -27,7 +27,7 @@ from .sourcemap import SourceMap, merge_synonyms
 
 log = logging.getLogger("europa_mcp")
 
-REFRESH_HOURS = float(setting("REFRESH_HOURS", "6", legacy="CBS_INDEX_REFRESH_HOURS"))
+REFRESH_HOURS = float(setting("REFRESH_HOURS", "6"))
 SKILLS_DIR = Path(str(files("europa_mcp").joinpath("skills")))
 
 SOURCES: dict[str, str] = {}  # source name → one-line scope, from every country's hints.json
@@ -40,7 +40,10 @@ INSTRUCTIONS = (
     "across all sources and gives the exact next call.\n"
     "2. Before using a country's tools the first time, read its guide: country_guide(code) "
     "(also served as resource skill://<code>/SKILL.md).\n"
-    "Countries: " + ", ".join(f"{c.CODE} = {c.NAME}" for c in COUNTRIES) + "."
+    "Countries: " + ", ".join(f"{c.CODE} = {c.NAME}" for c in COUNTRIES) + ".\n"
+    "3. Every data answer ends with a 'source:' line (link + licence); pass it on to the user.\n"
+    "europa-mcp is an independent project, not affiliated with or endorsed by the EU or any "
+    "statistics office; the data comes unchanged from their public APIs."
 )
 
 SOURCE_MAP: SourceMap | None = None
@@ -158,36 +161,50 @@ async def country_guide(country: str) -> str:
 # ---- CLI ------------------------------------------------------------------------
 
 
+def client_id(context: Any) -> str:
+    """Rate-limit key for HTTP: the caller's IP (first X-Forwarded-For hop behind a proxy)."""
+    try:
+        from fastmcp.server.dependencies import get_http_request
+
+        req = get_http_request()
+    except Exception:  # noqa: BLE001 - not an HTTP request
+        return "local"
+    fwd = req.headers.get("x-forwarded-for", "")
+    return fwd.split(",")[0].strip() or (req.client.host if req.client else "unknown")
+
+
 def main() -> None:
     logging.basicConfig(
-        stream=sys.stderr, level=setting("LOG_LEVEL", "INFO", legacy="CBS_LOG_LEVEL"),
+        stream=sys.stderr, level=setting("LOG_LEVEL", "INFO"),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
     p = argparse.ArgumentParser(prog="europa-mcp", description="Official European open data MCP server")
-    p.add_argument("command", nargs="?", default="serve", choices=["serve", "sync", "map"],
-                   help="serve (default); sync: build the CBS index; map: build the find_data map")
+    p.add_argument("command", nargs="?", default="serve", choices=["serve", "map", "usage"],
+                   help="serve (default); map: build the find_data map; usage: summarise the usage log")
     p.add_argument("--transport", default="stdio", choices=["stdio", "http"])
-    p.add_argument("--host", default=setting("HOST", "127.0.0.1", legacy="CBS_HOST"))
+    p.add_argument("--host", default=setting("HOST", "127.0.0.1"))
     p.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
-    p.add_argument("--full", action="store_true", help="sync: rebuild the whole index")
-    p.add_argument("--no-details", action="store_true", help="sync: skip measure/dimension titles")
     p.add_argument("--export", metavar="CSV", help="map: also write the source map to a CSV file")
+    p.add_argument("--log", metavar="JSONL", help="usage: log file (default: $EUROPA_USAGE_LOG)")
     args = p.parse_args()
 
-    if args.command in ("sync", "map"):
-        from .countries.nl import cbs
+    if args.command == "usage":
+        from .usage import report
+
+        path = args.log or setting("USAGE_LOG")
+        if not path:
+            p.error("usage: pass --log FILE or set EUROPA_USAGE_LOG")
+        print(report(Path(path)))
+        return
+
+    if args.command == "map":
 
         async def run() -> None:
             try:
-                idx = cbs.get_index()
-                if args.command == "sync" or not idx.count():
-                    stats = await idx.sync(full=args.full, details=not args.no_details)
-                    log.info("CBS index: %s (%s)", stats, idx.path)
-                if args.command == "map":
-                    log.info("source map: %s", await get_map().build())
-                    if args.export:
-                        log.info("exported %d entries to %s", get_map().export(Path(args.export)), args.export)
+                log.info("source map: %s", await get_map().build())
+                if args.export:
+                    log.info("exported %d entries to %s", get_map().export(Path(args.export)), args.export)
             finally:
                 for c in COUNTRIES:
                     with suppress(Exception):
@@ -196,11 +213,24 @@ def main() -> None:
         asyncio.run(run())
         return
 
+    if usage_log := setting("USAGE_LOG"):
+        from .usage import UsageLog
+
+        mcp.add_middleware(UsageLog(Path(usage_log)))
+        log.info("usage log: %s", usage_log)
+
     if args.transport == "http":
         from fastmcp.server.middleware.rate_limiting import RateLimitingMiddleware
 
-        rps = float(setting("RATE_LIMIT_RPS", "5", legacy="CBS_RATE_LIMIT_RPS"))
-        mcp.add_middleware(RateLimitingMiddleware(max_requests_per_second=rps, burst_capacity=20))
+        rps = float(setting("RATE_LIMIT_RPS", "5"))
+        mcp.add_middleware(RateLimitingMiddleware(
+            max_requests_per_second=rps, burst_capacity=20, get_client_id=client_id,
+        ))
+        if keys := [k.strip() for k in setting("API_KEYS").split(",") if k.strip()]:
+            from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
+
+            mcp.auth = StaticTokenVerifier({k: {"client_id": f"key{i}", "scopes": []} for i, k in enumerate(keys)})
+            log.info("API key required (%d keys configured)", len(keys))
         mcp.run(
             transport="http", host=args.host, port=args.port, show_banner=False,
             uvicorn_config={"log_config": None},  # use our stderr logging, not stdout

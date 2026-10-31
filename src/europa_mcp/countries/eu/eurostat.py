@@ -12,7 +12,10 @@ from urllib.parse import quote as urlquote
 
 from fastmcp import FastMCP
 
-from ...common import NotFound, READ_ONLY, UserError, as_list, cell, clip, compact_table, fmt_value, fold, safe
+from ...common import (
+    EC_LICENCE, NotFound, READ_ONLY, UserError, as_list, cell, clip, compact_table, fmt_value, fold, safe,
+    source_line,
+)
 from ...web import Memo, fetch, fetch_json
 
 AGENCIES: dict[str, tuple[str, str]] = {
@@ -32,6 +35,14 @@ LANG = "{http://www.w3.org/XML/1998/namespace}lang"
 
 CATALOGS = Memo(ttl=12 * 3600)
 STRUCTURES = Memo(ttl=6 * 3600)
+
+
+def browser_url(key: str, dataset_id: str) -> str:
+    """The agency's data browser page for a dataset (human-readable source link)."""
+    base = AGENCIES[key][0].removesuffix("/api/dissemination")
+    if key == "eurostat":  # Eurostat's browser uses lowercase codes; the DG browsers keep them as listed
+        return f"{base}/databrowser/view/{dataset_id.lower()}/default/table?lang=en"
+    return f"{base}/databrowser/view/{dataset_id}/default/table"
 
 
 def resolve_agency(name: str | None) -> tuple[str, str, str]:
@@ -379,6 +390,8 @@ async def eurostat_data(
         out.append(f"# truncated: {limit} of {total} values; narrow filters or raise limit")
     if has_flags:
         out.append("# flags: p=provisional, e=estimated, b=break, u=low reliability, c=confidential")
+    owner = "Eurostat" if key == "eurostat" else f"European Commission, DG {key.upper()}"
+    out.append(source_line(browser_url(key, st.id), EC_LICENCE.replace("European Union", f"European Union ({owner})")))
     return "\n".join(out)
 
 

@@ -16,15 +16,16 @@ from platformdirs import user_cache_dir
 log = logging.getLogger("europa_mcp")
 
 
-def setting(name: str, default: str = "", legacy: str | None = None) -> str:
-    """EUROPA_<name> from the environment, falling back to its pre-rename CBS_* name."""
-    return os.environ.get(f"EUROPA_{name}") or (os.environ.get(legacy) if legacy else None) or default
+def setting(name: str, default: str = "") -> str:
+    """EUROPA_<name> from the environment."""
+    return os.environ.get(f"EUROPA_{name}") or default
 
 
 def load_hints(package: str) -> dict[str, Any]:
-    """A country package's hand-written hints.json (sources, synonyms, keywords, entries)."""
+    """A country package's hand-written hints.json (sources, synonyms, keywords, headline, entries)."""
     data = json.loads(files(package).joinpath("hints.json").read_text("utf-8"))
-    return {k: data.get(k) or ({} if k != "entries" else []) for k in ("sources", "synonyms", "keywords", "entries")}
+    keys = ("sources", "synonyms", "keywords", "headline", "entries")
+    return {k: data.get(k) or ({} if k != "entries" else []) for k in keys}
 
 
 def cache_dir() -> Path:
@@ -41,14 +42,26 @@ class NotFound(UserError):
     pass
 
 
-# Query words that never help ranking (English + Dutch + German; extend per language as countries are added).
+# Query words that never help ranking. English, German, French, Spanish, Italian and Dutch, so a
+# question asked in any of them is reduced to its topic words.
 STOPWORDS = set(
-    "de het een en van in op voor met per naar over bij uit door is zijn wat hoe hoeveel welke "
-    "the a an and of in on for with per to by from is are what how many much which latest "
-    "recent current newest number total data statistics cbs nederland netherlands dutch "
-    "aantal cijfers gegevens tabel hoeveelheid "
+    # English
+    "the a an and or of in on for with per to by from is are what how many much which latest "
+    "recent current newest number total data statistics figures table "
+    "europe european eu "
+    # German
     "der die das des dem den und oder fur vom im mit wie viel viele welche zahl anzahl daten "
-    "deutschland germany german destatis govdata".split()
+    "deutschland germany german destatis govdata "
+    # French
+    "le la les un une des du et ou en au aux pour par sur dans est sont quel quelle quels combien "
+    "donnees statistiques nombre "
+    # Spanish
+    "el los las y o en por para con es son que cual cuantos cuantas datos estadisticas numero "
+    # Italian
+    "il lo gli e o di da per con su che quale quanti quante dati statistiche numero "
+    # Dutch
+    "de het een en van op voor met naar over bij uit door zijn wat hoe hoeveel welke gegevens "
+    "cijfers aantal".split()
 )
 
 
@@ -115,3 +128,11 @@ def as_list(v: Any) -> list[str]:
         return []
     items = v if isinstance(v, (list, tuple, set)) else str(v).split(",")
     return [s for s in (str(x).strip() for x in items) if s]
+
+
+def source_line(url: str, licence: str) -> str:
+    """Last line of every data answer, so the model can cite where the numbers come from."""
+    return f"source: {url} · licence: {licence}"
+
+
+EC_LICENCE = "CC BY 4.0, © European Union"  # Commission reuse policy (Decision 2011/833/EU)

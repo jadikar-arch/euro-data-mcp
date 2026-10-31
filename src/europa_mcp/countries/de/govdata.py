@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-import csv
-import io
-import ipaddress
-import json
 import re
 from typing import Any
-from urllib.parse import urlsplit
 
 from fastmcp import FastMCP
 
-from ...common import NotFound, READ_ONLY, UserError, cell, clip, compact_table, fold, safe
-from ...web import Memo, fetch_json, fetch_prefix
+from ...common import NotFound, READ_ONLY, UserError, cell, clip, compact_table, fold, safe, source_line
+from ...preview import preview
+from ...web import Memo, fetch_json
 from . import SYNONYMS
 
 API = "https://ckan.govdata.de/api/3/action"
@@ -22,7 +18,6 @@ EU_FILE_TYPE = "http://publications.europa.eu/resource/authority/file-type/"
 LEVEL_URI = "http://dcat-ap.de/def/politicalGeocoding/Level/"
 DESTATIS = "statistisches-bundesamt"
 TABLE_ID = re.compile(r"/tables/(\d{5}-\d{4}[A-Za-z]?)_")
-PREVIEW_BYTES = 1_000_000
 ORGS = Memo(ttl=24 * 3600)
 
 # DCAT-AP data themes, as GovData's 13 groups: code → (German title, English title).
@@ -71,7 +66,10 @@ def short_format(f: str) -> str:
 
 
 def table_id(identifier: str) -> str:
-    """Destatis GENESIS table id from a dataset identifier/URL, or ''."""
+    """Destatis GENESIS table id from a dataset identifier/URL, or ''. Judged by the URL, not the
+    publisher: GovData also lists Destatis tables under other organisations (e.g. mcloud)."""
+    if "destatis.de/" not in identifier:
+        return ""
     m = TABLE_ID.search(f"{identifier}_")
     return m.group(1) if m else ""
 
@@ -145,7 +143,7 @@ async def govdata_search(
     table = []
     for r in rows:
         fmts = ",".join(dict.fromkeys(short_format(f) for f in r.get("res_format") or []))
-        tid = table_id(r.get("identifier") or "") if r.get("organization") == DESTATIS else ""
+        tid = table_id(r.get("identifier") or "")
         table.append([
             r["name"], clip(r.get("title"), 100), r.get("organization") or "", clip(fmts, 40),
             str(r.get("metadata_modified") or "")[:10], f'govdata_table("{tid}")' if tid else "",
@@ -170,7 +168,7 @@ async def govdata_dataset(dataset_id: str, max_files: int = 15) -> str:
         raise UserError(f"Unknown dataset '{dataset_id}'. Use govdata_search.") from None
     ex = extras(d)
     org = d.get("organization") or {}
-    tid = table_id(ex.get("identifier", "")) if org.get("name") == DESTATIS else ""
+    tid = table_id(ex.get("identifier", ""))
     out = [f"{d['name']}: {d.get('title', '')}"]
     facts = {
         "publisher": ex.get("publisher_name") or org.get("title"),
@@ -199,52 +197,6 @@ async def govdata_dataset(dataset_id: str, max_files: int = 15) -> str:
     return "\n".join(out)
 
 
-def check_url(url: str) -> None:
-    """Publisher-supplied URLs: only public http(s) hosts (the server may run hosted)."""
-    parts = urlsplit(url)
-    host = (parts.hostname or "").lower()
-    if parts.scheme not in ("http", "https") or not host or host == "localhost":
-        raise UserError(f"Can't preview '{url}'.")
-    try:
-        ip = ipaddress.ip_address(host)
-    except ValueError:
-        return
-    if not ip.is_global:
-        raise UserError(f"Can't preview '{url}'.")
-
-
-def decode(body: bytes) -> str:
-    try:
-        return body.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        return body.decode("latin-1")
-
-
-def csv_rows(text: str, truncated: bool) -> list[list[str]]:
-    if truncated:
-        text = text.rsplit("\n", 1)[0]  # drop the partial last line
-    sample = text[:20000]
-    try:
-        delim = csv.Sniffer().sniff(sample, delimiters=";,\t|").delimiter
-    except csv.Error:
-        delim = ";" if sample.count(";") > sample.count(",") else ","
-    return [r for r in csv.reader(io.StringIO(text), delimiter=delim) if any(c.strip() for c in r)]
-
-
-def json_rows(data: Any) -> list[list[str]]:
-    if isinstance(data, dict):
-        if isinstance(data.get("features"), list):  # GeoJSON
-            data = [f.get("properties") or {} for f in data["features"] if isinstance(f, dict)]
-        else:
-            data = next((v for v in data.values() if isinstance(v, list)), [data])
-    items = [x for x in data if isinstance(x, dict)] if isinstance(data, list) else []
-    if not items:
-        raise UserError("JSON has no list of records to preview.")
-    keys = list(dict.fromkeys(k for x in items[:50] for k in x))
-    flat = lambda v: json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else ("" if v is None else str(v))  # noqa: E731
-    return [keys] + [[flat(x.get(k)) for k in keys] for x in items]
-
-
 @safe
 async def govdata_preview(dataset_id: str, file: int = 1, limit: int = 20) -> str:
     """First rows of a CSV or JSON file of a GovData dataset (file = n from govdata_dataset).
@@ -260,33 +212,9 @@ async def govdata_preview(dataset_id: str, file: int = 1, limit: int = 20) -> st
     url, fmt = r.get("url") or "", short_format(r.get("format") or "")
     if tid := table_id(url):
         return f"This is Destatis table {tid}; use govdata_table(\"{tid}\") for its values."
-    kind = fmt if fmt in ("CSV", "TXT", "TSV", "JSON", "GEOJSON") else urlsplit(url).path.rsplit(".", 1)[-1].upper()
-    if kind not in ("CSV", "TXT", "TSV", "JSON", "GEOJSON"):
-        raise UserError(f"File {file} is {fmt or 'unknown format'}; only CSV/JSON can be previewed. Download: {url}")
-    check_url(url)
-    body, truncated, ctype = await fetch_prefix(url, PREVIEW_BYTES)
-    if "html" in ctype and not body.lstrip().startswith((b"{", b"[")):
-        raise UserError(f"File {file} is a web page, not data. Open: {url}")
-    text = decode(body)
-    if kind in ("JSON", "GEOJSON"):
-        if truncated:
-            raise UserError(f"JSON file is larger than {PREVIEW_BYTES // 1_000_000} MB; download it: {url}")
-        try:
-            rows = json_rows(json.loads(text))
-        except ValueError:
-            raise UserError("File is not valid JSON.") from None
-    else:
-        rows = csv_rows(text, truncated)
-    if len(rows) < 2:
-        raise UserError(f"File {file} has no rows to preview. Download: {url}")
-    limit = max(1, min(limit, 50))
-    header, data = rows[0], rows[1:]
-    width = min(len(header), 15)
-    out = [f"{d['name']} file {file}: {fmt}, {len(header)} columns" + (f" (first {width} shown)" if width < len(header) else "")]
-    out.append("|".join(cell(clip(h, 40)) for h in header[:width]))
-    out += ["|".join(cell(clip(c, 40)) for c in row[:width]) for row in data[:limit]]
-    more = "first part of a large file" if truncated else f"{len(data)} rows"
-    out.append(f"# showing {min(limit, len(data))} of {more}; download: {url}")
+    out = await preview(f"{d['name']} file {file}", url, fmt, limit)
+    licence = r.get("license") or d.get("license_title") or "see dataset"
+    out.append(source_line(url, licence))
     return "\n".join(out)
 
 

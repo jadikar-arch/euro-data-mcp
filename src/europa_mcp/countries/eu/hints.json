@@ -237,6 +237,209 @@
     "metadata": [
       "quality",
       "catalogue"
+    ],
+    "chomage": [
+      "unemployment"
+    ],
+    "desempleo": [
+      "unemployment"
+    ],
+    "paro": [
+      "unemployment"
+    ],
+    "disoccupazione": [
+      "unemployment"
+    ],
+    "werkloosheid": [
+      "unemployment"
+    ],
+    "bezrobocie": [
+      "unemployment"
+    ],
+    "inflacion": [
+      "inflation",
+      "hicp"
+    ],
+    "inflazione": [
+      "inflation",
+      "hicp"
+    ],
+    "inflatie": [
+      "inflation",
+      "hicp"
+    ],
+    "inflacja": [
+      "inflation",
+      "hicp"
+    ],
+    "pib": [
+      "gdp"
+    ],
+    "bbp": [
+      "gdp"
+    ],
+    "poblacion": [
+      "population"
+    ],
+    "popolazione": [
+      "population"
+    ],
+    "bevolking": [
+      "population"
+    ],
+    "ludnosc": [
+      "population"
+    ],
+    "pauvrete": [
+      "poverty"
+    ],
+    "pobreza": [
+      "poverty"
+    ],
+    "poverta": [
+      "poverty"
+    ],
+    "armoede": [
+      "poverty"
+    ],
+    "ubostwo": [
+      "poverty"
+    ],
+    "emploi": [
+      "employment"
+    ],
+    "empleo": [
+      "employment"
+    ],
+    "occupazione": [
+      "employment"
+    ],
+    "werkgelegenheid": [
+      "employment"
+    ],
+    "zatrudnienie": [
+      "employment"
+    ],
+    "logement": [
+      "house",
+      "housing"
+    ],
+    "vivienda": [
+      "house",
+      "housing"
+    ],
+    "abitazioni": [
+      "house",
+      "housing"
+    ],
+    "huizenprijzen": [
+      "house prices"
+    ],
+    "immobilier": [
+      "house",
+      "housing"
+    ],
+    "prix": [
+      "prices"
+    ],
+    "precios": [
+      "prices"
+    ],
+    "prezzi": [
+      "prices"
+    ],
+    "prijzen": [
+      "prices"
+    ],
+    "ceny": [
+      "prices"
+    ],
+    "electricite": [
+      "electricity"
+    ],
+    "electricidad": [
+      "electricity"
+    ],
+    "elettricita": [
+      "electricity"
+    ],
+    "elektriciteit": [
+      "electricity"
+    ],
+    "emissions": [
+      "emissions",
+      "greenhouse"
+    ],
+    "emisiones": [
+      "emissions",
+      "greenhouse"
+    ],
+    "emissioni": [
+      "emissions",
+      "greenhouse"
+    ],
+    "uitstoot": [
+      "emissions",
+      "greenhouse"
+    ],
+    "dette": [
+      "debt"
+    ],
+    "deuda": [
+      "debt"
+    ],
+    "debito": [
+      "debt"
+    ],
+    "schuld": [
+      "debt"
+    ],
+    "salaire": [
+      "wage",
+      "earnings"
+    ],
+    "salario": [
+      "wage",
+      "earnings"
+    ],
+    "loon": [
+      "wage",
+      "earnings"
+    ],
+    "tourisme": [
+      "tourism"
+    ],
+    "turismo": [
+      "tourism"
+    ],
+    "toerisme": [
+      "tourism"
+    ],
+    "esperance": [
+      "life expectancy"
+    ],
+    "esperanza": [
+      "life expectancy"
+    ],
+    "speranza": [
+      "life expectancy"
+    ],
+    "levensverwachting": [
+      "life expectancy"
+    ],
+    "migration": [
+      "migration",
+      "immigration"
+    ],
+    "migracion": [
+      "migration",
+      "immigration"
+    ],
+    "asile": [
+      "asylum"
+    ],
+    "asilo": [
+      "asylum"
     ]
   },
   "keywords": {
@@ -324,5 +527,59 @@
       "keywords": "use cases applications apps projects reuse examples impact",
       "call": "dataeu_use_cases(query=\"...\")"
     }
-  ]
+  ],
+  "_comment_headline": "Most-asked Eurostat datasets: rank first among equally good matches; the value adds the everyday words people use for them.",
+  "headline": {
+    "Eurostat": {
+      "une_rt_m": "unemployment rate jobless monthly",
+      "une_rt_a": "unemployment rate jobless annual yearly",
+      "une_rt_q": "unemployment rate jobless quarterly",
+      "prc_hicp_minr": "inflation consumer prices cpi hicp monthly rate",
+      "prc_hicp_aind": "inflation consumer prices cpi hicp annual average rate",
+      "nama_10_gdp": "gdp gross domestic product economic growth economy size annual",
+      "namq_10_gdp": "gdp gross domestic product economic growth quarterly",
+      "nama_10_pc": "gdp per capita per inhabitant income",
+      "sdg_08_10": "real gdp per capita growth",
+      "nama_10r_2gdp": "regional gdp regions nuts",
+      "tps00001": "population inhabitants people living total",
+      "demo_pjan": "population inhabitants by age sex",
+      "demo_r_d2jan": "regional population regions nuts",
+      "demo_gind": "population change growth births deaths migration crude rates",
+      "demo_mlexpec": "life expectancy",
+      "demo_find": "fertility rate births per woman",
+      "demo_magec": "deaths mortality",
+      "migr_imm1ctz": "immigration immigrants migration",
+      "migr_asyappctzm": "asylum seekers applicants refugees",
+      "prc_hpi_q": "house prices housing prices property real estate index",
+      "gov_10dd_edpt1": "government debt deficit public finances",
+      "gov_10a_main": "government spending expenditure revenue public finances",
+      "lfsi_emp_a": "employment rate jobs labour force annual",
+      "lfsi_emp_q": "employment rate jobs labour force quarterly",
+      "earn_mw_cur": "minimum wage",
+      "earn_nt_net": "net earnings wages salary income take home pay",
+      "lc_lci_r2_q": "labour costs wage costs",
+      "ilc_li02": "poverty rate at risk of poverty",
+      "ilc_peps01n": "poverty social exclusion arope",
+      "ilc_di12": "inequality gini income distribution",
+      "nrg_pc_204": "electricity prices power energy bills households",
+      "nrg_pc_202": "gas prices energy bills households",
+      "nrg_ind_ren": "renewable energy share renewables",
+      "nrg_bal_s": "energy balance consumption production",
+      "env_air_gge": "greenhouse gas emissions co2 climate",
+      "tour_occ_nim": "tourism nights hotels tourists",
+      "sts_inpr_m": "industrial production industry output",
+      "sts_trtu_m": "retail trade sales",
+      "prc_ppp_ind": "price levels purchasing power parities cost of living",
+      "irt_lt_mcby_m": "long term interest rates government bond yields",
+      "ert_bil_eur_m": "exchange rates euro",
+      "ext_lt_maineu": "trade exports imports partners",
+      "edat_lfse_14": "early school leavers education dropouts",
+      "edat_lfse_03": "education attainment level tertiary degree",
+      "isoc_ci_ifp_iu": "internet use digital",
+      "road_eqs_carhab": "cars per inhabitants car ownership",
+      "tran_sf_roadus": "road deaths traffic fatalities accidents",
+      "hlth_rs_bds1": "hospital beds health care",
+      "crim_off_cat": "crime offences police"
+    }
+  }
 }

@@ -1,9 +1,9 @@
 """Country packages. Each `countries/<cc>/` (ISO 3166-1 alpha-2, or `eu`) exposes:
 
-- CODE, NAME            e.g. "nl", "Netherlands"
+- CODE, NAME            e.g. "de", "Germany"
 - HINTS                 load_hints(__name__): its hints.json (source blurbs, synonyms, keywords, entries)
 - SYNONYMS              English → local-language terms (applied both ways by find_data)
-- register(mcp)         add the country's tools, named `<source>_<verb>` (e.g. cbs_search)
+- register(mcp)         add the country's tools, named `<source>_<verb>` (e.g. govdata_search)
 - map_builders()        {builder name: async () -> list[Entry]} for the find_data map
 - start() / stop()      background tasks and client cleanup (server lifespan)
 
@@ -15,6 +15,6 @@ from __future__ import annotations
 
 from types import ModuleType
 
-from . import de, eu, nl
+from . import de, eu
 
-COUNTRIES: list[ModuleType] = [eu, nl, de]
+COUNTRIES: list[ModuleType] = [eu, de]

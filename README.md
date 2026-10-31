@@ -3,6 +3,10 @@
 **European open data is hard to find, even for data scientists. Europa lets you get it by asking
 in plain language, so your AI assistant can analyse it and build dashboards on real numbers.**
 
+> Europa is an independent open-source project (EUPL-1.2). It is **not affiliated with or endorsed
+> by the European Union**, its institutions or any statistics office. It passes their public data on
+> unchanged and names the source and licence with every answer.
+
 Official data about Europe and its countries is public, but it is spread across hundreds of
 portals, thousands of tables with cryptic codes, and APIs in different formats and languages.
 Finding the right table and pulling the right slice can take hours. Ask ChatGPT or Claude
@@ -13,14 +17,14 @@ Europa closes that gap. It connects AI assistants such as **Claude**, **ChatGPT*
 own sources (Eurostat, the European Commission, the European Parliament and the EU open data
 portal). You ask a question; the assistant finds the right dataset, retrieves the **latest
 official figures**, and tells you which table it used. From there it can analyse, compare,
-chart, or build a dashboard on data you can trace back to the source.
+chart, or build a dashboard on data you can trace back to the source: every answer ends with a
+`source:` line giving the link to the official page and the licence.
 
 ### Countries and sources
 
 | | Sources | Good for |
 |---|---|---|
 | 🇪🇺 **EU** | Eurostat, European Commission (labour market, tax, postal, agri-food markets), European Parliament, data.europa.eu | Comparing countries, EU totals, farm prices, how the Parliament voted, finding open datasets |
-| 🇳🇱 **Netherlands** | CBS (Statistics Netherlands) | Dutch figures down to municipality and neighbourhood |
 | 🇩🇪 **Germany** | Destatis (Federal Statistical Office) tables, GovData (168,000 open datasets) | German figures down to state and district; finding German open data files, maps and services |
 
 More countries are being added. Each country is a self-contained package with its own guide for the
@@ -35,19 +39,21 @@ has the answer, just ask; the assistant first looks up which source fits best.
 
 | You ask | The assistant finds |
 |---|---|
-| *"How many people live in Amsterdam?"* | **944,322** (August 2026), from the CBS table *Bevolkingsontwikkeling; regio per maand* |
-| *"What did an average house cost in Utrecht last year?"* | **€549,113** (2025), from CBS *Bestaande koopwoningen; gemiddelde verkoopprijzen* |
+| *"Compare unemployment in Germany, France and the Netherlands"* | **4.1%, 8.5% and 4.0%** (September 2026), from Eurostat *une_rt_m Unemployment by sex and age - monthly data* |
 | *"Compare house price growth in the Netherlands and Germany"* | Eurostat's house price index, quarter by quarter |
 | *"What is the implicit tax rate on labour in the Netherlands?"* | **31.87%** (2024), from the European Commission's tax data |
 | *"What do Dutch farmers get for their pigs this month?"* | Weekly EU pig prices per country |
 | *"Which Dutch MEPs are in Renew, and how did Parliament vote on 8 July?"* | MEP list and vote results from the European Parliament |
 | *"Find open datasets about air quality in the Netherlands"* | Datasets and download links from data.europa.eu |
+| *"Show me the first rows of that file"* | The columns and first rows of the CSV or JSON file, before you download it |
 | *"How many people live in Bavaria?"* | **13,245,503** (31 Dec 2025), from Destatis table *12411-0010 Bevölkerung: Bundesländer* |
 | *"What was German inflation last month?"* | **+3.3%** (September 2026), from Destatis *61111-0002 Verbraucherpreisindex* |
 | *"What open data does Hamburg publish about cycling?"* | Datasets, files and map services from GovData |
 
-> **Good to know:** national sources often publish in their own language (CBS in Dutch). Your
-> assistant translates, so you can ask and get answers in English or any other language.
+> **Good to know:** national sources often publish in their own language (Destatis and GovData in
+> German). Your assistant translates, so you can ask and get answers in English or any other language.
+> Common topics are also recognised in French, Spanish, Italian, Dutch and German (*chômage*,
+> *inflación*, *popolazione*…).
 
 ---
 
@@ -90,7 +96,7 @@ When it says it's done, **close the window**.
      "mcpServers": {
        "europa": {
          "command": "uvx",
-         "args": ["--from", "git+https://github.com/jadikar-arch/cbs-fastmcp-server", "europa-mcp"]
+         "args": ["--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"]
        }
      }
    }
@@ -98,7 +104,7 @@ When it says it's done, **close the window**.
 
 3. Save the file and **quit Claude completely**, then reopen it. On a Mac, use Claude → Quit;
    closing the window isn't enough.
-4. Start a new chat and ask: *"How many people live in Amsterdam? Use the europa tools."*
+4. Start a new chat and ask: *"What is the unemployment rate in Germany? Use the europa tools."*
 
 The first time, Claude asks for permission to use the europa tools. Click **Allow**.
 
@@ -111,7 +117,7 @@ The first time, Claude asks for permission to use the europa tools. Click **Allo
    ```json
    {
      "servers": {
-       "europa": { "type": "stdio", "command": "uvx", "args": ["--from", "git+https://github.com/jadikar-arch/cbs-fastmcp-server", "europa-mcp"] }
+       "europa": { "type": "stdio", "command": "uvx", "args": ["--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"] }
      }
    }
    ```
@@ -128,7 +134,7 @@ The first time, Claude asks for permission to use the europa tools. Click **Allo
    ```json
    {
      "mcpServers": {
-       "europa": { "type": "stdio", "command": "uvx", "args": ["--from", "git+https://github.com/jadikar-arch/cbs-fastmcp-server", "europa-mcp"] }
+       "europa": { "type": "stdio", "command": "uvx", "args": ["--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"] }
      }
    }
    ```
@@ -163,7 +169,7 @@ example `https://europa.example.com/mcp`.
 **Claude Code** (terminal):
 
 ```
-claude mcp add --transport stdio europa -- uvx --from git+https://github.com/jadikar-arch/cbs-fastmcp-server europa-mcp
+claude mcp add --transport stdio europa -- uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp
 ```
 
 **OpenCode**: add to `opencode.json`:
@@ -172,12 +178,12 @@ claude mcp add --transport stdio europa -- uvx --from git+https://github.com/jad
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "europa": { "type": "local", "command": ["uvx", "--from", "git+https://github.com/jadikar-arch/cbs-fastmcp-server", "europa-mcp"], "enabled": true }
+    "europa": { "type": "local", "command": ["uvx", "--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"], "enabled": true }
   }
 }
 ```
 
-**Any app that supports MCP:** run the command `uvx --from git+https://github.com/jadikar-arch/cbs-fastmcp-server europa-mcp` (local), or connect to the web
+**Any app that supports MCP:** run the command `uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp` (local), or connect to the web
 address `https://<your-server>/mcp` (online).
 
 </details>
@@ -189,7 +195,7 @@ address `https://<your-server>/mcp` (online).
 - **Mention the place and the time:** *"in Eindhoven"*, *"in Germany and France"*, *"in 2024"*,
   *"the latest figures"*.
 - **Ask for the source** if you want to check it: *"Which table did you use?"* You can look it up
-  on the source's website (e.g. [opendata.cbs.nl](https://opendata.cbs.nl) or
+  on the source's website (the `source:` link at the end of each answer opens the official page, e.g. on
   [ec.europa.eu/eurostat](https://ec.europa.eu/eurostat/databrowser)).
 - **Compare like with like.** For comparisons between countries, ask for Eurostat figures: they use
   the same definitions everywhere. National offices often have more detail for their own country.
@@ -199,8 +205,8 @@ address `https://<your-server>/mcp` (online).
 ## Common questions
 
 **The very first question is a bit slow.**
-The first time, the tool downloads the lists of available tables (about 4,900 from CBS, 8,000
-from Eurostat and 3,000 from Destatis) so it can search them. This takes up to a minute. Later questions are fast.
+The first time, the tool downloads the lists of available tables (about 8,000 from Eurostat and
+3,000 from Destatis) so it can search them. This takes up to a minute. Later questions are fast.
 
 **The assistant says it can't find the tools.**
 - Restart the app completely after changing the settings.
@@ -237,8 +243,16 @@ docker run -p 8000:8000 europa-mcp  # MCP endpoint: http://<host>:8000/mcp
 ```
 
 Put it behind HTTPS (any cloud host such as Cloud Run, Fly.io or Railway, or a reverse proxy) and
-share `https://<host>/mcp`. No login is needed because the data is public. Requests are rate-limited
-(`EUROPA_RATE_LIMIT_RPS`, default 5 per second). To try it quickly without deploying, run
+share `https://<host>/mcp`. Requests are rate-limited per client IP (`EUROPA_RATE_LIMIT_RPS`,
+default 5 per second, burst 20).
+
+- **Login (optional):** the data is public, so no login is needed by default. To limit who can use
+  your server, set `EUROPA_API_KEYS=key1,key2`; clients then send `Authorization: Bearer key1`.
+  Claude.ai custom connectors only support OAuth, so leave this off for Option D on claude.ai.
+- **Usage insights (optional):** set `EUROPA_USAGE_LOG=/data/usage.jsonl` to log each tool call
+  anonymously (tool, query, found/not found, duration; no IP addresses or conversation text). Then
+  `europa-mcp usage --log /data/usage.jsonl` lists the most-asked topics and the questions no source
+  could answer, which shows what data people are missing. To try it quickly without deploying, run
 `uv run europa-mcp --transport http` from a checkout and expose it with `cloudflared tunnel --url http://localhost:8000`.
 
 ---
@@ -254,15 +268,15 @@ share `https://<host>/mcp`. No login is needed because the data is public. Reque
 src/europa_mcp/
   server.py         core: loads every country, serves the skills, find_data, country_guide, CLI
   sourcemap.py      the find_data map (SQLite FTS5) and its ranking
-  common.py, web.py shared errors, text tables, settings and HTTP client (retries, short errors)
+  common.py, web.py shared errors, text tables, settings, source lines and HTTP client (retries, short errors)
+  preview.py        first rows of publishers' CSV/JSON files (public hosts only, redirects re-checked)
+  usage.py          opt-in anonymous usage log and the `europa-mcp usage` report
   countries/
     __init__.py     COUNTRIES registry and the country contract
     eu/             Eurostat + DGs, agri-food, European Parliament, data.europa.eu
-    nl/             CBS (OData client, local search index, tools)
     de/             GovData (CKAN catalogue) and Destatis GENESIS tables
   skills/
     eu/SKILL.md     guide for the assistant: when to use which source, workflow, codes, pitfalls
-    nl/SKILL.md
     de/SKILL.md
 ```
 
@@ -274,7 +288,7 @@ resources to the model.
 
 **Adding a country:** use the `add-country` Claude Code skill in `.claude/skills/add-country`
 (probe the API, copy the templates, write the skill, test). Tool names are
-`<source>_<verb>` (e.g. `cbs_search`) so they stay unique as countries are added.
+`<source>_<verb>` (e.g. `govdata_search`) so they stay unique as countries are added.
 
 ### Tools
 
@@ -282,11 +296,6 @@ resources to the model.
 |---|---|
 | `find_data(query, sources=None, per_source=3, limit=12)` | **Start here when unsure which source fits.** Searches the source map (below) and returns the best datasets/endpoints per source, each with the exact next call. |
 | `country_guide(country)` | The country's skill text: sources, workflow, codes, pitfalls. |
-| `cbs_search(query, catalog="CBS", include_discontinued=False, limit=10)` | Find CBS tables by topic. Dutch keywords work best, and common English terms are translated. |
-| `cbs_describe(dataset_id)` | A table's measures and dimensions, with code counts and the latest period. |
-| `cbs_codes(dataset_id, dimension, query=None, limit=50)` | Code lookup, e.g. `Amsterdam → GM0363`. Use `"Measures"` for measure codes. |
-| `cbs_data(dataset_id, measures, filters, latest=False, limit=500)` | Values. `latest=true` returns the newest period with data. |
-| `cbs_releases(days=14, limit=30)` | The CBS release calendar. |
 | `eurostat_search(query, agency="eurostat", limit=10)` | Find Eurostat datasets (English). `agency`: `eurostat`, `empl`, `grow` or `taxud` (DG dissemination APIs). |
 | `eurostat_describe(dataset_id, agency)` | Dimensions with the codes in use (SDMX `referencepartial`), period range, observation count. |
 | `eurostat_codes(dataset_id, dimension, query=None, agency, limit=50)` | Code lookup, e.g. geo `Netherlands → NL`. |
@@ -296,15 +305,16 @@ resources to the model.
 | `ep_meps(name, country, group, limit=50)` | Current MEPs. |
 | `ep_votes(date, query, roll_call_only, mep_id, language="en", limit=40)` | Plenary votes on a sitting day with counts, and optionally one MEP's vote. |
 | `ep_query(endpoint, params, language="en", limit=10, offset=0)` | Any European Parliament API v2 GET endpoint, with labels in one language and nested data compacted. |
-| `dataeu_search(query, country, format, catalogue, category, hvd, min_quality, page, limit=10)` | Search data.europa.eu (1.9M datasets) with a short description per row. |
+| `dataeu_search(query, country, format, catalogue, category, hvd, min_quality, sort="relevance", language="en", page, limit=10)` | Search data.europa.eu (1.9M datasets) with a short description per row. `sort="newest"` puts recently updated datasets first; `language` picks the title/description language. |
 | `dataeu_facets(query, by, country, format, catalogue, category, hvd, min_quality, top=10)` | Dataset counts per catalogue, format, category, country, publisher, licence or quality, for picking filters. |
-| `dataeu_dataset(dataset_id, language="en", max_files=15)` | Description, publisher, licence and download URLs. |
+| `dataeu_dataset(dataset_id, language="en", max_files=15)` | Description, publisher, licence and numbered download URLs. |
+| `dataeu_preview(dataset_id, file=1, limit=20)` | First rows of a CSV or JSON file of a dataset (reads at most 2 MB), with its licence. |
 | `dataeu_sparql(query, limit=100)` | Read-only SPARQL SELECT/ASK on the portal's DCAT graph. |
 | `dataeu_quality(scope, id)` | Metadata quality (MQA) score and coverage per metric: global, country (ISO3) or catalogue. |
 | `dataeu_use_cases(query, country, sector, limit=10)` | Apps and projects built on EU open data. |
 | `govdata_search(query, theme, publisher, format, level, page=0, limit=10)` | Search GovData, Germany's open data catalogue (168k datasets, German titles; English terms are translated). Filters: DCAT theme (`envi`, `soci`…), publisher, file format, level (federal/state/district/municipality). |
 | `govdata_dataset(dataset_id, max_files=15)` | Description, publisher, licence, level and numbered files. |
-| `govdata_preview(dataset_id, file=1, limit=20)` | First rows of a CSV or JSON file (reads at most 1 MB). |
+| `govdata_preview(dataset_id, file=1, limit=20)` | First rows of a CSV or JSON file (reads at most 2 MB). |
 | `govdata_table(table_id, query, last_n, limit=100)` | Values of a Destatis GENESIS table (e.g. `12411-0010`), newest first, filtered by label words. |
 
 ### Source map (`find_data`)
@@ -316,8 +326,7 @@ enriched from the best signal it has:
 
 | Source | Rows | Enrichment |
 |---|---|---|
-| CBS | ~1,300 active tables | Measure and dimension titles from the CBS index |
-| Eurostat | ~7,500 datasets | Theme path from the table-of-contents tree (e.g. *Economy and finance > Prices*); extra theme locations as keywords |
+| Eurostat | ~7,500 datasets | Theme path from the table-of-contents tree (e.g. *Economy and finance > Prices*); extra theme locations as keywords; ~50 most-asked datasets (unemployment, inflation, GDP…) marked as headline with everyday words |
 | DG EMPL / GROW / TAXUD | ~40 | Dataflow names; per-country copies (`LMP_EXPME$HR`) collapsed into their parent |
 | Agri-food | ~40 data endpoints | OpenAPI tag and summary, plus the values of the sector's code lookups (e.g. *Durum wheat*, *Feed barley* for `cereal/*`) |
 | European Parliament | ~20 list endpoints + `ep_meps`/`ep_votes` | OpenAPI tag and description |
@@ -326,9 +335,19 @@ enriched from the best signal it has:
 | GovData | 13 themes + ~200 theme × publisher slices | 168k datasets are too many for one row each, so each row says what kind of data a publisher has on a theme (*Environment data from Land Schleswig-Holstein: 4,210 datasets*), with its top tags and formats and a ready `govdata_search` call |
 
 Hand-written metadata lives in each country's `hints.json`: source descriptions, extra keywords,
-and synonyms (e.g. *pork → pigmeat*, *huizenprijzen → house prices*). Search also expands
-English ↔ local-language terms through each country's `SYNONYMS` (for NL, the CBS synonym list; for DE, a German list in `countries/de/__init__.py`), so Dutch queries find Eurostat datasets and English
-queries find CBS tables. Matches on the user's own words rank above synonym matches.
+synonyms (e.g. *pork → pigmeat*, *chômage → unemployment*) and, for the EU, a `headline` list of
+the most-asked Eurostat datasets. Search also expands English ↔ local-language terms through each
+country's `SYNONYMS` (for DE, a German list in `countries/de/__init__.py`), so German queries find
+Eurostat datasets and English queries find Destatis tables. Ranking: share of query words matched,
+then headline datasets (only when every word matched), then matches on the user's own words over
+synonym matches, then BM25.
+
+**Search quality is measured**, not guessed: `eval/find_data_cases.json` holds 53 everyday
+questions (in English, French, Spanish, Italian and German) with the datasets that count as a
+correct answer, and `uv run python eval/run_eval.py` scores the live map. Current score: **hit@3
+53/53 (100%), hit@1 49/53 (92%)**, up from 14/53 and 8/53 before the headline ranking. These
+questions were written while tuning the ranking, so treat the score as a regression check; add
+questions from real usage (see `europa-mcp usage`) to keep it honest. CI runs it nightly.
 
 The map is rebuilt in the background every `EUROPA_REFRESH_HOURS` (default 6).
 If one source fails, its previous rows are kept. To build it by hand or export it as a CSV for review:
@@ -357,48 +376,36 @@ German sources (probe findings in `countries/de/NOTES.md`):
 Not wrapped: the data.europa.eu registry (`/api/hub/repo`) serves the same metadata as search, but as slow RDF. The MQA reporter only serves PDFs, so `dataeu_quality` links to it instead. SHACL validation is publisher tooling and currently returns 503.
 
 The output is compact text with `|` separators, and values that are the same in every row are
-printed once under `fixed:`. A typical answer takes 3–4 calls of under 400 tokens each:
+printed once under `fixed:`. Every data answer ends with a `source:` line (official page + licence).
+A typical answer takes 3–4 calls of under 400 tokens each:
 
 ```
-cbs_search("bevolking regio")                         → 37230ned Bevolkingsontwikkeling; regio per maand
-cbs_codes("37230ned", "RegioS", "Amsterdam")          → GM0363|Amsterdam|Gemeenten per provincie
-cbs_data("37230ned", ["M000098"], {"RegioS": ["GM0363"]}, latest=true)
+find_data("unemployment rate")                        → une_rt_m Unemployment by sex and age - monthly data
+eurostat_codes("une_rt_m", "geo", "Germany")          → DE|Germany
+eurostat_data("une_rt_m", {"geo": ["DE"], "sex": ["T"], "age": ["TOTAL"], "unit": ["PC_ACT"], "s_adj": ["SA"]}, last_n=1)
+                                                      → 2026-09|4.1
+                                                        source: https://ec.europa.eu/eurostat/databrowser/view/une_rt_m/… · licence: CC BY 4.0
 ```
-
-### CBS search index
-
-The CBS OData API (`https://datasets.cbs.nl/odata/v1`) has no ranked search: `$search` is ignored,
-and the catalog is Dutch-only. The server therefore keeps a **SQLite FTS5 index** of titles,
-descriptions, and the measure and dimension names of active tables. Results are ranked by title
-matches, then BM25, then status and recency.
-
-- **First run:** search works after ~3 s, once the catalog is in. Measure and dimension names are
-  indexed in the background (~45 s).
-- **Sync every 6 h:** the server diffs each table's `Version` with CBS and refetches only the
-  changes (~1 s when nothing changed). It removes deleted tables, invalidates cached metadata, and
-  won't delete more than 20% of the catalog in one sync.
-- **Manual sync:** `europa-mcp sync [--full] [--no-details]`.
 
 ### Configuration
 
 | Env var | Default | |
 |---|---|---|
-| `EUROPA_CACHE_DIR` | user cache dir (`europa-mcp`) | Where the CBS index (`nl-cbs.db`) and the source map (`sourcemap.db`) are stored |
-| `EUROPA_REFRESH_HOURS` | `6` | Refresh interval of the indexes and the map |
-| `EUROPA_RATE_LIMIT_RPS` | `5` | HTTP mode: sustained requests per second (burst 20) |
+| `EUROPA_CACHE_DIR` | user cache dir (`europa-mcp`) | Where the source map (`sourcemap.db`) is stored |
+| `EUROPA_REFRESH_HOURS` | `6` | Refresh interval of the map |
+| `EUROPA_RATE_LIMIT_RPS` | `5` | HTTP mode: sustained requests per second per client IP (burst 20) |
+| `EUROPA_API_KEYS` | unset | HTTP mode: comma-separated bearer tokens; when set, every request needs one |
+| `EUROPA_USAGE_LOG` | unset | Path of the anonymous JSONL usage log (see [Hosting it online](#hosting-it-online)) |
 | `EUROPA_HOST` / `PORT` | `127.0.0.1` / `8000` | HTTP bind address |
 | `EUROPA_LOG_LEVEL` | `INFO` | Logs go to stderr only |
-| `CBS_BASE_URL`, `CBS_INDEX_PATH` | CBS OData v1, cache dir | CBS-specific overrides |
-
-The pre-rename names (`CBS_INDEX_REFRESH_HOURS`, `CBS_RATE_LIMIT_RPS`, `CBS_HOST`, `CBS_LOG_LEVEL`)
-still work as fallbacks.
 
 ### Development
 
 ```bash
 uv sync
 uv run pytest            # mocked HTTP (respx)
-uv run pytest -m live    # end-to-end smoke test against the real API
+uv run pytest -m live    # end-to-end smoke tests against the real APIs
+uv run python eval/run_eval.py   # find_data search quality (hit@1 / hit@3)
 npx @modelcontextprotocol/inspector uv run europa-mcp
 ```
 
@@ -406,7 +413,7 @@ Put the server command first. The Inspector parses flags such as `uvx --from .` 
 API findings are in each `countries/<cc>/NOTES.md`; core notes in [NOTES.md](NOTES.md).
 
 The package is not on PyPI yet, so the setup commands above install straight from GitHub
-(`uvx --from git+https://github.com/jadikar-arch/cbs-fastmcp-server europa-mcp`). To run your own
+(`uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp`). To run your own
 checkout instead, use `uvx --from /path/to/checkout europa-mcp`. Once it is published, the shorter
 `uvx europa-mcp` will work.
 
@@ -414,7 +421,12 @@ checkout instead, use `uvx --from /path/to/checkout europa-mcp`. Once it is publ
 
 ---
 
-*Data: [CBS Statistics Netherlands](https://www.cbs.nl) (CC BY 4.0); [Destatis](https://www.destatis.de) and [GovData](https://www.govdata.de) (Datenlizenz Deutschland or the licence given per dataset); [Eurostat](https://ec.europa.eu/eurostat),
+## Licence
+
+The code is licensed under the [European Union Public Licence v1.2](LICENSE) (EUPL-1.2). Changes
+are listed in [CHANGELOG.md](CHANGELOG.md).
+
+*Data: [Destatis](https://www.destatis.de) and [GovData](https://www.govdata.de) (Datenlizenz Deutschland or the licence given per dataset); [Eurostat](https://ec.europa.eu/eurostat),
 the European Commission, the [European Parliament](https://data.europarl.europa.eu) and
 [data.europa.eu](https://data.europa.eu) (reuse authorised under the Commission's reuse policy /
-CC BY 4.0). This project is not affiliated with any of these organisations.*
+CC BY 4.0). Europa is an independent project and is not affiliated with or endorsed by any of these organisations.*

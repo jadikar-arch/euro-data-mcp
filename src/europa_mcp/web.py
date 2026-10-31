@@ -100,11 +100,29 @@ async def fetch_json(url: str, params: Any = None, **kw) -> Any:
         raise UserError(f"{urlsplit(url).netloc} returned non-JSON ({resp.headers.get('content-type')})") from None
 
 
-async def fetch_prefix(url: str, max_bytes: int) -> tuple[bytes, bool, str]:
-    """The first `max_bytes` of a file (no retries): (body, truncated, content type)."""
+MAX_REDIRECTS = 5
+
+
+async def fetch_prefix(
+    url: str, max_bytes: int, check: Callable[[str], Awaitable[None]] | None = None,
+) -> tuple[bytes, bool, str]:
+    """The first `max_bytes` of a file (no retries): (body, truncated, content type).
+    `check(url)` vets the URL and every redirect target before it is requested."""
     host = urlsplit(url).netloc
     try:
-        async with get_client().stream("GET", url) as resp:
+        for _ in range(MAX_REDIRECTS + 1):
+            if check:
+                await check(url)
+            req = get_client().build_request("GET", url)
+            resp = await get_client().send(req, stream=True, follow_redirects=False)
+            if not resp.is_redirect:
+                break
+            await resp.aclose()
+            url = str(resp.next_request.url) if resp.next_request else url
+            host = urlsplit(url).netloc
+        else:
+            raise UserError(f"{host}: too many redirects")
+        try:
             if resp.status_code == 404:
                 raise NotFound(f"{host}: file not found")
             if resp.status_code >= 400:
@@ -115,6 +133,8 @@ async def fetch_prefix(url: str, max_bytes: int) -> tuple[bytes, bool, str]:
                 if len(body) > max_bytes:
                     return body[:max_bytes], True, resp.headers.get("content-type", "")
             return body, False, resp.headers.get("content-type", "")
+        finally:
+            await resp.aclose()
     except httpx.TimeoutException:
         raise UserError(f"{host} timed out.") from None
     except httpx.TransportError as e:

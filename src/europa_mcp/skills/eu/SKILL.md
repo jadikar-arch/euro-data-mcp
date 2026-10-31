@@ -13,6 +13,9 @@ description: EU-level official data - Eurostat statistics (all EU/EEA countries)
 | MEPs, plenary votes, adopted texts, procedures, speeches, questions | European Parliament | `ep_*` |
 | Find any dataset (incl. national/regional portals), download links, metadata quality | data.europa.eu | `dataeu_*` |
 
+**Cite every figure.** Data answers end with `source: <url> · licence: <licence>`. Give the user
+that link and licence with the numbers (and the dataset id), so they can check and reuse them.
+
 ## Eurostat and DGs
 
 1. `eurostat_search(query, agency="eurostat")`: **English** keywords. Dataset ids such as
@@ -60,8 +63,12 @@ description: EU-level official data - Eurostat statistics (all EU/EEA countries)
 - `dataeu_search(query, country="nl", format="CSV")`: 1.9M datasets from EU and national portals.
   Use it when no statistics table fits, or the user wants files or APIs to download.
   Filters: `category` (EU theme: HEAL, ECON, TRAN, ENVI, AGRI…), `hvd=True` (High-Value
-  Datasets only), `min_quality="good"` (metadata scoring). Each row has a short `about` text.
-  `dataeu_dataset(id)` gives download URLs and licence.
+  Datasets only), `min_quality="good"` (metadata scoring), `sort="newest"` (recently updated
+  first, for "latest"/"current" questions), `language="fr"` (titles/descriptions in that language).
+  Each row has a short `about` text. `dataeu_dataset(id)` gives numbered files with format,
+  licence and URL; `dataeu_preview(id, file=n)` shows the columns and first rows of a CSV/JSON
+  file, so check a file before telling the user it has what they need. Many publisher links are
+  dead or are web pages: if a preview fails, try the next CSV/JSON file or dataset.
 - `dataeu_facets(query, country, by="catalogue,format,category")`: counts only, no datasets.
   Call it first on broad topics: results are noisy (Germany's 850k are mostly `gdi-de` zoning
   plans), so pick a `catalogue`, `format` or `category` from it before `dataeu_search`.

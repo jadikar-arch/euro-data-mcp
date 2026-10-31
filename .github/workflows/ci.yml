@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * *"  # nightly: catch upstream API changes before users do
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - name: Unit tests (offline, mocked APIs)
+        run: uv run pytest -q
+      - name: Live smoke tests (real APIs)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: uv run pytest -q -m live
+      - name: find_data evaluation (hit@1 / hit@3)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: uv run python eval/run_eval.py
+
+  docker:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t europa-mcp .

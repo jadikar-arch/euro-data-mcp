@@ -1,9 +1,20 @@
 [project]
 name = "europa-mcp"
-version = "0.1.0"
-description = "Token-efficient MCP server for official open data across Europe: national statistics offices (CBS, …) and EU sources (Eurostat, agri-food, European Parliament, data.europa.eu)"
+version = "0.2.0"
+description = "MCP server that lets AI assistants find and fetch official open data from EU institutions (Eurostat, European Commission, European Parliament, data.europa.eu) and European countries, with source and licence on every answer"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "EUPL-1.2"
+license-files = ["LICENSE"]
+authors = [{ name = "Munirdin Jadikar" }]
+keywords = ["mcp", "open-data", "eurostat", "data.europa.eu", "european-parliament", "statistics", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
 dependencies = [
     "fastmcp>=4.1.0",
     "httpx>=0.28.1",
@@ -12,6 +23,10 @@ dependencies = [
 
 [project.scripts]
 europa-mcp = "europa_mcp.server:main"
+
+[project.urls]
+Repository = "https://github.com/jadikar-arch/euro-data-mcp"
+Changelog = "https://github.com/jadikar-arch/euro-data-mcp/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]

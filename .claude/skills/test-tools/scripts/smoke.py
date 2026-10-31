@@ -20,10 +20,9 @@ ROOT = Path(__file__).resolve().parents[4]
 SERVER = ROOT / ".venv" / "bin" / "europa-mcp"
 MAX_CHARS = 8000  # ~2k tokens; tool outputs should stay well under this
 EXPECTED_TOOLS = {
-    "cbs_search", "cbs_describe", "cbs_codes", "cbs_data", "cbs_releases",
     "eurostat_search", "eurostat_describe", "eurostat_codes", "eurostat_data",
     "agri_endpoints", "agri_data", "ep_meps", "ep_votes", "ep_query",
-    "dataeu_search", "dataeu_facets", "dataeu_dataset", "dataeu_sparql", "dataeu_quality", "dataeu_use_cases",
+    "dataeu_search", "dataeu_facets", "dataeu_dataset", "dataeu_preview", "dataeu_sparql", "dataeu_quality", "dataeu_use_cases",
     "govdata_search", "govdata_dataset", "govdata_preview", "govdata_table",
     "find_data", "country_guide",
 }
@@ -45,73 +44,35 @@ def no_error(out: str) -> str | None:
 
 def max_rows(n: int) -> Check:
     def check(out: str) -> str | None:
-        rows = [line for line in out.splitlines()[1:] if not line.startswith("#")]
+        rows = [line for line in out.splitlines()[1:] if not line.startswith(("#", "source:"))]
         return None if len(rows) <= n else f"{len(rows)} rows > limit {n}"
     return check
 
 
-def amsterdam_population(out: str) -> str | None:
-    last = out.strip().splitlines()[-1]
-    try:
-        v = int(last.split("|")[-1])
-    except ValueError:
-        return f"last line is not a number: {last!r}"
-    return None if 800_000 < v < 1_200_000 else f"implausible population {v}"
+def cites_source(out: str) -> str | None:
+    last = out.strip().splitlines()[-1] if out.strip() else ""
+    return None if last.startswith("source: http") and " · licence: " in last else f"no source line: {last[:80]!r}"
 
 
-def latest_year(out: str) -> str | None:
-    lines = out.splitlines()
-    ok = len(lines) > 1 and re.fullmatch(r"\d{4}JJ00", lines[1].split("|")[0])
-    return None if ok else f"expected a year code like 2025JJ00, got {lines[1:2]}"
-
-
-def releases(out: str) -> str | None:
-    if out.startswith("No releases scheduled") or out.startswith("date|id|title"):
-        return None
-    return "unexpected format"
+def first_row_id(*ids: str) -> Check:
+    def check(out: str) -> str | None:
+        lines = out.splitlines()
+        row = next((ln for ln in lines if not ln.startswith(("id|", "##", "#"))), "")
+        return None if row.split("|")[0] in ids else f"first row {row[:60]!r}, want one of {ids}"
+    return check
 
 
 # (tool, label, args, checks)
 CASES: list[tuple[str, str, dict, list[Check]]] = [
-    ("cbs_search", "population tables", {"query": "bevolking regio"},
-     [no_error, starts("id|title|period|status|modified"), contains("37230ned")]),
-    ("cbs_search", "limit respected", {"query": "bevolking", "limit": 3},
-     [no_error, max_rows(3)]),
-    ("cbs_search", "no match", {"query": "xyzzyqqq"},
-     [starts("No datasets match")]),
-    ("cbs_describe", "37230ned", {"dataset_id": "37230ned"},
-     [no_error, starts("37230ned:"), contains("RegioS|", "Perioden|", "M000098")]),
-    ("cbs_describe", "case-insensitive id", {"dataset_id": "37230NED"},
-     [no_error, starts("37230ned:")]),
-    ("cbs_describe", "unknown id", {"dataset_id": "nope0000"},
-     [starts("Error: Unknown dataset")]),
-    ("cbs_codes", "municipality", {"dataset_id": "37230ned", "dimension": "RegioS", "query": "Amsterdam"},
-     [no_error, contains("GM0363|Amsterdam")]),
-    ("cbs_codes", "alias Den Haag", {"dataset_id": "37230ned", "dimension": "RegioS", "query": "Den Haag"},
-     [no_error, contains("GM0518")]),
-    ("cbs_codes", "newest year", {"dataset_id": "37230ned", "dimension": "Perioden", "query": "JJ", "limit": 1},
-     [no_error, latest_year]),
-    ("cbs_codes", "measures", {"dataset_id": "37230ned", "dimension": "Measures", "query": "bevolking"},
-     [no_error, contains("M000098")]),
-    ("cbs_codes", "bad dimension", {"dataset_id": "37230ned", "dimension": "Nope"},
-     [starts("Error: Unknown dimension")]),
-    ("cbs_data", "Amsterdam latest population",
-     {"dataset_id": "37230ned", "measures": ["M000098"], "filters": {"RegioS": ["GM0363"]}, "latest": True},
-     [no_error, amsterdam_population]),
-    ("cbs_data", "unknown measure",
-     {"dataset_id": "37230ned", "measures": ["M999999"], "filters": {"RegioS": ["GM0363"]}},
-     [starts("Error: Unknown measure")]),
-    ("cbs_data", "too broad rejected", {"dataset_id": "37230ned"},
-     [starts("Error: query too broad")]),
-    ("cbs_releases", "next 30 days", {"days": 30, "limit": 10},
-     [no_error, releases, max_rows(10)]),
-    ("country_guide", "nl guide", {"country": "nl"},
-     [no_error, starts("# Netherlands"), contains("cbs_search")]),
     # Cross-source map
-    ("find_data", "house prices (EU + NL)", {"query": "house prices"},
-     [no_error, contains("## Eurostat", "prc_hpi", "## CBS", "cbs_describe(")]),
-    ("find_data", "Dutch query", {"query": "bevolking"},
-     [no_error, contains("## CBS")]),
+    ("find_data", "house prices (EU + DE)", {"query": "house prices"},
+     [no_error, contains("## Eurostat", "prc_hpi")]),
+    ("find_data", "headline: unemployment rate", {"query": "unemployment rate"},
+     [no_error, first_row_id("une_rt_m", "une_rt_a", "une_rt_q")]),
+    ("find_data", "French query", {"query": "chômage"},
+     [no_error, first_row_id("une_rt_m", "une_rt_a", "une_rt_q")]),
+    ("country_guide", "removed country", {"country": "nl"},
+     [starts("Unknown country. Available: eu")]),
     ("find_data", "agri-food synonym", {"query": "pork prices"},
      [no_error, contains("pigmeat/prices", "agri_data(")]),
     ("find_data", "parliament", {"query": "how did MEPs vote"},
@@ -129,19 +90,19 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
      [no_error, contains("NL|Netherlands")]),
     ("eurostat_data", "NL house price index",
      {"dataset_id": "prc_hpi_q", "filters": {"geo": ["NL"], "purchase": ["TOTAL"], "unit": ["I15_Q"]}, "last_n": 4},
-     [no_error, contains("fixed:", "Netherlands"), max_rows(6)]),
+     [no_error, contains("fixed:", "Netherlands"), max_rows(6), cites_source]),
     ("eurostat_data", "too broad rejected", {"dataset_id": "nama_10_gdp"},
      [starts("Error: query too broad")]),
     # Agri-food
     ("agri_endpoints", "cereal", {"query": "cereal"},
      [no_error, contains("cereal/prices|", "code lookups")]),
     ("agri_data", "NL pig prices", {"endpoint": "pigmeat/prices", "params": {"memberStateCodes": "NL", "pigClasses": "E"}, "limit": 5},
-     [no_error, contains("price"), max_rows(7)]),
+     [no_error, contains("price"), max_rows(7), cites_source]),
     ("agri_data", "missing required param", {"endpoint": "oliveOil/production"},
      [starts("Error: oliveOil/production requires: granularity")]),
     # European Parliament
     ("ep_meps", "Dutch MEPs", {"country": "NL"},
-     [no_error, starts("id|name|country|group"), contains("|NL|")]),
+     [no_error, starts("id|name|country|group"), contains("|NL|"), cites_source]),
     ("ep_votes", "plenary 2026-07-08", {"date": "2026-07-08", "roll_call_only": True, "limit": 5},
      [no_error, starts("topic|item|outcome"), max_rows(6)]),
     ("ep_query", "adopted texts search", {"endpoint": "adopted-texts", "params": {"text": "housing"}, "limit": 2},
@@ -151,6 +112,10 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
      [no_error, starts("id|title|country"), max_rows(6)]),
     ("dataeu_search", "health, good quality", {"query": "hospital", "category": "health", "min_quality": "good", "limit": 3},
      [no_error, starts("id|title|country|catalogue|formats|modified|about"), max_rows(4)]),
+    ("dataeu_search", "newest first", {"query": "air quality", "sort": "newest", "limit": 3},
+     [no_error, starts("id|title|country"), max_rows(4)]),
+    ("dataeu_preview", "unknown dataset", {"dataset_id": "nope-0000"},
+     [starts("Error: Unknown dataset")]),
     ("dataeu_facets", "NL air quality by catalogue", {"query": "air quality", "country": "nl", "by": "catalogue,format", "top": 5},
      [no_error, contains("datasets match", "catalogue|datasets|name", "format|datasets|name")]),
     ("dataeu_sparql", "format counts",
@@ -180,7 +145,7 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
     ("govdata_preview", "Destatis file redirects", {"dataset_id": "umgeschlagene-guter-umgeschlagene-container-binnenschifffahrt-bundeslander-monate"},
      [contains('govdata_table("46321-0101")')]),
     ("govdata_table", "population by state", {"table_id": "12411-0010", "query": "Bayern", "last_n": 2},
-     [no_error, contains("fixed: label=Bayern", "Stichtag 31.12."), max_rows(8)]),
+     [no_error, contains("fixed: label=Bayern", "Stichtag 31.12."), max_rows(8), cites_source]),
     ("govdata_table", "CPI monthly", {"table_id": "61111-0002", "last_n": 1},
      [no_error, contains("Verbraucherpreisindex 2020=100|")]),
     ("govdata_table", "unknown table", {"table_id": "99999-9999"},

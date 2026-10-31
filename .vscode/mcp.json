@@ -2,8 +2,9 @@
   "servers": {
     "europa": {
       "type": "stdio",
-      "command": "${workspaceFolder}/.venv/bin/europa-mcp",
-      "args": []
+      "command": "uv",
+      "args": ["run", "europa-mcp"],
+      "cwd": "${workspaceFolder}"
     }
   }
 }
