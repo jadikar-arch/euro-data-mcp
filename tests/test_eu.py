@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 
-import httpx
 import pytest
 import respx
 from fastmcp import Client
@@ -47,15 +46,25 @@ STRUCTURE_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
    <s:TimeDimension id="TIME_PERIOD" position="3"/>
   </s:DimensionList></s:DataStructureComponents></s:DataStructure></s:DataStructures>
  </m:Structures>
-</m:Structure>""".replace(b"</c:AnnotationTitle><c:AnnotationType>OBS_PERIOD_OVERALL_OLDEST</c:AnnotationTitle>",
-                          b"</c:AnnotationTitle><c:AnnotationType>OBS_PERIOD_OVERALL_OLDEST</c:AnnotationType>")
+</m:Structure>""".replace(
+    b"</c:AnnotationTitle><c:AnnotationType>OBS_PERIOD_OVERALL_OLDEST</c:AnnotationTitle>",
+    b"</c:AnnotationTitle><c:AnnotationType>OBS_PERIOD_OVERALL_OLDEST</c:AnnotationType>",
+)
 
 JSONSTAT = {
-    "label": "House price index", "updated": "2026-10-01T11:00:00+0200",
-    "id": ["unit", "geo", "time"], "size": [1, 2, 2],
+    "label": "House price index",
+    "updated": "2026-10-01T11:00:00+0200",
+    "id": ["unit", "geo", "time"],
+    "size": [1, 2, 2],
     "dimension": {
-        "unit": {"label": "Unit of measure", "category": {"index": {"I15_Q": 0}, "label": {"I15_Q": "Index, 2015=100"}}},
-        "geo": {"label": "Geopolitical entity", "category": {"index": {"DE": 0, "NL": 1}, "label": {"DE": "Germany", "NL": "Netherlands"}}},
+        "unit": {
+            "label": "Unit of measure",
+            "category": {"index": {"I15_Q": 0}, "label": {"I15_Q": "Index, 2015=100"}},
+        },
+        "geo": {
+            "label": "Geopolitical entity",
+            "category": {"index": {"DE": 0, "NL": 1}, "label": {"DE": "Germany", "NL": "Netherlands"}},
+        },
         "time": {"label": "Time", "category": {"index": {"2026-Q1": 0, "2026-Q2": 1}}},
     },
     "value": {"0": 153.1, "1": 153.5, "2": 221.43, "3": 222.62},
@@ -73,8 +82,16 @@ TOC = (
 
 @pytest.fixture(autouse=True)
 async def fresh():
-    for memo in (eurostat.CATALOGS, eurostat.STRUCTURES, agrifood.SPEC, europarl.SPEC, europarl.MEPS,
-                 europarl.SITTINGS, europarl.ORGS, dataeuropa.USE_CASES):
+    for memo in (
+        eurostat.CATALOGS,
+        eurostat.STRUCTURES,
+        agrifood.SPEC,
+        europarl.SPEC,
+        europarl.MEPS,
+        europarl.SITTINGS,
+        europarl.ORGS,
+        dataeuropa.USE_CASES,
+    ):
         memo.clear()
     yield
     await web.aclose()
@@ -92,8 +109,12 @@ async def call(tool: str, **args) -> str:
 def test_parse_toc_dedupes_and_formats_dates():
     rows = eurostat.parse_toc(TOC)
     assert [r["id"] for r in rows] == ["prc_hpi_q", "une_rt_m"]
-    assert rows[0] == {"id": "prc_hpi_q", "title": "House price index - quarterly data",
-                       "period": "2005-Q1–2026-Q2", "updated": "2026-10-01"}
+    assert rows[0] == {
+        "id": "prc_hpi_q",
+        "title": "House price index - quarterly data",
+        "period": "2005-Q1–2026-Q2",
+        "updated": "2026-10-01",
+    }
 
 
 def test_rank_prefers_all_words_and_exact_id():
@@ -122,8 +143,7 @@ def test_jsonstat_rows_decodes_sparse_values():
 def fake_eurostat():
     with respx.mock(assert_all_called=False) as mock:
         mock.get(f"{ESTAT}/catalogue/toc/txt").respond(200, text=TOC)
-        mock.get(url__regex=rf"{ESTAT}/sdmx/2.1/dataflow/ESTAT/PRC_HPI_Q/latest.*").respond(
-            200, content=STRUCTURE_XML)
+        mock.get(url__regex=rf"{ESTAT}/sdmx/2.1/dataflow/ESTAT/PRC_HPI_Q/latest.*").respond(200, content=STRUCTURE_XML)
         mock.get(url__regex=rf"{ESTAT}/sdmx/2.1/dataflow/ESTAT/NOPE/latest.*").respond(404, text="no")
         data = mock.get(url__regex=rf"{ESTAT}/statistics/1.0/data/PRC_HPI_Q.*").respond(200, json=JSONSTAT)
         yield data
@@ -139,7 +159,8 @@ async def test_eurostat_search_and_describe(fake_eurostat):
 
 async def test_eurostat_codes(fake_eurostat):
     assert await call("eurostat_codes", dataset_id="prc_hpi_q", dimension="geo", query="nether") == (
-        "code|label\nNL|Netherlands")
+        "code|label\nNL|Netherlands"
+    )
 
 
 async def test_eurostat_data_table_newest_first(fake_eurostat):
@@ -148,8 +169,10 @@ async def test_eurostat_data_table_newest_first(fake_eurostat):
     assert lines[1] == "fixed: Unit of measure=Index, 2015=100"
     assert lines[2] == "Geopolitical entity|Time|flag|value"
     assert lines[3:5] == ["Germany|2026-Q2||153.5", "Netherlands|2026-Q2|p|222.62"]
-    assert lines[-1] == ("source: https://ec.europa.eu/eurostat/databrowser/view/prc_hpi_q/default/table?lang=en"
-                         " · licence: CC BY 4.0, © European Union (Eurostat)")
+    assert lines[-1] == (
+        "source: https://ec.europa.eu/eurostat/databrowser/view/prc_hpi_q/default/table?lang=en"
+        " · licence: CC BY 4.0, © European Union (Eurostat)"
+    )
     sent = fake_eurostat.calls.last.request.url.params
     assert sent.get_list("geo") == ["NL", "DE"] and sent["lastTimePeriod"] == "2"
 
@@ -168,25 +191,33 @@ async def test_eurostat_data_errors(fake_eurostat, monkeypatch):
 
 # ---- agri-food --------------------------------------------------------------------
 
-AGRI_SPEC = {"paths": {
-    "/api/pigmeat/prices": {"get": {"parameters": [
-        {"name": "memberStateCodes", "in": "query"},
-        {"name": "beginDate", "in": "query", "description": "The optional date (dd/mm/yyyy) start"},
-    ]}},
-    "/api/oliveOil/production": {"get": {"parameters": [
-        {"name": "granularity", "in": "query", "required": True}]}},
-    "/api/cereal/products": {"get": {}},
-}}
+AGRI_SPEC = {
+    "paths": {
+        "/api/pigmeat/prices": {
+            "get": {
+                "parameters": [
+                    {"name": "memberStateCodes", "in": "query"},
+                    {"name": "beginDate", "in": "query", "description": "The optional date (dd/mm/yyyy) start"},
+                ]
+            }
+        },
+        "/api/oliveOil/production": {"get": {"parameters": [{"name": "granularity", "in": "query", "required": True}]}},
+        "/api/cereal/products": {"get": {}},
+    }
+}
 
 
 @pytest.fixture
 def fake_agri():
     with respx.mock(assert_all_called=False) as mock:
         mock.get(f"{agrifood.BASE}/v3/api-docs").respond(200, json=AGRI_SPEC)
-        prices = mock.get(f"{agrifood.BASE}/api/pigmeat/prices").respond(200, json=[
-            {"memberStateCode": "NL", "price": "€108.79", "unit": "100 KG", "weekNumber": 40},
-            {"memberStateCode": "DE", "price": "€155.34", "unit": "100 KG", "weekNumber": 40},
-        ])
+        prices = mock.get(f"{agrifood.BASE}/api/pigmeat/prices").respond(
+            200,
+            json=[
+                {"memberStateCode": "NL", "price": "€108.79", "unit": "100 KG", "weekNumber": 40},
+                {"memberStateCode": "DE", "price": "€155.34", "unit": "100 KG", "weekNumber": 40},
+            ],
+        )
         mock.get(f"{agrifood.BASE}/api/cereal/products").respond(404, json={"message": "No results found"})
         yield prices
 
@@ -203,15 +234,22 @@ async def test_agri_endpoints(fake_agri):
 async def test_agri_data(fake_agri):
     out = await call("agri_data", endpoint="/api/pigmeat/prices", params={"memberstatecodes": ["NL", "DE"]})
     assert out.splitlines()[:-1] == [
-        "fixed: unit=100 KG; weekNumber=40", "memberStateCode|price", "NL|€108.79", "DE|€155.34"]
+        "fixed: unit=100 KG; weekNumber=40",
+        "memberStateCode|price",
+        "NL|€108.79",
+        "DE|€155.34",
+    ]
     assert out.splitlines()[-1] == (
         f"source: {agrifood.BASE}/api/pigmeat/prices?memberStateCodes=NL%2CDE"
-        " · licence: CC BY 4.0, © European Union (DG AGRI agri-food data portal)")
+        " · licence: CC BY 4.0, © European Union (DG AGRI agri-food data portal)"
+    )
     assert fake_agri.calls.last.request.url.params["memberStateCodes"] == "NL,DE"
     assert (await call("agri_data", endpoint="pigmeat/prices", params={"foo": 1})).startswith(
-        "Error: Unknown param 'foo' for pigmeat/prices. Valid: memberStateCodes, beginDate")
+        "Error: Unknown param 'foo' for pigmeat/prices. Valid: memberStateCodes, beginDate"
+    )
     assert await call("agri_data", endpoint="oliveOil/production") == (
-        "Error: oliveOil/production requires: granularity")
+        "Error: oliveOil/production requires: granularity"
+    )
     assert (await call("agri_data", endpoint="cereal/products")).startswith("No data for cereal/products")
     assert "Did you mean: pigmeat/prices" in await call("agri_data", endpoint="pig/prices")
 
@@ -220,65 +258,133 @@ async def test_agri_data(fake_agri):
 
 EP = europarl.BASE
 EP_SPEC = {
-    "components": {"parameters": {"limit": {"name": "limit", "in": "query"},
-                                  "text": {"name": "text", "in": "query"},
-                                  "year": {"name": "year", "in": "query"}}},
+    "components": {
+        "parameters": {
+            "limit": {"name": "limit", "in": "query"},
+            "text": {"name": "text", "in": "query"},
+            "year": {"name": "year", "in": "query"},
+        }
+    },
     "paths": {
         "/meps/{mep-id}": {"get": {"parameters": []}},
         "/meps/show-current": {"get": {"parameters": [{"$ref": "#/components/parameters/limit"}]}},
-        "/adopted-texts": {"get": {"parameters": [{"$ref": "#/components/parameters/text"},
-                                                  {"$ref": "#/components/parameters/limit"}]}},
+        "/adopted-texts": {
+            "get": {"parameters": [{"$ref": "#/components/parameters/text"}, {"$ref": "#/components/parameters/limit"}]}
+        },
     },
 }
-DECISIONS = {"data": [
-    {"id": "eli/dl/event/D2", "activity_order": "2.0", "activity_label": {"en": "§ 41", "nl": "§ 41"},
-     "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
-     "decision_outcome": "def/ep-statuses/ADOPTED", "inverse_consists_of": ["eli/dl/event/ITM-1"],
-     "number_of_votes_favor": 517, "number_of_votes_against": 102, "number_of_votes_abstention": 43,
-     "had_voter_against": ["person/42"]},
-    {"id": "eli/dl/event/D1", "activity_order": "1.0", "activity_label": {"en": "After § 5"},
-     "decision_method": "def/ep-decision-methods/VOTE_HAND",
-     "decision_outcome": "def/ep-statuses/REJECTED", "inverse_consists_of": ["eli/dl/event/ITM-2"]},
-]}
-VOTE_ITEMS = {"data": [{"id": "eli/dl/event/ITM-1", "activity_label": {"en": "Report on Ukraine"}},
-                       {"id": "eli/dl/event/ITM-2", "activity_label": {"en": "Water resilience"}}]}
+DECISIONS = {
+    "data": [
+        {
+            "id": "eli/dl/event/D2",
+            "activity_order": "2.0",
+            "activity_label": {"en": "§ 41", "nl": "§ 41"},
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/ADOPTED",
+            "inverse_consists_of": ["eli/dl/event/ITM-1"],
+            "number_of_votes_favor": 517,
+            "number_of_votes_against": 102,
+            "number_of_votes_abstention": 43,
+            "had_voter_against": ["person/42"],
+        },
+        {
+            "id": "eli/dl/event/D1",
+            "activity_order": "1.0",
+            "activity_label": {"en": "After § 5"},
+            "decision_method": "def/ep-decision-methods/VOTE_HAND",
+            "decision_outcome": "def/ep-statuses/REJECTED",
+            "inverse_consists_of": ["eli/dl/event/ITM-2"],
+        },
+    ]
+}
+VOTE_ITEMS = {
+    "data": [
+        {"id": "eli/dl/event/ITM-1", "activity_label": {"en": "Report on Ukraine"}},
+        {"id": "eli/dl/event/ITM-2", "activity_label": {"en": "Water resilience"}},
+    ]
+}
 
 
 @pytest.fixture
 def fake_ep():
     with respx.mock(assert_all_called=False) as mock:
         mock.get(f"{EP}/").respond(200, json=EP_SPEC)
-        mock.get(f"{EP}/meps/show-current").respond(200, json={"data": [
-            {"identifier": "1", "label": "Lara WOLTERS", "api:country-of-representation": "NL",
-             "api:political-group": "S&D"},
-            {"identifier": "2", "label": "Bart GROOTHUIS", "api:country-of-representation": "NL",
-             "api:political-group": "Renew"},
-            {"identifier": "3", "label": "Hans MEIER", "api:country-of-representation": "DE",
-             "api:political-group": "EPP"},
-        ]})
+        mock.get(f"{EP}/meps/show-current").respond(
+            200,
+            json={
+                "data": [
+                    {
+                        "identifier": "1",
+                        "label": "Lara WOLTERS",
+                        "api:country-of-representation": "NL",
+                        "api:political-group": "S&D",
+                    },
+                    {
+                        "identifier": "2",
+                        "label": "Bart GROOTHUIS",
+                        "api:country-of-representation": "NL",
+                        "api:political-group": "Renew",
+                    },
+                    {
+                        "identifier": "3",
+                        "label": "Hans MEIER",
+                        "api:country-of-representation": "DE",
+                        "api:political-group": "EPP",
+                    },
+                ]
+            },
+        )
         mock.get(f"{EP}/meetings/MTG-PL-2026-07-08/decisions").respond(200, json=DECISIONS)
         mock.get(f"{EP}/meetings/MTG-PL-2026-07-08/vote-results").respond(200, json=VOTE_ITEMS)
         mock.get(f"{EP}/meetings/MTG-PL-2026-08-01/decisions").respond(204)
         mock.get(f"{EP}/meetings/MTG-PL-2026-08-01/vote-results").respond(204)
         mock.get(f"{EP}/corporate-bodies").respond(200, json={"data": [{"id": "org/7005", "label": "DROI"}]})
-        texts = mock.get(f"{EP}/adopted-texts").respond(200, json={"meta": {"total": 30}, "data": [{
-            "id": "eli/dl/doc/TA-10-2024-0066", "type": "Work", "document_date": "2024-12-18",
-            "is_about": ["http://eurovoc.europa.eu/1"],
-            "is_realized_by": [
-                {"id": "eli/dl/doc/TA-10-2024-0066/nl", "title": {"nl": "Huisvesting"}},
-                {"id": "eli/dl/doc/TA-10-2024-0066/en", "title": {"en": "Housing crisis"},
-                 "is_embodied_by": [{"is_exemplified_by": "distribution/doc/TA_en.pdf"}]},
-            ],
-            "work_type": "def/ep-document-types/TEXT_ADOPTED",
-        }]})
-        mock.get(f"{EP}/meps/197500").respond(200, json={"data": [{
-            "id": "person/197500", "label": "Mounir SATOURI",
-            "hasMembership": [
-                {"memberDuring": {"startDate": "2024-07-23"}, "organization": "org/7005",
-                 "role": "def/ep-roles/CHAIR", "membershipClassification": "def/ep-entities/COMMITTEE"},
-                {"memberDuring": {"startDate": "2019-07-02", "endDate": "2024-07-15"}, "organization": "org/1"},
-            ],
-        }]})
+        texts = mock.get(f"{EP}/adopted-texts").respond(
+            200,
+            json={
+                "meta": {"total": 30},
+                "data": [
+                    {
+                        "id": "eli/dl/doc/TA-10-2024-0066",
+                        "type": "Work",
+                        "document_date": "2024-12-18",
+                        "is_about": ["http://eurovoc.europa.eu/1"],
+                        "is_realized_by": [
+                            {"id": "eli/dl/doc/TA-10-2024-0066/nl", "title": {"nl": "Huisvesting"}},
+                            {
+                                "id": "eli/dl/doc/TA-10-2024-0066/en",
+                                "title": {"en": "Housing crisis"},
+                                "is_embodied_by": [{"is_exemplified_by": "distribution/doc/TA_en.pdf"}],
+                            },
+                        ],
+                        "work_type": "def/ep-document-types/TEXT_ADOPTED",
+                    }
+                ],
+            },
+        )
+        mock.get(f"{EP}/meps/197500").respond(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": "person/197500",
+                        "label": "Mounir SATOURI",
+                        "hasMembership": [
+                            {
+                                "memberDuring": {"startDate": "2024-07-23"},
+                                "organization": "org/7005",
+                                "role": "def/ep-roles/CHAIR",
+                                "membershipClassification": "def/ep-entities/COMMITTEE",
+                            },
+                            {
+                                "memberDuring": {"startDate": "2019-07-02", "endDate": "2024-07-15"},
+                                "organization": "org/1",
+                            },
+                        ],
+                    }
+                ]
+            },
+        )
         yield texts
 
 
@@ -320,7 +426,8 @@ async def test_ep_query_memberships_and_validation(fake_ep):
     assert "current memberships: CHAIR COMMITTEE DROI (since 2024-07-23)" in out
     assert "past memberships: 1" in out
     assert (await call("ep_query", endpoint="adopted-texts", params={"foo": 1})).startswith(
-        "Error: Unknown param 'foo' for adopted-texts")
+        "Error: Unknown param 'foo' for adopted-texts"
+    )
     assert (await call("ep_query", endpoint="nope")).startswith("Error: Unknown endpoint 'nope'. Roots:")
 
 
@@ -336,61 +443,144 @@ def test_match_path_prefers_literal_segments():
 @pytest.fixture
 def fake_portal():
     with respx.mock(assert_all_called=False) as mock:
-        mock.get(f"{dataeuropa.SEARCH}/search", params={"filter": "catalogue"}).respond(200, json={"result": {
-            "results": [
-                {"id": "govdata", "title": {"en": "GovData"}, "count": 169190,
-                 "description": {"de": "Das Datenportal für Deutschland", "en": "The data portal for Germany"},
-                 "language": [{"id": "de"}], "country": {"label": "Germany"}, "source_type": "dcat-ap",
-                 "publisher": {"name": "GKSt GovData"}, "homepage": "https://www.govdata.de",
-                 "modified": "2026-10-01T08:00:00Z"},
-                {"id": "empty", "title": {"en": "Empty"}, "count": 0},
-            ]}})
-        mock.get(f"{dataeuropa.SEARCH}/search", params={"limit": "0"}).respond(200, json={"result": {
-            "count": 5291, "results": [], "facets": [
-                {"id": "catalog", "items": [{"id": "dataportaal", "title": "Dataportaal", "count": 3356},
-                                            {"id": "ngr-nl", "title": "Georegister", "count": 1874},
-                                            {"id": "none", "title": "Nothing", "count": 0}]},
-                {"id": "categories", "items": [{"id": "ENVI", "title": {"en": "Environment"}, "count": 943}]},
-            ]}})
-        search = mock.get(f"{dataeuropa.SEARCH}/search").respond(200, json={"result": {"count": 1806, "results": [{
-            "id": "4420-food-prices", "title": {"nl": "Voedselprijzen", "en": "Food prices"},
-            "description": {"en": "<p>Average consumer prices | per product.</p>"},
-            "country": {"id": "nl"}, "catalog": {"id": "dataportaal"},
-            "distributions": [{"format": {"id": "JSON"}}, {"format": {"id": "JSON"}}, {"format": {"id": "CSV"}}],
-            "catalog_record": {"modified": "2026-08-12T00:06:15Z"},
-        }]}})
-        mock.get(f"{dataeuropa.SEARCH}/datasets/4420-food-prices").respond(200, json={"result": {
-            "id": "4420-food-prices", "title": {"en": "Food prices"}, "description": {"en": "Average prices."},
-            "country": {"label": "Netherlands"}, "quality_meas": {"scoring": 185},
-            "distributions": [{"format": {"id": "CSV"}, "title": {"en": "Data"},
-                               "download_url": ["https://x/data.csv"], "license": {"label": "CC BY 4.0"}},
-                              {"format": {"id": "PDF"}, "access_url": ["https://x/report.pdf"]},
-                              {"format": {"id": "CSV"}, "download_url": ["https://intranet.example/x.csv"]},
-                              {"format": {"id": "CSV"}, "download_url": ["https://x/moved.csv"]}],
-        }})
-        mock.get("https://x/data.csv").respond(200, text="product;price\nbread;2.10\nmilk;1.05\n",
-                                               headers={"content-type": "text/csv"})
+        mock.get(f"{dataeuropa.SEARCH}/search", params={"filter": "catalogue"}).respond(
+            200,
+            json={
+                "result": {
+                    "results": [
+                        {
+                            "id": "govdata",
+                            "title": {"en": "GovData"},
+                            "count": 169190,
+                            "description": {
+                                "de": "Das Datenportal für Deutschland",
+                                "en": "The data portal for Germany",
+                            },
+                            "language": [{"id": "de"}],
+                            "country": {"label": "Germany"},
+                            "source_type": "dcat-ap",
+                            "publisher": {"name": "GKSt GovData"},
+                            "homepage": "https://www.govdata.de",
+                            "modified": "2026-10-01T08:00:00Z",
+                        },
+                        {"id": "empty", "title": {"en": "Empty"}, "count": 0},
+                    ]
+                }
+            },
+        )
+        mock.get(f"{dataeuropa.SEARCH}/search", params={"limit": "0"}).respond(
+            200,
+            json={
+                "result": {
+                    "count": 5291,
+                    "results": [],
+                    "facets": [
+                        {
+                            "id": "catalog",
+                            "items": [
+                                {"id": "dataportaal", "title": "Dataportaal", "count": 3356},
+                                {"id": "ngr-nl", "title": "Georegister", "count": 1874},
+                                {"id": "none", "title": "Nothing", "count": 0},
+                            ],
+                        },
+                        {"id": "categories", "items": [{"id": "ENVI", "title": {"en": "Environment"}, "count": 943}]},
+                    ],
+                }
+            },
+        )
+        search = mock.get(f"{dataeuropa.SEARCH}/search").respond(
+            200,
+            json={
+                "result": {
+                    "count": 1806,
+                    "results": [
+                        {
+                            "id": "4420-food-prices",
+                            "title": {"nl": "Voedselprijzen", "en": "Food prices"},
+                            "description": {"en": "<p>Average consumer prices | per product.</p>"},
+                            "country": {"id": "nl"},
+                            "catalog": {"id": "dataportaal"},
+                            "distributions": [
+                                {"format": {"id": "JSON"}},
+                                {"format": {"id": "JSON"}},
+                                {"format": {"id": "CSV"}},
+                            ],
+                            "catalog_record": {"modified": "2026-08-12T00:06:15Z"},
+                        }
+                    ],
+                }
+            },
+        )
+        mock.get(f"{dataeuropa.SEARCH}/datasets/4420-food-prices").respond(
+            200,
+            json={
+                "result": {
+                    "id": "4420-food-prices",
+                    "title": {"en": "Food prices"},
+                    "description": {"en": "Average prices."},
+                    "country": {"label": "Netherlands"},
+                    "quality_meas": {"scoring": 185},
+                    "distributions": [
+                        {
+                            "format": {"id": "CSV"},
+                            "title": {"en": "Data"},
+                            "download_url": ["https://x/data.csv"],
+                            "license": {"label": "CC BY 4.0"},
+                        },
+                        {"format": {"id": "PDF"}, "access_url": ["https://x/report.pdf"]},
+                        {"format": {"id": "CSV"}, "download_url": ["https://intranet.example/x.csv"]},
+                        {"format": {"id": "CSV"}, "download_url": ["https://x/moved.csv"]},
+                    ],
+                }
+            },
+        )
+        mock.get("https://x/data.csv").respond(
+            200, text="product;price\nbread;2.10\nmilk;1.05\n", headers={"content-type": "text/csv"}
+        )
         mock.get("https://x/moved.csv").respond(302, headers={"location": "http://rebind.example/secret.csv"})
         mock.get(f"{dataeuropa.SEARCH}/datasets/nope").respond(404, json={"message": "not found"})
-        sparql = mock.get(f"{dataeuropa.PORTAL}/sparql").respond(200, json={
-            "head": {"vars": ["d", "n"]},
-            "results": {"bindings": [
-                {"d": {"value": "http://data.europa.eu/88u/dataset/a"}, "n": {"value": "1"}},
-                {"d": {"value": "http://data.europa.eu/88u/dataset/b"}},
-            ]}})
-        mock.get(f"{dataeuropa.MQA}/countries/NLD").respond(200, json={"result": {"results": [{
-            "score": {"value": 3.958, "max": 7.5, "date": "2026-10-04"},
-            "counts": {"value": {"datasets": 4321}},
-            "coverage": {"value": {"dataset": [
-                {"metric": "titleAvailability", "importance": "Mandatory", "coverage": 99.95},
-                {"metric": "relationAvailability", "importance": "Optional", "coverage": None},
-            ]}},
-        }]}})
-        mock.get(f"{dataeuropa.PORTAL}/en/export-use-cases").respond(200, text=(
-            'Country,Title,Description,"Date of Publication",Region,Sector,Nature,PDF\n'
-            'Netherlands,Old app,Maps,31/05/2016,,Transport,,\n'
-            'Netherlands,New app,Flood maps,17/02/2021,,Environment,,\n'
-            'Spain,Papelea,Legal help,01/01/2022,,Government,,\n'))
+        sparql = mock.get(f"{dataeuropa.PORTAL}/sparql").respond(
+            200,
+            json={
+                "head": {"vars": ["d", "n"]},
+                "results": {
+                    "bindings": [
+                        {"d": {"value": "http://data.europa.eu/88u/dataset/a"}, "n": {"value": "1"}},
+                        {"d": {"value": "http://data.europa.eu/88u/dataset/b"}},
+                    ]
+                },
+            },
+        )
+        mock.get(f"{dataeuropa.MQA}/countries/NLD").respond(
+            200,
+            json={
+                "result": {
+                    "results": [
+                        {
+                            "score": {"value": 3.958, "max": 7.5, "date": "2026-10-04"},
+                            "counts": {"value": {"datasets": 4321}},
+                            "coverage": {
+                                "value": {
+                                    "dataset": [
+                                        {"metric": "titleAvailability", "importance": "Mandatory", "coverage": 99.95},
+                                        {"metric": "relationAvailability", "importance": "Optional", "coverage": None},
+                                    ]
+                                }
+                            },
+                        }
+                    ]
+                }
+            },
+        )
+        mock.get(f"{dataeuropa.PORTAL}/en/export-use-cases").respond(
+            200,
+            text=(
+                'Country,Title,Description,"Date of Publication",Region,Sector,Nature,PDF\n'
+                "Netherlands,Old app,Maps,31/05/2016,,Transport,,\n"
+                "Netherlands,New app,Flood maps,17/02/2021,,Environment,,\n"
+                "Spain,Papelea,Legal help,01/01/2022,,Government,,\n"
+            ),
+        )
         yield search, sparql
 
 
@@ -407,7 +597,10 @@ async def test_dataeu_search(fake_portal):
     assert json.loads(search.calls.last.request.url.params["facets"]) == {"categories": ["AGRI"]}
     await call("dataeu_search", query="x", category="health", hvd=True, min_quality="Good")
     assert json.loads(search.calls.last.request.url.params["facets"]) == {
-        "categories": ["HEAL"], "is_hvd": ["true"], "scoring": ["excellentScoring", "goodScoring"]}
+        "categories": ["HEAL"],
+        "is_hvd": ["true"],
+        "scoring": ["excellentScoring", "goodScoring"],
+    }
     assert (await call("dataeu_search", query="x", category="space")).startswith("Error: Unknown category 'space'")
     assert (await call("dataeu_search", query="x", min_quality="top")).startswith("Error: min_quality must be")
 
@@ -416,19 +609,28 @@ async def test_dataeu_facets(fake_portal):
     out = await call("dataeu_facets", query="air quality", country="nl", by="catalogue,category", top=1)
     assert out.splitlines() == [
         "5,291 datasets match 'air quality' with {'country': ['nl']}",
-        "catalogue|datasets|name", "dataportaal|3,356|Dataportaal", "# 1 of 2 catalogue values",
-        "category|datasets|name", "ENVI|943|Environment",
+        "catalogue|datasets|name",
+        "dataportaal|3,356|Dataportaal",
+        "# 1 of 2 catalogue values",
+        "category|datasets|name",
+        "ENVI|943|Environment",
     ]
     assert (await call("dataeu_facets", by="size")).startswith("Error: Unknown by 'size'")
 
 
 async def test_dataeu_catalogue_map(fake_portal):
-    assert await mapping.build_dataeu() == [{
-        "source": "data.europa.eu", "id": "govdata", "title": "GovData: 169,190 datasets",
-        "path": "data.europa.eu > Germany",
-        "keywords": "The data portal for Germany Das Datenportal für Deutschland GKSt GovData govdata.de dcat-ap Germany",
-        "period": "", "updated": "2026-10-01", "call": 'dataeu_search("...", catalogue="govdata")',
-    }]
+    assert await mapping.build_dataeu() == [
+        {
+            "source": "data.europa.eu",
+            "id": "govdata",
+            "title": "GovData: 169,190 datasets",
+            "path": "data.europa.eu > Germany",
+            "keywords": "The data portal for Germany Das Datenportal für Deutschland GKSt GovData govdata.de dcat-ap Germany",
+            "period": "",
+            "updated": "2026-10-01",
+            "call": 'dataeu_search("...", catalogue="govdata")',
+        }
+    ]
 
 
 async def test_dataeu_dataset(fake_portal):
@@ -452,7 +654,9 @@ async def test_dataeu_quality_and_use_cases(fake_portal):
     out = await call("dataeu_quality", scope="country", id="nld")
     assert out.splitlines()[0] == "country nld: score 3.96/7.5 (2026-10-04)"
     assert out.splitlines()[3:] == [
-        "relationAvailability|dataset|Optional|0", "titleAvailability|dataset|Mandatory|100.0"]
+        "relationAvailability|dataset|Optional|0",
+        "titleAvailability|dataset|Mandatory|100.0",
+    ]
     assert (await call("dataeu_quality", scope="country", id="NL")).startswith("Error: country id must be")
     out = await call("dataeu_use_cases", country="netherlands")
     assert out.splitlines()[1].startswith("New app|Netherlands|Environment|2021-02-17")
@@ -472,11 +676,16 @@ async def test_dataeu_search_sort_and_language(fake_portal):
 async def test_dataeu_preview(fake_portal):
     out = await call("dataeu_preview", dataset_id="4420-food-prices", file=1)
     assert out.splitlines() == [
-        "4420-food-prices file 1: CSV, 2 columns", "product|price", "bread|2.10", "milk|1.05",
-        "# showing 2 of 2 rows", "source: https://x/data.csv · licence: CC BY 4.0",
+        "4420-food-prices file 1: CSV, 2 columns",
+        "product|price",
+        "bread|2.10",
+        "milk|1.05",
+        "# showing 2 of 2 rows",
+        "source: https://x/data.csv · licence: CC BY 4.0",
     ]
     assert (await call("dataeu_preview", dataset_id="4420-food-prices", file=2)).startswith(
-        "Error: 4420-food-prices file 2 is PDF; only CSV/JSON")
+        "Error: 4420-food-prices file 2 is PDF; only CSV/JSON"
+    )
     assert (await call("dataeu_preview", dataset_id="4420-food-prices", file=9)).startswith("Error: file must be 1..4")
     assert await call("dataeu_preview", dataset_id="nope") == "Error: Unknown dataset 'nope'. Use dataeu_search."
 

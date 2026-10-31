@@ -75,8 +75,9 @@ def report(path: Path, top: int = 15) -> str:
         out.append(f"{tool}|{n}|{outcomes[tool, 'empty']}|{outcomes[tool, 'error']}|{ms[len(ms) // 2]}")
 
     def queries(want: set[str]) -> list[str]:
-        c = Counter(str(r["args"]["query"]).strip().lower() for r in rows
-                    if r["outcome"] in want and r["args"].get("query"))
+        c = Counter(
+            str(r["args"]["query"]).strip().lower() for r in rows if r["outcome"] in want and r["args"].get("query")
+        )
         return [f"{n}|{q}" for q, n in c.most_common(top)]
 
     out += ["", "Most asked topics (calls|query):", *queries({"ok", "empty", "error"})]

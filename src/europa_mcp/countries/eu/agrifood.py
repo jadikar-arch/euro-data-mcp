@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlencode
 
 from fastmcp import FastMCP
 
-from urllib.parse import urlencode
-
-from ...common import EC_LICENCE, NotFound, READ_ONLY, UserError, as_list, cell, compact_table, fmt_value, fold, safe, source_line
+from ...common import (
+    EC_LICENCE,
+    READ_ONLY,
+    NotFound,
+    UserError,
+    as_list,
+    cell,
+    compact_table,
+    fmt_value,
+    fold,
+    safe,
+    source_line,
+)
 from ...web import Memo, fetch_json
 
 BASE = "https://api.tech.ec.europa.eu/agrifood"
@@ -38,8 +49,15 @@ async def endpoints() -> dict[str, dict[str, Any]]:
 
 def _hint(desc: str) -> str:
     """The format part of a parameter description, e.g. 'dd/mm/yyyy' or 'yyyy/yyyy'."""
-    for token in ("dd/mm/yyyy", "yyyy/yyyy", "yyyy/yy", "yyyy/mm", "yyyy", "'annual' or 'monthly'",
-                  "'monthly' or 'short'"):
+    for token in (
+        "dd/mm/yyyy",
+        "yyyy/yyyy",
+        "yyyy/yy",
+        "yyyy/mm",
+        "yyyy",
+        "'annual' or 'monthly'",
+        "'monthly' or 'short'",
+    ):
         if token in desc:
             return token
     return ""
@@ -54,8 +72,7 @@ def _resolve(name: str, eps: dict[str, Any]) -> str:
         return by_lc[key.lower()]
     near = [k for k in eps if fold(key.split("/")[0]) in fold(k)][:8]
     raise UserError(
-        f"Unknown endpoint '{name}'." + (f" Did you mean: {', '.join(near)}?" if near else "")
-        + " See agri_endpoints."
+        f"Unknown endpoint '{name}'." + (f" Did you mean: {', '.join(near)}?" if near else "") + " See agri_endpoints."
     )
 
 
@@ -95,9 +112,7 @@ async def agri_data(endpoint: str, params: dict[str, Any] | None = None, limit: 
     for name, val in (params or {}).items():
         real = by_lc.get(name.lower())
         if real is None:
-            raise UserError(
-                f"Unknown param '{name}' for {key}. Valid: {', '.join(allowed) or 'none'}"
-            )
+            raise UserError(f"Unknown param '{name}' for {key}. Valid: {', '.join(allowed) or 'none'}")
         vals = as_list(val)
         if vals:
             query[real] = ",".join(vals)
@@ -126,7 +141,9 @@ async def agri_data(endpoint: str, params: dict[str, Any] | None = None, limit: 
     if total > limit:
         lines.append(f"# truncated: {limit} of {total} rows; narrow params (dates, member states)")
     url = f"{BASE}/api/{key}" + (f"?{urlencode(query)}" if query else "")
-    lines.append(source_line(url, EC_LICENCE.replace("European Union", "European Union (DG AGRI agri-food data portal)")))
+    lines.append(
+        source_line(url, EC_LICENCE.replace("European Union", "European Union (DG AGRI agri-food data portal)"))
+    )
     return "\n".join(lines)
 
 

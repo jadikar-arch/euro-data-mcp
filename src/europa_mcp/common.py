@@ -75,6 +75,7 @@ def fold(s: str) -> str:
     s = unicodedata.normalize("NFKD", s or "")
     return "".join(c for c in s if not unicodedata.combining(c)).casefold()
 
+
 READ_ONLY = {"readOnlyHint": True, "openWorldHint": True}
 
 
@@ -114,10 +115,7 @@ def compact_table(cols: list[str], table: list[list[str]], keep_last: bool = Tru
     if not table:
         return []
     last = len(cols) - 1
-    keep = [
-        i for i in range(len(cols))
-        if (keep_last and i == last) or len({t[i] for t in table}) > 1
-    ] or [last]
+    keep = [i for i in range(len(cols)) if (keep_last and i == last) or len({t[i] for t in table}) > 1] or [last]
     out = []
     fixed = [f"{cols[i]}={table[0][i]}" for i in range(len(cols)) if i not in keep and table[0][i]]
     if fixed:

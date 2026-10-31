@@ -445,6 +445,8 @@ eurostat_data("une_rt_m", {"geo": ["DE"], "sex": ["T"], "age": ["TOTAL"], "unit"
 
 ```bash
 uv sync
+uv run prek install      # git hook: ruff lint + format, file checks, unit tests on every commit
+uv run prek run --all-files
 uv run pytest            # mocked HTTP (respx)
 uv run pytest -m live    # end-to-end smoke tests against the real APIs
 uv run python eval/run_eval.py   # find_data search quality (hit@1 / hit@3)

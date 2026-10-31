@@ -58,9 +58,7 @@ _map_task: asyncio.Task | None = None
 
 
 def all_synonyms() -> dict[str, list[str]]:
-    return merge_synonyms(
-        (getattr(c, "SYNONYMS", {}) for c in COUNTRIES), (c.HINTS["synonyms"] for c in COUNTRIES)
-    )
+    return merge_synonyms((getattr(c, "SYNONYMS", {}) for c in COUNTRIES), (c.HINTS["synonyms"] for c in COUNTRIES))
 
 
 def get_map() -> SourceMap:
@@ -114,8 +112,10 @@ NONE_OF_THESE = "None of these"
 PICK = "dataset"  # key of the input request that asks the user to pick
 CLOSED = "closed"  # the user dismissed the picker
 CLOSED_NOTE = "# The user closed the picker without choosing; ask them in the chat which dataset to use."
-ASK_USER_NOTE = ("# Show the user these options (rank, title, period, breakdowns) and let them choose before "
-                 "fetching data, unless they already named a dataset.")
+ASK_USER_NOTE = (
+    "# Show the user these options (rank, title, period, breakdowns) and let them choose before "
+    "fetching data, unless they already named a dataset."
+)
 
 
 def ranked_matches(query: str, sources: list[str] | None, per_source: int, limit: int) -> list[dict[str, Any]]:
@@ -141,21 +141,35 @@ def ranked_matches(query: str, sources: list[str] | None, per_source: int, limit
 
 
 def match_table(query: str, rows: list[dict[str, Any]]) -> list[str]:
-    out = [f"Ranked matches for '{query}' (best first; match = share of the question's words found).",
-           "rank|match|source|id|title|period|breakdowns|next call"]
+    out = [
+        f"Ranked matches for '{query}' (best first; match = share of the question's words found).",
+        "rank|match|source|id|title|period|breakdowns|next call",
+    ]
     for n, r in enumerate(rows, 1):
-        out.append("|".join(cell(x) for x in (
-            n, f"{round(r['coverage'] * 100)}%", r["source"], r["id"], clip(r["title"], 90), r["period"],
-            clip(r.get("detail") or "", 60), r["call"],
-        )))
+        out.append(
+            "|".join(
+                cell(x)
+                for x in (
+                    n,
+                    f"{round(r['coverage'] * 100)}%",
+                    r["source"],
+                    r["id"],
+                    clip(r["title"], 90),
+                    r["period"],
+                    clip(r.get("detail") or "", 60),
+                    r["call"],
+                )
+            )
+        )
     shown = dict.fromkeys(r["source"] for r in rows)
     out.append("# sources: " + "; ".join(f"{s} = {SOURCES[s]}" for s in shown if SOURCES.get(s)))
     return out
 
 
 def option_label(n: int, r: dict[str, Any]) -> str:
-    facts = "; ".join(x for x in (f"{r['source']} {r['id']}", r["period"],
-                                  f"by {r['detail']}" if r.get("detail") else "") if x)
+    facts = "; ".join(
+        x for x in (f"{r['source']} {r['id']}", r["period"], f"by {r['detail']}" if r.get("detail") else "") if x
+    )
     return f"{n}. {clip(r['title'], 90)} ({facts})"
 
 
@@ -179,16 +193,21 @@ def can_elicit(ctx: Context | None) -> bool:
 def chosen(choice: str, query: str, rows: list[dict[str, Any]]) -> str | None:
     """The user's pick as the tool answer (None when the choice can't be read)."""
     if choice == NONE_OF_THESE:
-        return (f"The user said none of the {len(rows)} matches for '{query}' fit. Ask what they need, "
-                f'or search more widely: dataeu_search("{query}").')
+        return (
+            f"The user said none of the {len(rows)} matches for '{query}' fit. Ask what they need, "
+            f'or search more widely: dataeu_search("{query}").'
+        )
     head = choice.split(".", 1)[0]
     n = int(head) if head.isdigit() else 0
     if not 1 <= n <= len(rows):
         return None
     r = rows[n - 1]
     facts = "; ".join(x for x in (r.get("period"), f"breakdowns: {r['detail']}" if r.get("detail") else "") if x)
-    return (f"The user chose rank {n} of {len(rows)}: {r['source']} {r['id']} \"{r['title']}\""
-            + (f" ({facts})" if facts else "") + f".\nNext call: {r['call']}")
+    return (
+        f'The user chose rank {n} of {len(rows)}: {r["source"]} {r["id"]} "{r["title"]}"'
+        + (f" ({facts})" if facts else "")
+        + f".\nNext call: {r['call']}"
+    )
 
 
 def pick_question(query: str) -> str:
@@ -211,12 +230,18 @@ async def ask_user_to_choose(ctx: Context, query: str, rows: list[dict[str, Any]
 def input_required(query: str, rows: list[dict[str, Any]]) -> mcp_types.InputRequiredResult:
     """2026-07-28 protocol: end this call with a question; the app asks the user and calls again."""
     options = [option_label(n, r) for n, r in enumerate(rows, 1)] + [NONE_OF_THESE]
-    schema = {"type": "object", "required": ["value"], "properties": {
-        "value": {"type": "string", "title": "Dataset", "enum": options}}}
+    schema = {
+        "type": "object",
+        "required": ["value"],
+        "properties": {"value": {"type": "string", "title": "Dataset", "enum": options}},
+    }
     keep = ("source", "id", "title", "period", "detail", "call")
     return mcp_types.InputRequiredResult(
-        input_requests={PICK: mcp_types.ElicitRequest(params=mcp_types.ElicitRequestFormParams(
-            message=pick_question(query), requested_schema=schema))},
+        input_requests={
+            PICK: mcp_types.ElicitRequest(
+                params=mcp_types.ElicitRequestFormParams(message=pick_question(query), requested_schema=schema)
+            )
+        },
         request_state=json.dumps([{k: r.get(k) or "" for k in keep} for r in rows]),
     )
 
@@ -239,8 +264,12 @@ def answered(ctx: Context | None, query: str) -> str | None:
 @mcp.tool(annotations=READ_ONLY, output_schema=None)
 @safe
 async def find_data(
-    query: str, sources: list[str] | None = None, per_source: int = 4, limit: int = 10,
-    ask_user: bool = True, ctx: Context | None = None,
+    query: str,
+    sources: list[str] | None = None,
+    per_source: int = 4,
+    limit: int = 10,
+    ask_user: bool = True,
+    ctx: Context | None = None,
 ) -> str:
     """Start here: ranks the best datasets/endpoints for a topic (any language) across all sources, with the
     next call. ask_user: let the user pick in the app when it supports it; else show the ranked list and ask.
@@ -294,13 +323,19 @@ def client_id(context: Any) -> str:
 
 def main() -> None:
     logging.basicConfig(
-        stream=sys.stderr, level=setting("LOG_LEVEL", "INFO"),
+        stream=sys.stderr,
+        level=setting("LOG_LEVEL", "INFO"),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
     p = argparse.ArgumentParser(prog="europa-mcp", description="Official European open data MCP server")
-    p.add_argument("command", nargs="?", default="serve", choices=["serve", "map", "usage"],
-                   help="serve (default); map: build the find_data map; usage: summarise the usage log")
+    p.add_argument(
+        "command",
+        nargs="?",
+        default="serve",
+        choices=["serve", "map", "usage"],
+        help="serve (default); map: build the find_data map; usage: summarise the usage log",
+    )
     p.add_argument("--transport", default="stdio", choices=["stdio", "http"])
     p.add_argument("--host", default=setting("HOST", "127.0.0.1"))
     p.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
@@ -342,16 +377,23 @@ def main() -> None:
         from fastmcp.server.middleware.rate_limiting import RateLimitingMiddleware
 
         rps = float(setting("RATE_LIMIT_RPS", "5"))
-        mcp.add_middleware(RateLimitingMiddleware(
-            max_requests_per_second=rps, burst_capacity=20, get_client_id=client_id,
-        ))
+        mcp.add_middleware(
+            RateLimitingMiddleware(
+                max_requests_per_second=rps,
+                burst_capacity=20,
+                get_client_id=client_id,
+            )
+        )
         if keys := [k.strip() for k in setting("API_KEYS").split(",") if k.strip()]:
             from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
 
             mcp.auth = StaticTokenVerifier({k: {"client_id": f"key{i}", "scopes": []} for i, k in enumerate(keys)})
             log.info("API key required (%d keys configured)", len(keys))
         mcp.run(
-            transport="http", host=args.host, port=args.port, show_banner=False,
+            transport="http",
+            host=args.host,
+            port=args.port,
+            show_banner=False,
             uvicorn_config={"log_config": None},  # use our stderr logging, not stdout
         )
     else:

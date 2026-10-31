@@ -10,7 +10,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ...common import NotFound, READ_ONLY, UserError, cell, clip, fold, safe, source_line
+from ...common import READ_ONLY, NotFound, UserError, cell, clip, fold, safe, source_line
 from ...preview import preview
 from ...web import Memo, fetch, fetch_json
 
@@ -21,22 +21,38 @@ USE_CASES = Memo(ttl=24 * 3600)
 SEARCH_FIELDS = "id,title,country,catalog,distributions.format,modified,issued,catalog_record"
 SORTS = {"relevance": "relevance+desc", "newest": "modified+desc"}
 CATEGORIES = {  # EU data themes (facet 'categories')
-    "AGRI": "Agriculture, fisheries, forestry and food", "ECON": "Economy and finance",
-    "EDUC": "Education, culture and sport", "ENER": "Energy", "ENVI": "Environment",
-    "GOVE": "Government and public sector", "HEAL": "Health", "INTR": "International issues",
-    "JUST": "Justice, legal system and public safety", "REGI": "Regions and cities",
-    "SOCI": "Population and society", "TECH": "Science and technology", "TRAN": "Transport",
+    "AGRI": "Agriculture, fisheries, forestry and food",
+    "ECON": "Economy and finance",
+    "EDUC": "Education, culture and sport",
+    "ENER": "Energy",
+    "ENVI": "Environment",
+    "GOVE": "Government and public sector",
+    "HEAL": "Health",
+    "INTR": "International issues",
+    "JUST": "Justice, legal system and public safety",
+    "REGI": "Regions and cities",
+    "SOCI": "Population and society",
+    "TECH": "Science and technology",
+    "TRAN": "Transport",
 }
 QUALITY = ("excellent", "good", "sufficient")  # metadata scoring, best first ('bad' is the rest)
 FACETS = {  # dataeu_facets `by` → API facet id
-    "catalogue": "catalog", "format": "format", "category": "categories", "country": "country",
-    "publisher": "publisher", "licence": "license", "quality": "scoring",
+    "catalogue": "catalog",
+    "format": "format",
+    "category": "categories",
+    "country": "country",
+    "publisher": "publisher",
+    "licence": "license",
+    "quality": "scoring",
 }
 WRITE_SPARQL = re.compile(r"\b(INSERT|DELETE|LOAD|CLEAR|DROP|CREATE|COPY|MOVE|ADD)\b", re.I)
 PREFIXES = {
-    "http://www.w3.org/ns/dcat#": "dcat:", "http://purl.org/dc/terms/": "dct:",
-    "http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf:", "http://xmlns.com/foaf/0.1/": "foaf:",
-    "http://www.w3.org/2004/02/skos/core#": "skos:", "http://data.europa.eu/88u/dataset/": "dataset/",
+    "http://www.w3.org/ns/dcat#": "dcat:",
+    "http://purl.org/dc/terms/": "dct:",
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf:",
+    "http://xmlns.com/foaf/0.1/": "foaf:",
+    "http://www.w3.org/2004/02/skos/core#": "skos:",
+    "http://data.europa.eu/88u/dataset/": "dataset/",
     "http://publications.europa.eu/resource/authority/": "eu-auth/",
 }
 
@@ -89,8 +105,12 @@ def category_code(c: str) -> str:
 
 
 def search_facets(
-    country: str | None = None, format: str | None = None, catalogue: str | None = None,
-    category: str | None = None, hvd: bool = False, min_quality: str | None = None,
+    country: str | None = None,
+    format: str | None = None,
+    catalogue: str | None = None,
+    category: str | None = None,
+    hvd: bool = False,
+    min_quality: str | None = None,
 ) -> dict[str, list[str]]:
     facets: dict[str, list[str]] = {}
     if country:
@@ -107,16 +127,23 @@ def search_facets(
         q = min_quality.strip().lower().removesuffix("scoring")
         if q not in QUALITY:
             raise UserError(f"min_quality must be one of: {', '.join(QUALITY)}.")
-        facets["scoring"] = [f"{x}Scoring" for x in QUALITY[:QUALITY.index(q) + 1]]
+        facets["scoring"] = [f"{x}Scoring" for x in QUALITY[: QUALITY.index(q) + 1]]
     return facets
 
 
 @safe
 async def dataeu_search(
-    query: str, country: str | None = None, format: str | None = None,
-    catalogue: str | None = None, category: str | None = None, hvd: bool = False,
-    min_quality: str | None = None, sort: str = "relevance", language: str = "en",
-    page: int = 0, limit: int = 10,
+    query: str,
+    country: str | None = None,
+    format: str | None = None,
+    catalogue: str | None = None,
+    category: str | None = None,
+    hvd: bool = False,
+    min_quality: str | None = None,
+    sort: str = "relevance",
+    language: str = "en",
+    page: int = 0,
+    limit: int = 10,
 ) -> str:
     """Search 1.9M open datasets from EU institutions and national portals (data.europa.eu).
     country: ISO2; format: 'CSV'; catalogue: portal id; category: EU theme (HEAL, ECON, TRAN…); hvd: High-Value
@@ -127,7 +154,11 @@ async def dataeu_search(
     lang = language.strip().lower()[:2] or "en"
     limit = max(1, min(limit, 50))
     params = {
-        "q": query, "filter": "dataset", "limit": limit, "page": max(0, page), "aggregation": "false",
+        "q": query,
+        "filter": "dataset",
+        "limit": limit,
+        "page": max(0, page),
+        "aggregation": "false",
         "includes": f"{SEARCH_FIELDS},description.en" + (f",description.{lang}" if lang != "en" else ""),
         "sort": SORTS[sort.strip().lower()].replace("+", " "),
     }
@@ -140,11 +171,20 @@ async def dataeu_search(
         return f"No datasets match '{query}'" + (f" with {facets}" if facets else "") + "."
     lines = ["id|title|country|catalogue|formats|modified|about"]
     for r in rows:
-        lines.append("|".join(cell(x) for x in (
-            r.get("id", ""), clip(text(r.get("title"), lang), 110), (r.get("country") or {}).get("id", ""),
-            (r.get("catalog") or {}).get("id", ""), formats(r), modified(r),
-            plain(text(r.get("description"), lang), 140),
-        )))
+        lines.append(
+            "|".join(
+                cell(x)
+                for x in (
+                    r.get("id", ""),
+                    clip(text(r.get("title"), lang), 110),
+                    (r.get("country") or {}).get("id", ""),
+                    (r.get("catalog") or {}).get("id", ""),
+                    formats(r),
+                    modified(r),
+                    plain(text(r.get("description"), lang), 140),
+                )
+            )
+        )
     total = res.get("count") or 0
     if total > (page + 1) * limit:
         lines.append(f"# {len(rows)} of {total:,}; page={page + 1} for more or add filters")
@@ -153,9 +193,15 @@ async def dataeu_search(
 
 @safe
 async def dataeu_facets(
-    query: str = "", by: str = "catalogue,format,category", country: str | None = None,
-    format: str | None = None, catalogue: str | None = None, category: str | None = None,
-    hvd: bool = False, min_quality: str | None = None, top: int = 10,
+    query: str = "",
+    by: str = "catalogue,format,category",
+    country: str | None = None,
+    format: str | None = None,
+    catalogue: str | None = None,
+    category: str | None = None,
+    hvd: bool = False,
+    min_quality: str | None = None,
+    top: int = 10,
 ) -> str:
     """Where are the matching data.europa.eu datasets? Counts per catalogue, format, category,
     country, publisher, licence or quality (by: comma-separated). Use it to pick dataeu_search filters."""
@@ -172,13 +218,18 @@ async def dataeu_facets(
     res = (data or {}).get("result") or {}
     found = {f.get("id"): f.get("items") or [] for f in res.get("facets") or []}
     top = max(1, min(top, 50))
-    lines = [f"{res.get('count') or 0:,} datasets match" + (f" '{query}'" if query else "")
-             + (f" with {facets}" if facets else "")]
+    lines = [
+        f"{res.get('count') or 0:,} datasets match"
+        + (f" '{query}'" if query else "")
+        + (f" with {facets}" if facets else "")
+    ]
     for b in wanted or list(FACETS)[:3]:
         items = [i for i in found.get(FACETS[b], []) if i.get("count")]
         lines.append(f"{b}|datasets|name")
-        lines += ["|".join(cell(x) for x in (i.get("id"), f"{i['count']:,}", clip(text(i.get("title")), 80)))
-                  for i in items[:top]]
+        lines += [
+            "|".join(cell(x) for x in (i.get("id"), f"{i['count']:,}", clip(text(i.get("title")), 80)))
+            for i in items[:top]
+        ]
         if len(items) > top:
             lines.append(f"# {top} of {len(items)} {b} values")
     return "\n".join(lines)
@@ -212,9 +263,18 @@ async def dataeu_dataset(dataset_id: str, language: str = "en", max_files: int =
     if dists:
         out.append("files (n|format|title|licence|url); first rows: dataeu_preview(id, file=n):")
         for i, x in enumerate(dists[:max_files], 1):
-            out.append("|".join(cell(v) for v in (
-                i, dist_format(x), clip(text(x.get("title"), language), 60), dist_licence(x), dist_url(x),
-            )))
+            out.append(
+                "|".join(
+                    cell(v)
+                    for v in (
+                        i,
+                        dist_format(x),
+                        clip(text(x.get("title"), language), 60),
+                        dist_licence(x),
+                        dist_url(x),
+                    )
+                )
+            )
         if len(dists) > max_files:
             out.append(f"# {max_files} of {len(dists)} files")
     return "\n".join(out)
@@ -260,7 +320,7 @@ async def dataeu_preview(dataset_id: str, file: int = 1, limit: int = 20) -> str
 def _short_uri(v: str) -> str:
     for full, pre in PREFIXES.items():
         if v.startswith(full):
-            return pre + v[len(full):]
+            return pre + v[len(full) :]
     return v
 
 
@@ -277,8 +337,10 @@ async def dataeu_sparql(query: str, limit: int = 100) -> str:
     if re.search(r"\bSELECT\b", q, re.I) and not re.search(r"\bLIMIT\s+\d+", q, re.I):
         q += f"\nLIMIT {limit + 1}"
     data = await fetch_json(
-        f"{PORTAL}/sparql", {"query": q},
-        headers={"Accept": "application/sparql-results+json"}, timeout=90,
+        f"{PORTAL}/sparql",
+        {"query": q},
+        headers={"Accept": "application/sparql-results+json"},
+        timeout=90,
     )
     if data is None or not isinstance(data, dict):
         raise UserError("SPARQL endpoint returned no JSON (query too heavy?). Add filters or LIMIT.")
@@ -331,8 +393,7 @@ async def dataeu_quality(scope: str = "global", id: str | None = None) -> str:
     for level in ("dataset", "distribution"):
         metrics = sorted(cov.get(level) or [], key=lambda m: m.get("coverage") or 0)
         out += [
-            f"{m.get('metric')}|{level}|{m.get('importance', '')}|{round(m.get('coverage') or 0, 1)}"
-            for m in metrics
+            f"{m.get('metric')}|{level}|{m.get('importance', '')}|{round(m.get('coverage') or 0, 1)}" for m in metrics
         ]
     if scope.startswith("catalog"):
         out.append(f"# PDF report: {PORTAL}/api/mqa/reporter/report/en?catalogueId={id.strip()}")
@@ -354,6 +415,7 @@ async def dataeu_use_cases(
     """Real-world apps/projects built on EU open data (data.europa.eu use cases), by keyword,
     country (name, e.g. 'Netherlands') or sector."""
     rows = await use_cases()
+
     def match(r: dict[str, str]) -> bool:
         if country and fold(country) not in fold(r.get("Country", "")):
             return False
@@ -361,16 +423,24 @@ async def dataeu_use_cases(
             return False
         hay = fold(" ".join(r.get(k, "") for k in ("Title", "Description", "Sector")))
         return all(w in hay for w in fold(query or "").split())
+
     hits = [r for r in rows if match(r)]
     if not hits:
         return "No use cases match."
     hits.sort(key=lambda r: dmy_to_iso(r.get("Date of Publication", "")), reverse=True)
     limit = max(1, min(limit, 50))
     lines = ["title|country|sector|published|summary"] + [
-        "|".join(cell(x) for x in (
-            r.get("Title", ""), r.get("Country", ""), clip(r.get("Sector", ""), 60),
-            dmy_to_iso(r.get("Date of Publication", "")), clip(r.get("Description", ""), 160),
-        )) for r in hits[:limit]
+        "|".join(
+            cell(x)
+            for x in (
+                r.get("Title", ""),
+                r.get("Country", ""),
+                clip(r.get("Sector", ""), 60),
+                dmy_to_iso(r.get("Date of Publication", "")),
+                clip(r.get("Description", ""), 160),
+            )
+        )
+        for r in hits[:limit]
     ]
     if len(hits) > limit:
         lines.append(f"# {limit} of {len(hits)}; narrow with query/country/sector")
@@ -378,6 +448,13 @@ async def dataeu_use_cases(
 
 
 def register(mcp: FastMCP) -> None:
-    for fn in (dataeu_search, dataeu_facets, dataeu_dataset, dataeu_preview, dataeu_sparql, dataeu_quality,
-               dataeu_use_cases):
+    for fn in (
+        dataeu_search,
+        dataeu_facets,
+        dataeu_dataset,
+        dataeu_preview,
+        dataeu_sparql,
+        dataeu_quality,
+        dataeu_use_cases,
+    ):
         mcp.tool(annotations=READ_ONLY, output_schema=None)(fn)

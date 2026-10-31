@@ -52,9 +52,7 @@ def words_of(s: str) -> str:
 
 
 def keyword_hint(kw: dict[str, str], source: str, ident: str) -> str:
-    return " ".join(v for k, v in kw.items()
-                    if k.startswith(source + ":") and ident.startswith(k.split(":", 1)[1]))
-
+    return " ".join(v for k, v in kw.items() if k.startswith(source + ":") and ident.startswith(k.split(":", 1)[1]))
 
 
 # ---- the map ----------------------------------------------------------------------------
@@ -102,8 +100,10 @@ def term_regex(groups: list[list[str]]) -> list[re.Pattern[str]]:
     """One regex per query group, matching like fts_term (word start; whole word if short)."""
     pats = []
     for alts in groups:
-        parts = [re.escape(stem(a)) if len(a) >= PREFIX_MIN
-                 else "(?:" + "|".join(map(re.escape, short_forms(a))) + r")\b" for a in alts]
+        parts = [
+            re.escape(stem(a)) if len(a) >= PREFIX_MIN else "(?:" + "|".join(map(re.escape, short_forms(a))) + r")\b"
+            for a in alts
+        ]
         pats.append(re.compile(r"\b(?:" + "|".join(parts) + ")"))
     return pats
 
@@ -135,7 +135,9 @@ def merge_synonyms(
 
 class SourceMap:
     def __init__(
-        self, path: Path | str | None = None, synonyms: dict[str, list[str]] | None = None,
+        self,
+        path: Path | str | None = None,
+        synonyms: dict[str, list[str]] | None = None,
         builders: dict[str, Builder] | None = None,
     ):
         self.path = Path(path) if path else cache_dir() / "sourcemap.db"
@@ -269,18 +271,29 @@ class SourceMap:
             span = HEADLINE_SPAN.search(r["keywords"])
             headline = covered == len(groups) and span is not None and hits(span.group(1)) == len(groups)
             main_table = "table" in words[:3]  # Eurostat's own curated key-indicator tables
-            key = (-covered, -headline, demoted(r, this_year), -hits(text, own), -hits(r["title"]),
-                   -main_table, -hits(r["title"], own), r["score"])
+            key = (
+                -covered,
+                -headline,
+                demoted(r, this_year),
+                -hits(text, own),
+                -hits(r["title"]),
+                -main_table,
+                -hits(r["title"], own),
+                r["score"],
+            )
             ranked.append((key, r))
         ranked.sort(key=lambda t: t[0])
         return [{**r, "coverage": -k[0] / len(groups)} for k, r in ranked]
 
     def export(self, out: Path) -> int:
         rows = self.db.execute(
-            "SELECT source, id, title, path, period, updated, call, detail, keywords FROM entries ORDER BY source, id")
+            "SELECT source, id, title, path, period, updated, call, detail, keywords FROM entries ORDER BY source, id"
+        )
         with out.open("w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["source", "id", "title", "topic_path", "period", "updated", "next_call", "breakdowns", "keywords"])
+            w.writerow(
+                ["source", "id", "title", "topic_path", "period", "updated", "next_call", "breakdowns", "keywords"]
+            )
             n = 0
             for r in rows:
                 w.writerow([*tuple(r)[:8], clip(r["keywords"], 500)])

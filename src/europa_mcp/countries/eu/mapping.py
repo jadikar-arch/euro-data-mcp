@@ -25,23 +25,50 @@ SKIP_LOOKUPS = ("cn8", "taric")  # customs code lists: slow (up to 90 s) and onl
 # Generic words ("country", "status", "level") are left out: they would make far too many
 # datasets match every query containing them.
 DIM_WORDS = {
-    "sex": "sex gender men women", "age": "age", "nace_r2": "industry economic activity nace",
-    "nace_r1": "industry economic activity nace", "isced11": "education attainment isced",
-    "isced97": "education attainment isced", "citizen": "citizenship nationality foreigners",
-    "c_birth": "birth born", "partner": "partner partners", "isco08": "occupation isco",
-    "isco88": "occupation isco", "deg_urb": "urban rural urbanisation", "hhcomp": "household composition",
-    "hhtyp": "household composition", "quant_inc": "income quantile quintile decile",
-    "icd10": "cause disease icd", "siec": "fuel", "sizeclas": "enterprise size", "size_emp": "enterprise size",
+    "sex": "sex gender men women",
+    "age": "age",
+    "nace_r2": "industry economic activity nace",
+    "nace_r1": "industry economic activity nace",
+    "isced11": "education attainment isced",
+    "isced97": "education attainment isced",
+    "citizen": "citizenship nationality foreigners",
+    "c_birth": "birth born",
+    "partner": "partner partners",
+    "isco08": "occupation isco",
+    "isco88": "occupation isco",
+    "deg_urb": "urban rural urbanisation",
+    "hhcomp": "household composition",
+    "hhtyp": "household composition",
+    "quant_inc": "income quantile quintile decile",
+    "icd10": "cause disease icd",
+    "siec": "fuel",
+    "sizeclas": "enterprise size",
+    "size_emp": "enterprise size",
     "c_dest": "destination",
 }
 NUTS_WORDS = {1: "regional regions nuts1", 2: "regional regions nuts2", 3: "regional regions nuts3 districts"}
 # The same breakdowns as a short label for people choosing between datasets.
 DIM_LABELS = {
-    "sex": "sex", "age": "age", "nace_r2": "industry", "nace_r1": "industry", "isced11": "education",
-    "isced97": "education", "citizen": "citizenship", "c_birth": "country of birth", "partner": "partner",
-    "isco08": "occupation", "isco88": "occupation", "deg_urb": "urbanisation", "hhcomp": "household type",
-    "hhtyp": "household type", "quant_inc": "income group", "icd10": "cause", "siec": "fuel",
-    "sizeclas": "enterprise size", "size_emp": "enterprise size", "c_dest": "destination",
+    "sex": "sex",
+    "age": "age",
+    "nace_r2": "industry",
+    "nace_r1": "industry",
+    "isced11": "education",
+    "isced97": "education",
+    "citizen": "citizenship",
+    "c_birth": "country of birth",
+    "partner": "partner",
+    "isco08": "occupation",
+    "isco88": "occupation",
+    "deg_urb": "urbanisation",
+    "hhcomp": "household type",
+    "hhtyp": "household type",
+    "quant_inc": "income group",
+    "icd10": "cause",
+    "siec": "fuel",
+    "sizeclas": "enterprise size",
+    "size_emp": "enterprise size",
+    "c_dest": "destination",
 }
 AGGREGATE_GEO = ("EU", "EA", "EFTA", "EEA")
 
@@ -85,7 +112,9 @@ def parse_metabase(text: str) -> dict[str, tuple[str, str]]:
 
 
 def toc_entries(
-    text: str, headline: dict[str, str] | None = None, breakdowns: dict[str, tuple[str, str]] | None = None,
+    text: str,
+    headline: dict[str, str] | None = None,
+    breakdowns: dict[str, tuple[str, str]] | None = None,
 ) -> list[Entry]:
     """Eurostat TOC: indentation (4 spaces per level) gives each dataset its theme path.
     `headline` (id → everyday words) marks the most-asked datasets, which find_data ranks first;
@@ -112,13 +141,23 @@ def toc_entries(
         start, end = r[5].strip(), r[6].strip()
         by_words, by_label = breakdowns.get(code, ("", ""))
         out[code] = {
-            "source": "Eurostat", "id": code, "title": title, "path": path,
-            "keywords": " ".join(x for x in (
-                code, "table" if kind == "table" else "", by_words,
-                f"{HEADLINE_MARK} {headline[code]} {by_words} {HEADLINE_END}" if code in headline else "",
-            ) if x),
+            "source": "Eurostat",
+            "id": code,
+            "title": title,
+            "path": path,
+            "keywords": " ".join(
+                x
+                for x in (
+                    code,
+                    "table" if kind == "table" else "",
+                    by_words,
+                    f"{HEADLINE_MARK} {headline[code]} {by_words} {HEADLINE_END}" if code in headline else "",
+                )
+                if x
+            ),
             "detail": by_label,
-            "period": f"{start}–{end}" if start else "", "updated": eurostat.iso_date(r[3]),
+            "period": f"{start}–{end}" if start else "",
+            "updated": eurostat.iso_date(r[3]),
             "call": f'eurostat_describe("{code}")',
         }
     return list(out.values())
@@ -128,7 +167,8 @@ async def build_eurostat() -> list[Entry]:
     base = eurostat.AGENCIES["eurostat"][0]
     toc, meta = await asyncio.gather(
         fetch(f"{base}/catalogue/toc/txt", {"lang": "en"}),
-        fetch(f"{base}/catalogue/metabase.txt.gz", timeout=120), return_exceptions=True,
+        fetch(f"{base}/catalogue/metabase.txt.gz", timeout=120),
+        return_exceptions=True,
     )
     if isinstance(toc, BaseException):
         raise toc
@@ -152,11 +192,18 @@ async def build_dg() -> list[Entry]:
             parent, _, suffix = r["id"].partition("$")
             if suffix and len(suffix) == 2 and parent in ids:
                 continue  # per-country copy of a parent dataset
-            out.append({
-                "source": label, "id": r["id"], "title": r["title"], "path": blurbs.get(label, ""),
-                "keywords": words_of(r["id"]), "period": r["period"], "updated": r["updated"],
-                "call": f'eurostat_describe("{r["id"]}", agency="{key}")',
-            })
+            out.append(
+                {
+                    "source": label,
+                    "id": r["id"],
+                    "title": r["title"],
+                    "path": blurbs.get(label, ""),
+                    "keywords": words_of(r["id"]),
+                    "period": r["period"],
+                    "updated": r["updated"],
+                    "call": f'eurostat_describe("{r["id"]}", agency="{key}")',
+                }
+            )
     return out
 
 
@@ -198,13 +245,18 @@ async def build_agrifood() -> list[Entry]:
         sector = ep.split("/")[0]
         tag = ", ".join(op.get("tags") or [])
         harvested = " ".join(sorted(values.get(sector, set())))[:1500]
-        out.append({
-            "source": "Agrifood", "id": ep, "title": op.get("summary") or ep,
-            "path": f"EU agri-food > {tag}" if tag else "EU agri-food",
-            "keywords": f"{words_of(ep)} {keyword_hint(kw, 'Agrifood', ep)} {harvested}".strip(),
-            "period": "", "updated": "",
-            "call": f'agri_data("{ep}", params={{{", ".join(params[:4])}{", …" if len(params) > 4 else ""}}})',
-        })
+        out.append(
+            {
+                "source": "Agrifood",
+                "id": ep,
+                "title": op.get("summary") or ep,
+                "path": f"EU agri-food > {tag}" if tag else "EU agri-food",
+                "keywords": f"{words_of(ep)} {keyword_hint(kw, 'Agrifood', ep)} {harvested}".strip(),
+                "period": "",
+                "updated": "",
+                "call": f'agri_data("{ep}", params={{{", ".join(params[:4])}{", …" if len(params) > 4 else ""}}})',
+            }
+        )
     return out
 
 
@@ -220,22 +272,28 @@ async def build_europarl() -> list[Entry]:
             continue
         desc = re.sub(r"!\[[^\]]*\]\([^)]*\)|\[([^\]]*)\]\([^)]*\)|<[^>]+>", r"\1", op.get("description") or "")
         tag = ", ".join(op.get("tags") or [])
-        out.append({
-            "source": "European Parliament", "id": ep,
-            "title": (op.get("summary") or ep).replace("Returns the list of all ", "").replace("Returns ", ""),
-            "path": f"European Parliament > {tag}",
-            "keywords": f"{words_of(ep)} {keyword_hint(kw, 'European Parliament', ep)} "
-                        f"{clip(desc, 300)} {tags.get(tag, '')}",
-            "period": "", "updated": "", "call": f'ep_query("{ep}")',
-        })
+        out.append(
+            {
+                "source": "European Parliament",
+                "id": ep,
+                "title": (op.get("summary") or ep).replace("Returns the list of all ", "").replace("Returns ", ""),
+                "path": f"European Parliament > {tag}",
+                "keywords": f"{words_of(ep)} {keyword_hint(kw, 'European Parliament', ep)} "
+                f"{clip(desc, 300)} {tags.get(tag, '')}",
+                "period": "",
+                "updated": "",
+                "call": f'ep_query("{ep}")',
+            }
+        )
     return out
 
 
 async def build_dataeu() -> list[Entry]:
     """data.europa.eu catalogues (national/regional portals, EU bodies), so find_data can say which
     portal to search; the 1.9M datasets themselves stay behind dataeu_search."""
-    data = await fetch_json(f"{dataeuropa.SEARCH}/search",
-                            {"filter": "catalogue", "limit": 1000, "aggregation": "false"})
+    data = await fetch_json(
+        f"{dataeuropa.SEARCH}/search", {"filter": "catalogue", "limit": 1000, "aggregation": "false"}
+    )
     out = []
     for c in (data.get("result") or {}).get("results") or []:
         n = c.get("count") or 0
@@ -246,15 +304,28 @@ async def build_dataeu() -> list[Entry]:
         langs = ["en", *(lang.get("id", "") for lang in c.get("language") or [])]
         about = " ".join(dict.fromkeys(dataeuropa.plain(desc[lang], 300) for lang in langs if desc.get(lang)))
         site = urlparse(str(c.get("homepage") or "")).netloc.removeprefix("www.")
-        out.append({
-            "source": "data.europa.eu", "id": c["id"],
-            "title": f"{clip(dataeuropa.text(c.get('title')), 80)}: {n:,} datasets",
-            "path": f"data.europa.eu > {country}" if country else "data.europa.eu",
-            "keywords": " ".join(x for x in (
-                about, (c.get("publisher") or {}).get("name", ""), site, c.get("source_type", ""), country) if x),
-            "period": "", "updated": str(c.get("modified") or "")[:10],
-            "call": f'dataeu_search("...", catalogue="{c["id"]}")',
-        })
+        out.append(
+            {
+                "source": "data.europa.eu",
+                "id": c["id"],
+                "title": f"{clip(dataeuropa.text(c.get('title')), 80)}: {n:,} datasets",
+                "path": f"data.europa.eu > {country}" if country else "data.europa.eu",
+                "keywords": " ".join(
+                    x
+                    for x in (
+                        about,
+                        (c.get("publisher") or {}).get("name", ""),
+                        site,
+                        c.get("source_type", ""),
+                        country,
+                    )
+                    if x
+                ),
+                "period": "",
+                "updated": str(c.get("modified") or "")[:10],
+                "call": f'dataeu_search("...", catalogue="{c["id"]}")',
+            }
+        )
     return out
 
 

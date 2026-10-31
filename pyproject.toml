@@ -37,6 +37,7 @@ packages = ["src/europa_mcp"]
 
 [dependency-groups]
 dev = [
+    "prek>=0.5.9",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "respx>=0.23.1",
@@ -47,3 +48,15 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = ["live: hits the real APIs (deselect with -m 'not live')"]
 addopts = "-m 'not live'"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, import order, bugbear, pyupgrade
+select = ["F", "E", "W", "I", "B", "UP"]
+ignore = ["E501"]  # long lines: the formatter wraps what it can; long strings/tables stay readable
+
+[tool.ruff.lint.per-file-ignores]
+".claude/skills/*/templates/**" = ["F401", "I"]

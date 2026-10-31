@@ -19,6 +19,7 @@ def no_background_tasks(monkeypatch):
 @pytest.fixture(autouse=True)
 def fake_dns(monkeypatch):
     """Offline DNS for the preview URL check: every host is public except PRIVATE_HOSTS."""
+
     async def resolve(host: str) -> list[str]:
         return [PRIVATE_HOSTS.get(host, "93.184.215.14")]
 

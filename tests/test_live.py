@@ -17,6 +17,7 @@ def data_lines(out: str) -> list[str]:
 async def test_eu_apis_end_to_end():
     """One real call per EU API; each must answer compactly and cite its source."""
     async with Client(server.mcp) as c:
+
         async def text(name, **args):
             r = await c.call_tool(name, args, raise_on_error=False)
             out = "".join(getattr(b, "text", "") for b in r.content)
@@ -25,8 +26,12 @@ async def test_eu_apis_end_to_end():
             return out
 
         assert "prc_hpi_q" in await text("eurostat_search", query="house price index")
-        out = await text("eurostat_data", dataset_id="prc_hpi_q", last_n=1,
-                         filters={"geo": ["NL"], "purchase": ["TOTAL"], "unit": ["I15_Q"]})
+        out = await text(
+            "eurostat_data",
+            dataset_id="prc_hpi_q",
+            last_n=1,
+            filters={"geo": ["NL"], "purchase": ["TOTAL"], "unit": ["I15_Q"]},
+        )
         assert 100 < float(data_lines(out)[-1].split("|")[-1]) < 500
         assert out.splitlines()[-1].startswith("source: https://ec.europa.eu/eurostat/databrowser/view/")
         for agency in ("empl", "grow", "taxud"):

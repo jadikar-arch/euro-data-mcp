@@ -26,15 +26,38 @@ TOC = (
 ENTRIES = {
     "Eurostat": toc_entries(TOC),
     "Destatis": [
-        {"source": "Destatis", "id": "12411-0010", "title": "Bevölkerung: Bundesländer, Stichtag", "path": "",
-         "keywords": "Bevölkerungsstand", "period": "", "updated": "", "call": 'govdata_table("12411-0010")'},
-        {"source": "Destatis", "id": "61262-0001", "title": "Häuserpreisindex, Preisindex für Bauland", "path": "",
-         "keywords": "Wohnimmobilien", "period": "", "updated": "", "call": 'govdata_table("61262-0001")'},
+        {
+            "source": "Destatis",
+            "id": "12411-0010",
+            "title": "Bevölkerung: Bundesländer, Stichtag",
+            "path": "",
+            "keywords": "Bevölkerungsstand",
+            "period": "",
+            "updated": "",
+            "call": 'govdata_table("12411-0010")',
+        },
+        {
+            "source": "Destatis",
+            "id": "61262-0001",
+            "title": "Häuserpreisindex, Preisindex für Bauland",
+            "path": "",
+            "keywords": "Wohnimmobilien",
+            "period": "",
+            "updated": "",
+            "call": 'govdata_table("61262-0001")',
+        },
     ],
     "Agrifood": [
-        {"source": "Agrifood", "id": "pigmeat/prices", "title": "Pigmeat (carcasses and piglets) prices",
-         "path": "EU agri-food > Pigmeat", "keywords": "pigmeat prices pork pig carcass", "period": "", "updated": "",
-         "call": 'agri_data("pigmeat/prices", params={memberStateCodes})'},
+        {
+            "source": "Agrifood",
+            "id": "pigmeat/prices",
+            "title": "Pigmeat (carcasses and piglets) prices",
+            "path": "EU agri-food > Pigmeat",
+            "keywords": "pigmeat prices pork pig carcass",
+            "period": "",
+            "updated": "",
+            "call": 'agri_data("pigmeat/prices", params={memberStateCodes})',
+        },
     ],
 }
 
@@ -56,7 +79,10 @@ def test_toc_entries_keep_theme_path_and_dedupe():
     assert hpi["path"] == "Economy and finance > Prices"
     assert "Housing" in hpi["keywords"]  # second location in the theme tree
     assert (hpi["period"], hpi["updated"], hpi["call"]) == (
-        "2005-Q1–2026-Q2", "2026-10-01", 'eurostat_describe("prc_hpi_q")')
+        "2005-Q1–2026-Q2",
+        "2026-10-01",
+        'eurostat_describe("prc_hpi_q")',
+    )
 
 
 def test_words_of_splits_paths_and_camel_case():
@@ -117,8 +143,9 @@ async def test_find_data_returns_a_ranked_list_for_the_user_to_choose_from(smap)
     lines = out.splitlines()
     assert lines[0].startswith("Ranked matches for 'house prices' (best first")
     assert lines[1] == "rank|match|source|id|title|period|breakdowns|next call"
-    assert lines[2] == ('1|100%|Eurostat|prc_hpi_q|House price index - quarterly data|2005-Q1–2026-Q2||'
-                        'eurostat_describe("prc_hpi_q")')
+    assert lines[2] == (
+        '1|100%|Eurostat|prc_hpi_q|House price index - quarterly data|2005-Q1–2026-Q2||eurostat_describe("prc_hpi_q")'
+    )
     assert any(ln.split("|")[2:4] == ["Destatis", "61262-0001"] for ln in lines[3:])
     assert lines[-3].startswith("# sources: Eurostat = EU/EEA country comparisons")
     assert lines[-2] == server.ASK_USER_NOTE
@@ -131,7 +158,8 @@ def test_breakdowns_are_shown_to_people_choosing(tmp_path, monkeypatch):
     rows = m.search("house prices")
     assert rows[0]["detail"] == "NUTS 2 regions"
     assert server.option_label(1, rows[0]) == (
-        "1. House price index - quarterly data (Eurostat prc_hpi_q; 2005-Q1–2026-Q2; by NUTS 2 regions)")
+        "1. House price index - quarterly data (Eurostat prc_hpi_q; 2005-Q1–2026-Q2; by NUTS 2 regions)"
+    )
 
 
 async def choose(smap, answer, mode="auto"):
@@ -227,12 +255,22 @@ def test_rows_of_retired_builders_are_pruned(tmp_path):
 def test_parse_metabase_turns_dimensions_into_breakdown_words():
     from europa_mcp.countries.eu.mapping import parse_metabase
 
-    text = "\n".join([
-        "demo_r_d2jan\tgeo\tEU27_2020", "demo_r_d2jan\tgeo\tNL", "demo_r_d2jan\tgeo\tNL3", "demo_r_d2jan\tgeo\tNL32",
-        "demo_r_d2jan\tsex\tF", "demo_r_d2jan\tage\tY_LT5", "demo_r_d2jan\ttime\t2025",
-        "une_rt_m\tgeo\tEA20", "une_rt_m\tgeo\tDE", "une_rt_m\tsex\tT",
-        "urb_cpop1\tcities\tNL002C", "bad line",
-    ])
+    text = "\n".join(
+        [
+            "demo_r_d2jan\tgeo\tEU27_2020",
+            "demo_r_d2jan\tgeo\tNL",
+            "demo_r_d2jan\tgeo\tNL3",
+            "demo_r_d2jan\tgeo\tNL32",
+            "demo_r_d2jan\tsex\tF",
+            "demo_r_d2jan\tage\tY_LT5",
+            "demo_r_d2jan\ttime\t2025",
+            "une_rt_m\tgeo\tEA20",
+            "une_rt_m\tgeo\tDE",
+            "une_rt_m\tsex\tT",
+            "urb_cpop1\tcities\tNL002C",
+            "bad line",
+        ]
+    )
     out = parse_metabase(text)
     assert out["demo_r_d2jan"] == ("age sex gender men women regional regions nuts2", "age, sex, NUTS 2 regions")
     assert out["une_rt_m"] == ("sex gender men women", "sex")  # EA20 is an aggregate, not a NUTS region
@@ -247,7 +285,9 @@ def test_breakdowns_route_by_region_questions(tmp_path):
         '"        Population on 1 January by broad age group, sex and NUTS 3 region"\t"demo_r_pjanaggr3"\t"dataset"\t"01.10.2026"\t" "\t"1990"\t"2025"\t1\n'
     )
     m = SourceMap(tmp_path / "m.db", synonyms={})
-    m.replace("Eurostat", toc_entries(toc, breakdowns={"demo_r_pjanaggr3": ("regional regions nuts3", "NUTS 3 regions")}))
+    m.replace(
+        "Eurostat", toc_entries(toc, breakdowns={"demo_r_pjanaggr3": ("regional regions nuts3", "NUTS 3 regions")})
+    )
     assert m.search("population by region")[0]["id"] == "demo_r_pjanaggr3"
 
 

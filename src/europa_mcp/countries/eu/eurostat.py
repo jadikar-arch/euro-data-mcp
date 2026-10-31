@@ -13,7 +13,17 @@ from urllib.parse import quote as urlquote
 from fastmcp import FastMCP
 
 from ...common import (
-    EC_LICENCE, NotFound, READ_ONLY, UserError, as_list, cell, clip, compact_table, fmt_value, fold, safe,
+    EC_LICENCE,
+    READ_ONLY,
+    NotFound,
+    UserError,
+    as_list,
+    cell,
+    clip,
+    compact_table,
+    fmt_value,
+    fold,
+    safe,
     source_line,
 )
 from ...web import Memo, fetch, fetch_json
@@ -24,8 +34,7 @@ AGENCIES: dict[str, tuple[str, str]] = {
     "grow": ("https://webgate.ec.europa.eu/grow/redisstat/api/dissemination", "GROW"),
     "taxud": ("https://webgate.ec.europa.eu/taxation_customs/redisstat/api/dissemination", "TAXUD"),
 }
-ALIASES = {"estat": "eurostat", "dg empl": "empl", "dg grow": "grow", "dg taxud": "taxud",
-           "taxation_customs": "taxud"}
+ALIASES = {"estat": "eurostat", "dg empl": "empl", "dg grow": "grow", "dg taxud": "taxud", "taxation_customs": "taxud"}
 MAX_CELLS = 20_000  # reject data queries estimated above this
 INLINE_CODES = 8  # describe shows all codes when a dimension has at most this many
 
@@ -85,10 +94,14 @@ def parse_toc(text: str) -> list[dict[str, str]]:
             continue
         seen.add(r[1])
         start, end = r[5].strip(), r[6].strip()
-        rows.append({
-            "id": r[1].strip(), "title": r[0].strip(),
-            "period": f"{start}–{end}" if start else "", "updated": iso_date(r[3]),
-        })
+        rows.append(
+            {
+                "id": r[1].strip(),
+                "title": r[0].strip(),
+                "period": f"{start}–{end}" if start else "",
+                "updated": iso_date(r[3]),
+            }
+        )
     return rows
 
 
@@ -98,10 +111,14 @@ def parse_dataflows(xml: bytes) -> list[dict[str, str]]:
     for df in root.iter(S + "Dataflow"):
         ann = _annotations(df)
         old, new = ann.get("OBS_PERIOD_OVERALL_OLDEST", ""), ann.get("OBS_PERIOD_OVERALL_LATEST", "")
-        rows.append({
-            "id": df.get("id") or "", "title": _name(df),
-            "period": f"{old}–{new}" if old else "", "updated": ann.get("UPDATE_DATA", "")[:10],
-        })
+        rows.append(
+            {
+                "id": df.get("id") or "",
+                "title": _name(df),
+                "period": f"{old}–{new}" if old else "",
+                "updated": ann.get("UPDATE_DATA", "")[:10],
+            }
+        )
     return rows
 
 
@@ -149,8 +166,9 @@ async def map_search(key: str, query: str) -> list[dict[str, str]]:
 
     smap = server.get_map()
     await smap.ensure()
-    return [{k: r[k] or "" for k in ("id", "title", "period", "updated")}
-            for r in smap.search(query, [MAP_SOURCES[key]])]
+    return [
+        {k: r[k] or "" for k in ("id", "title", "period", "updated")} for r in smap.search(query, [MAP_SOURCES[key]])
+    ]
 
 
 @dataclass
@@ -187,23 +205,25 @@ def parse_structure(xml: bytes, agency_key: str) -> Structure:
         raise UserError("No dataflow in structure response.")
     ann = _annotations(flow)
     concepts = {c.get("id"): _name(c) for c in root.iter(S + "Concept")}
-    lists = {
-        cl.get("id"): {c.get("id"): _name(c) for c in cl.findall(S + "Code")}
-        for cl in root.iter(S + "Codelist")
-    }
+    lists = {cl.get("id"): {c.get("id"): _name(c) for c in cl.findall(S + "Code")} for cl in root.iter(S + "Codelist")}
     dims = []
     for d in sorted(root.iter(S + "Dimension"), key=lambda d: int(d.get("position") or 0)):
         ref = d.find(f"{S}LocalRepresentation/{S}Enumeration/Ref")
         cid = d.find(f"{S}ConceptIdentity/Ref")
-        dims.append(Dim(
-            id=d.get("id") or "",
-            title=concepts.get(cid.get("id") if cid is not None else None) or d.get("id") or "",
-            codes=lists.get(ref.get("id") if ref is not None else None, {}),
-        ))
+        dims.append(
+            Dim(
+                id=d.get("id") or "",
+                title=concepts.get(cid.get("id") if cid is not None else None) or d.get("id") or "",
+                codes=lists.get(ref.get("id") if ref is not None else None, {}),
+            )
+        )
     time = next(root.iter(S + "TimeDimension"), None)
     obs = ann.get("OBS_COUNT", "")
     return Structure(
-        agency=agency_key, id=flow.get("id") or "", title=_name(flow), dims=dims,
+        agency=agency_key,
+        id=flow.get("id") or "",
+        title=_name(flow),
+        dims=dims,
         time_id=time.get("id") if time is not None else None,
         obs_count=int(obs) if obs.isdigit() else None,
         oldest=ann.get("OBS_PERIOD_OVERALL_OLDEST", ""),
@@ -225,9 +245,7 @@ async def structure(dataset_id: str, agency_name: str | None) -> Structure:
                 {"references": "descendants", "detail": "referencepartial"},
             )
         except NotFound:
-            raise UserError(
-                f"Unknown dataset '{dataset_id}' at {key}. Use eurostat_search(query, agency)."
-            ) from None
+            raise UserError(f"Unknown dataset '{dataset_id}' at {key}. Use eurostat_search(query, agency).") from None
         return parse_structure(resp.content, key)
 
     return await STRUCTURES.get((key, ds), load)
@@ -247,7 +265,7 @@ def jsonstat_rows(js: dict[str, Any]) -> tuple[list[str], list[list[str]], list[
         order = sorted(index, key=index.get) if isinstance(index, dict) else list(index)
         labels = cat.get("label") or {}
         labels_by_pos.append([labels.get(c, c) for c in order])
-    strides = [math.prod(sizes[i + 1:]) for i in range(len(sizes))]
+    strides = [math.prod(sizes[i + 1 :]) for i in range(len(sizes))]
     values, status = js.get("value") or {}, js.get("status") or {}
     if isinstance(values, list):
         values = {str(i): v for i, v in enumerate(values) if v is not None}
@@ -356,9 +374,7 @@ async def eurostat_data(
             code = by_lc.get(v.lower())
             if code is None:
                 sample = ", ".join(list(d.codes)[:8])
-                raise UserError(
-                    f"Unknown code '{v}' for {d.id}. Examples: {sample}. Use eurostat_codes."
-                )
+                raise UserError(f"Unknown code '{v}' for {d.id}. Examples: {sample}. Use eurostat_codes.")
             codes.append(code)
         if codes:
             chosen[d.id] = codes
@@ -384,8 +400,10 @@ async def eurostat_data(
 
     js = await fetch_json(f"{base}/statistics/1.0/data/{urlquote(st.id, safe='')}", params)
     cols, rows, ids = jsonstat_rows(js or {})
-    out = [f"{st.id}: {clip(js.get('label') or st.title, 120)}" + (
-        f" (updated {js['updated'][:10]})" if js and js.get("updated") else "")]
+    out = [
+        f"{st.id}: {clip(js.get('label') or st.title, 120)}"
+        + (f" (updated {js['updated'][:10]})" if js and js.get("updated") else "")
+    ]
     if not rows:
         out.append("No values for these filters.")
         return "\n".join(out)

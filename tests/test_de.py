@@ -53,29 +53,43 @@ CPI = (
 
 def package(name: str, org: str = "berlin-open-data", **kw) -> dict:
     return {
-        "name": name, "title": kw.get("title", name.replace("-", " ").title()), "notes": "Beschreibung.",
-        "organization": {"name": org, "title": org.title()}, "groups": [{"name": "soci", "display_name": "x"}],
-        "tags": [{"name": "einwohner"}], "license_title": "Datenlizenz Deutschland Namensnennung 2.0",
+        "name": name,
+        "title": kw.get("title", name.replace("-", " ").title()),
+        "notes": "Beschreibung.",
+        "organization": {"name": org, "title": org.title()},
+        "groups": [{"name": "soci", "display_name": "x"}],
+        "tags": [{"name": "einwohner"}],
+        "license_title": "Datenlizenz Deutschland Namensnennung 2.0",
         "metadata_modified": "2026-10-01T00:00:00",
-        "extras": [{"key": "politicalGeocodingLevelURI", "value": govdata.LEVEL_URI + "municipality"},
-                   {"key": "identifier", "value": kw.get("identifier", "")}],
+        "extras": [
+            {"key": "politicalGeocodingLevelURI", "value": govdata.LEVEL_URI + "municipality"},
+            {"key": "identifier", "value": kw.get("identifier", "")},
+        ],
         "resources": kw.get("resources", []),
     }
 
 
 DATASETS = {
-    "einwohner-berlin": package("einwohner-berlin", resources=[
-        {"format": CSV_URI, "name": "Einwohner 2025", "url": "https://daten.berlin.de/einwohner.csv"},
-        {"format": "PDF", "name": "Bericht", "url": "https://daten.berlin.de/bericht.pdf"},
-        {"format": CSV_URI, "name": "intern", "url": "http://10.0.0.5/x.csv"},
-    ]),
+    "einwohner-berlin": package(
+        "einwohner-berlin",
+        resources=[
+            {"format": CSV_URI, "name": "Einwohner 2025", "url": "https://daten.berlin.de/einwohner.csv"},
+            {"format": "PDF", "name": "Bericht", "url": "https://daten.berlin.de/bericht.pdf"},
+            {"format": CSV_URI, "name": "intern", "url": "http://10.0.0.5/x.csv"},
+        ],
+    ),
     "bevolkerung-bundeslander-stichtag": package(
-        "bevolkerung-bundeslander-stichtag", org=govdata.DESTATIS, title="Bevölkerung: Bundesländer, Stichtag",
+        "bevolkerung-bundeslander-stichtag",
+        org=govdata.DESTATIS,
+        title="Bevölkerung: Bundesländer, Stichtag",
         identifier="https://genesis.destatis.de/genesisWS/downloads/00/tables/12411-0010_00",
-        resources=[{"format": CSV_URI, "url": genesis.DOWNLOAD.format("12411-0010")}]),
+        resources=[{"format": CSV_URI, "url": genesis.DOWNLOAD.format("12411-0010")}],
+    ),
     "container-binnenschifffahrt": package(  # a Destatis table listed under another publisher
-        "container-binnenschifffahrt", org="mcloud",
-        identifier="https://genesis.destatis.de/genesisWS/downloads/00/tables/46321-0101_00"),
+        "container-binnenschifffahrt",
+        org="mcloud",
+        identifier="https://genesis.destatis.de/genesisWS/downloads/00/tables/46321-0101_00",
+    ),
 }
 ORGS = [
     {"name": "berlin-open-data", "title": "Berlin Open Data", "package_count": 1000},
@@ -108,27 +122,60 @@ class FakeCKAN:
             fq = p.get("fq", "")
             if "facet.field" in p:
                 fields = json.loads(p["facet.field"])
-                f = {"organization": facet({"land-schleswig-holstein": 4210, "land-brandenburg": 5}),
-                     "tags": facet({"opendata": 900, "grundwasser": 300, "pegel": 120}),
-                     "res_format": facet({CSV_URI: 50, "http://publications.europa.eu/resource/authority/file-type/WMS_SRVC": 40})}
-                return ok({"count": 4210 if "organization:" in fq else 56305, "results": [],
-                           "search_facets": {k: f[k] for k in fields}})
+                f = {
+                    "organization": facet({"land-schleswig-holstein": 4210, "land-brandenburg": 5}),
+                    "tags": facet({"opendata": 900, "grundwasser": 300, "pegel": 120}),
+                    "res_format": facet(
+                        {CSV_URI: 50, "http://publications.europa.eu/resource/authority/file-type/WMS_SRVC": 40}
+                    ),
+                }
+                return ok(
+                    {
+                        "count": 4210 if "organization:" in fq else 56305,
+                        "results": [],
+                        "search_facets": {k: f[k] for k in fields},
+                    }
+                )
             if fq.startswith("organization:" + govdata.DESTATIS):
-                return ok({"count": 1, "results": [{
-                    "name": "bevolkerung-bundeslander-stichtag", "title": "Bevölkerung: Bundesländer, Stichtag",
-                    "tags": ["bayern", "bundesländer", "januar", "opendata"], "groups": ["soci"],
-                    "identifier": "https://genesis.destatis.de/genesisWS/downloads/00/tables/12411-0010_00",
-                    "modified": "2026-06-16T18:08:29"}]})
+                return ok(
+                    {
+                        "count": 1,
+                        "results": [
+                            {
+                                "name": "bevolkerung-bundeslander-stichtag",
+                                "title": "Bevölkerung: Bundesländer, Stichtag",
+                                "tags": ["bayern", "bundesländer", "januar", "opendata"],
+                                "groups": ["soci"],
+                                "identifier": "https://genesis.destatis.de/genesisWS/downloads/00/tables/12411-0010_00",
+                                "modified": "2026-06-16T18:08:29",
+                            }
+                        ],
+                    }
+                )
             if "nichts" in p.get("q", ""):
                 return ok({"count": 0, "results": []})
-            return ok({"count": 42, "results": [
-                {"name": "einwohner-berlin", "title": "Einwohner in Berlin", "organization": "berlin-open-data",
-                 "res_format": [CSV_URI, "PDF"], "metadata_modified": "2026-10-01T00:00:00"},
-                {"name": "bevolkerung-bundeslander-stichtag", "title": "Bevölkerung: Bundesländer, Stichtag",
-                 "organization": govdata.DESTATIS, "res_format": [CSV_URI],
-                 "identifier": "https://genesis.destatis.de/genesisWS/downloads/00/tables/12411-0010_00",
-                 "metadata_modified": "2026-06-16T00:00:00"},
-            ]})
+            return ok(
+                {
+                    "count": 42,
+                    "results": [
+                        {
+                            "name": "einwohner-berlin",
+                            "title": "Einwohner in Berlin",
+                            "organization": "berlin-open-data",
+                            "res_format": [CSV_URI, "PDF"],
+                            "metadata_modified": "2026-10-01T00:00:00",
+                        },
+                        {
+                            "name": "bevolkerung-bundeslander-stichtag",
+                            "title": "Bevölkerung: Bundesländer, Stichtag",
+                            "organization": govdata.DESTATIS,
+                            "res_format": [CSV_URI],
+                            "identifier": "https://genesis.destatis.de/genesisWS/downloads/00/tables/12411-0010_00",
+                            "metadata_modified": "2026-06-16T00:00:00",
+                        },
+                    ],
+                }
+            )
         return httpx.Response(404, json={"success": False, "error": {"message": "unknown action"}})
 
 
@@ -149,7 +196,8 @@ def fake():
         mock.get(genesis.DOWNLOAD.format("61111-0002")).respond(200, content=CPI.encode("latin-1"))
         mock.get(genesis.DOWNLOAD.format("99999-9999")).respond(404, text="Not Found")
         mock.get("https://daten.berlin.de/einwohner.csv").respond(
-            200, content="Bezirk;Einwohner\nMitte;397134\nPankow;424307\n".encode("utf-8"))
+            200, content=b"Bezirk;Einwohner\nMitte;397134\nPankow;424307\n"
+        )
         yield ckan
 
 
@@ -175,7 +223,9 @@ async def test_table_time_in_columns_query_and_last_n(fake):
     out = await call("govdata_table", table_id="12411-0010", query="berlin", last_n=2)
     assert out.splitlines()[:3] == [
         "12411-0010: Bevölkerung: Bundesländer, Stichtag",
-        "about: Fortschreibung des Bevölkerungsstandes; Bevölkerungsstand (Anzahl)", "as of: 16.06.2026"]
+        "about: Fortschreibung des Bevölkerungsstandes; Bevölkerungsstand (Anzahl)",
+        "as of: 16.06.2026",
+    ]
     assert "fixed: label=Berlin\nperiod|value\nStichtag 31.12.2025|3700577\nStichtag 31.12.2024|3685265\n" in out
     assert "notes: Berlin: bis 1989" in out
 
@@ -193,8 +243,9 @@ async def test_table_symbols_truncation_and_errors(fake):
     out = await call("govdata_table", table_id="12411-0010_00", limit=2)
     assert "# truncated: 2 of 9 values; add query= or last_n=" in out
     assert "# first-column labels: Bayern, Berlin, Bremen" in out
-    assert (await call("govdata_table", table_id="12411-0010", query="Hamburg")).splitlines()[-1] == \
-        "# rows: Bayern, Berlin, Bremen"
+    assert (await call("govdata_table", table_id="12411-0010", query="Hamburg")).splitlines()[
+        -1
+    ] == "# rows: Bayern, Berlin, Bremen"
     assert (await call("govdata_table", table_id="99999-9999")).startswith("Error: Unknown Destatis table")
     assert (await call("govdata_table", table_id="population")).startswith("Error: 'population' is not a GENESIS")
 
@@ -204,14 +255,23 @@ async def test_table_symbols_truncation_and_errors(fake):
 
 def test_solr_query_translates_and_boosts_titles():
     q = govdata.solr_query("Population Berlin")
-    assert q == ("text:(population OR bevölkerung OR einwohner) AND text:(berlin) AND "
-                 "(title:(population OR bevölkerung OR einwohner OR berlin)^5 OR *:*)")
+    assert q == (
+        "text:(population OR bevölkerung OR einwohner) AND text:(berlin) AND "
+        "(title:(population OR bevölkerung OR einwohner OR berlin)^5 OR *:*)"
+    )
     assert govdata.solr_query("  ") == "*:*"
 
 
 async def test_search_filters_and_destatis_values_column(fake):
-    out = await call("govdata_search", query="einwohner", theme="Population", publisher="berlin",
-                     format="csv", level="Gemeinde", limit=2)
+    out = await call(
+        "govdata_search",
+        query="einwohner",
+        theme="Population",
+        publisher="berlin",
+        format="csv",
+        level="Gemeinde",
+        limit=2,
+    )
     fq = fake.searches[-1]["fq"]
     assert "groups:soci" in fq and "organization:berlin-open-data" in fq
     assert f'res_format:("CSV" OR "{CSV_URI}"' in fq
@@ -225,7 +285,9 @@ async def test_search_filters_and_destatis_values_column(fake):
 
 async def test_search_errors(fake):
     assert (await call("govdata_search", query="nichts")).startswith("No GovData datasets match")
-    assert (await call("govdata_search", query="x", theme="space")).startswith("Error: Unknown theme 'space'. Valid: envi")
+    assert (await call("govdata_search", query="x", theme="space")).startswith(
+        "Error: Unknown theme 'space'. Valid: envi"
+    )
     out = await call("govdata_search", query="x", publisher="land")
     assert out.startswith("Error: Publisher 'land' is ambiguous: land-schleswig-holstein")
     assert (await call("govdata_search", query="x", level="planet")).startswith("Error: Unknown level")
@@ -243,11 +305,16 @@ async def test_dataset_details(fake):
 
 async def test_preview_csv_and_refusals(fake):
     out = await call("govdata_preview", dataset_id="einwohner-berlin", file=1)
-    assert out.splitlines()[:4] == ["einwohner-berlin file 1: CSV, 2 columns", "Bezirk|Einwohner",
-                                    "Mitte|397134", "Pankow|424307"]
+    assert out.splitlines()[:4] == [
+        "einwohner-berlin file 1: CSV, 2 columns",
+        "Bezirk|Einwohner",
+        "Mitte|397134",
+        "Pankow|424307",
+    ]
     assert out.splitlines()[-1].startswith("source: https://daten.berlin.de/einwohner.csv · licence: ")
     assert (await call("govdata_preview", dataset_id="einwohner-berlin", file=2)).startswith(
-        "Error: einwohner-berlin file 2 is PDF; only CSV/JSON can be previewed")
+        "Error: einwohner-berlin file 2 is PDF; only CSV/JSON can be previewed"
+    )
     assert (await call("govdata_preview", dataset_id="einwohner-berlin", file=3)).startswith("Error: Can't preview")
     assert (await call("govdata_preview", dataset_id="einwohner-berlin", file=9)).startswith("Error: file must be 1..3")
     out = await call("govdata_preview", dataset_id="bevolkerung-bundeslander-stichtag")
@@ -265,10 +332,18 @@ def test_json_rows_reads_geojson_and_wrapped_lists():
 
 async def test_map_builders(fake):
     rows = await mapping.build_destatis()
-    assert rows == [{
-        "source": "Destatis", "id": "12411-0010", "title": "Bevölkerung: Bundesländer, Stichtag",
-        "path": "Destatis > Population and society", "keywords": "bayern bundesländer", "period": "",
-        "updated": "2026-06-16", "call": 'govdata_table("12411-0010")'}]
+    assert rows == [
+        {
+            "source": "Destatis",
+            "id": "12411-0010",
+            "title": "Bevölkerung: Bundesländer, Stichtag",
+            "path": "Destatis > Population and society",
+            "keywords": "bayern bundesländer",
+            "period": "",
+            "updated": "2026-06-16",
+            "call": 'govdata_table("12411-0010")',
+        }
+    ]
     rows = {r["id"]: r for r in await mapping.build_catalogue()}
     assert len(rows) == len(govdata.THEMES) + len(govdata.THEMES)  # one slice per theme (Brandenburg < 20)
     envi = rows["envi/land-schleswig-holstein"]

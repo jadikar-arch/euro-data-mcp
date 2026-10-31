@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 from fastmcp import FastMCP
 
-from ...common import NotFound, READ_ONLY, UserError, clip, compact_table, fold, safe, source_line
+from ...common import READ_ONLY, NotFound, UserError, clip, compact_table, fold, safe, source_line
 from ...web import Memo, fetch
 
 TABLE_PAGE = "https://www-genesis.destatis.de/genesis/online?operation=table&code={}"
@@ -89,7 +89,9 @@ async def load(table_id: str) -> Table:
         try:
             resp = await fetch(DOWNLOAD.format(table_id))
         except NotFound:
-            raise UserError(f"Unknown Destatis table '{table_id}'. Find tables with find_data or govdata_search.") from None
+            raise UserError(
+                f"Unknown Destatis table '{table_id}'. Find tables with find_data or govdata_search."
+            ) from None
         body = resp.content
         try:
             text = body.decode("utf-8")
@@ -135,13 +137,15 @@ async def govdata_table(table_id: str, query: str | None = None, last_n: int | N
     if time_labels:
         key = lambda r: tuple(r[0][i] for i in time_labels)  # noqa: E731
         keys = list(dict.fromkeys(map(key, rows)))
-        keep = set(keys[-max(1, last_n):]) if last_n else set(keys)
+        keep = set(keys[-max(1, last_n) :]) if last_n else set(keys)
         rank = {k: i for i, k in enumerate(keys)}
         rows = sorted((r for r in rows if key(r) in keep), key=lambda r: -rank[key(r)])  # newest first, stable
 
     words = fold(query or "").split()
-    names = [(f"period{time_labels.index(i) + 1}".removesuffix("1") if i in time_labels else f"label{i + 1}")
-             for i in range(k)]
+    names = [
+        (f"period{time_labels.index(i) + 1}".removesuffix("1") if i in time_labels else f"label{i + 1}")
+        for i in range(k)
+    ]
     names = [n if n != "label1" or k > 1 or time_labels else "label" for n in names]
     out_rows, pending, used = [], 0, set()
     for labels, values in rows:

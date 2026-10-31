@@ -13,12 +13,28 @@ async def test_tools_listed_with_short_docs():
     async with Client(server.mcp) as c:
         tools = {t.name: t for t in await c.list_tools()}
     assert set(tools) == {
-        "eurostat_search", "eurostat_describe", "eurostat_codes", "eurostat_data",
-        "agri_endpoints", "agri_data", "ep_meps", "ep_votes", "ep_query",
-        "dataeu_search", "dataeu_facets", "dataeu_dataset", "dataeu_preview", "dataeu_sparql",
-        "dataeu_quality", "dataeu_use_cases",
-        "govdata_search", "govdata_dataset", "govdata_preview", "govdata_table",
-        "find_data", "country_guide",
+        "eurostat_search",
+        "eurostat_describe",
+        "eurostat_codes",
+        "eurostat_data",
+        "agri_endpoints",
+        "agri_data",
+        "ep_meps",
+        "ep_votes",
+        "ep_query",
+        "dataeu_search",
+        "dataeu_facets",
+        "dataeu_dataset",
+        "dataeu_preview",
+        "dataeu_sparql",
+        "dataeu_quality",
+        "dataeu_use_cases",
+        "govdata_search",
+        "govdata_dataset",
+        "govdata_preview",
+        "govdata_table",
+        "find_data",
+        "country_guide",
     }
     for t in tools.values():
         assert len(t.description.strip().splitlines()) <= 3

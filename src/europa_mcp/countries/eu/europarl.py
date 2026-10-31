@@ -9,26 +9,79 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ...common import NotFound, READ_ONLY, UserError, as_list, cell, clip, fold, safe, source_line
+from ...common import READ_ONLY, NotFound, UserError, as_list, cell, clip, fold, safe, source_line
 from ...web import Memo, fetch_json
 
 BASE = "https://data.europarl.europa.eu/api/v2"
 EP_LICENCE = "reuse authorised with attribution, © European Union (European Parliament)"
 SITE = "https://data.europarl.europa.eu/"
 FMT = {"format": "application/ld+json"}
-LANGS = {"bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "ga", "hr", "hu", "it", "lt",
-         "lv", "mt", "nl", "pl", "pt", "ro", "sk", "sl", "sv", "mul"}
+LANGS = {
+    "bg",
+    "cs",
+    "da",
+    "de",
+    "el",
+    "en",
+    "es",
+    "et",
+    "fi",
+    "fr",
+    "ga",
+    "hr",
+    "hu",
+    "it",
+    "lt",
+    "lv",
+    "mt",
+    "nl",
+    "pl",
+    "pt",
+    "ro",
+    "sk",
+    "sl",
+    "sv",
+    "mul",
+}
 # Noise in list/detail payloads: XML fragments, per-language duplicates, back-references.
-DROP = {"@context", "structuredLabel", "decisionAboutId_XMLLiteral", "decisionAboutId_Lang",
-        "searchResults", "inverse_consists_of", "sortLabel", "comment", "type", "is_about",
-        "title_dcterms", "isAboutDirectoryCode", "isAboutSubjectMatter", "creator", "publisher",
-        "identifierYear", "notation_codictPersonId", "upperFamilyName", "upperGivenName",
-        "inverse_refers_to", "inverse_decided_on_a_realization_of"}
+DROP = {
+    "@context",
+    "structuredLabel",
+    "decisionAboutId_XMLLiteral",
+    "decisionAboutId_Lang",
+    "searchResults",
+    "inverse_consists_of",
+    "sortLabel",
+    "comment",
+    "type",
+    "is_about",
+    "title_dcterms",
+    "isAboutDirectoryCode",
+    "isAboutSubjectMatter",
+    "creator",
+    "publisher",
+    "identifierYear",
+    "notation_codictPersonId",
+    "upperFamilyName",
+    "upperGivenName",
+    "inverse_refers_to",
+    "inverse_decided_on_a_realization_of",
+}
 MAX_LIST = 6
 # English/common names → the API's group labels (PPE, S&D, PfE, ECR, Renew, Verts/ALE, The Left, NI, ESN)
-GROUP_ALIASES = {"epp": "ppe", "greens": "verts/ale", "greens/efa": "verts/ale", "efa": "verts/ale",
-                 "left": "the left", "gue/ngl": "the left", "non-attached": "ni", "nonattached": "ni",
-                 "patriots": "pfe", "socialists": "s&d", "sd": "s&d"}
+GROUP_ALIASES = {
+    "epp": "ppe",
+    "greens": "verts/ale",
+    "greens/efa": "verts/ale",
+    "efa": "verts/ale",
+    "left": "the left",
+    "gue/ngl": "the left",
+    "non-attached": "ni",
+    "nonattached": "ni",
+    "patriots": "pfe",
+    "socialists": "s&d",
+    "sd": "s&d",
+}
 
 SPEC = Memo(ttl=24 * 3600)
 MEPS = Memo(ttl=6 * 3600)
@@ -93,7 +146,7 @@ def match_path(endpoint: str, templates: dict[str, set[str]]) -> tuple[str, set[
         tparts = tpl.split("/")
         if len(tparts) != len(parts):
             continue
-        if all(t == p or (t.startswith("{") and t.endswith("}")) for t, p in zip(tparts, parts)):
+        if all(t == p or (t.startswith("{") and t.endswith("}")) for t, p in zip(tparts, parts, strict=True)):
             literal = sum(not t.startswith("{") for t in tparts)
             if best is None or literal > best[0]:  # prefer meps/show-current over meps/{id}
                 best = (literal, params)
@@ -120,7 +173,8 @@ def short(v: Any) -> str:
 def files(realized: list[dict], lang: str) -> list[str]:
     """Download links for one language from an `is_realized_by` expression list."""
     pick = [e for e in realized if str(e.get("id", "")).endswith("/" + lang)] or [
-        e for e in realized if str(e.get("id", "")).endswith("/en")]
+        e for e in realized if str(e.get("id", "")).endswith("/en")
+    ]
     out = []
     for e in pick[:1]:
         for m in e.get("is_embodied_by") or []:
@@ -139,8 +193,14 @@ def flatten(item: dict[str, Any], lang: str, orgs: dict[str, str] | None = None)
             lines += memberships([m for m in v if isinstance(m, dict)], orgs, date.today().isoformat())
             continue
         if k == "is_realized_by" and isinstance(v, list):
-            title = next((pick_lang(e.get("title"), lang) for e in v
-                          if str(e.get("id", "")).endswith("/" + lang) and e.get("title")), None)
+            title = next(
+                (
+                    pick_lang(e.get("title"), lang)
+                    for e in v
+                    if str(e.get("id", "")).endswith("/" + lang) and e.get("title")
+                ),
+                None,
+            )
             if title:
                 lines.append(f"title: {clip(title, 300)}")
             if urls := files(v, lang):
@@ -172,7 +232,8 @@ async def current_meps() -> list[dict[str, str]]:
         data = await fetch_json(f"{BASE}/meps/show-current", {**FMT, "offset": 0, "limit": 1000})
         return [
             {
-                "id": m.get("identifier", ""), "name": m.get("label", ""),
+                "id": m.get("identifier", ""),
+                "name": m.get("label", ""),
                 "country": m.get("api:country-of-representation", ""),
                 "group": m.get("api:political-group", ""),
             }
@@ -222,10 +283,7 @@ async def sitting(date: str) -> tuple[list[dict], dict[str, str]]:
             fetch_json(f"{BASE}/meetings/{sid}/decisions", {**FMT, "offset": 0, "limit": 2000}),
             fetch_json(f"{BASE}/meetings/{sid}/vote-results", {**FMT, "offset": 0, "limit": 500}),
         )
-        titles = {
-            it["id"]: pick_lang(it.get("activity_label"), "en") or ""
-            for it in (items or {}).get("data", [])
-        }
+        titles = {it["id"]: pick_lang(it.get("activity_label"), "en") or "" for it in (items or {}).get("data", [])}
         return (decisions or {}).get("data", []), titles
 
     return await SITTINGS.get(date, load)
@@ -264,16 +322,23 @@ async def ep_votes(
             if not all(w in hay for w in fold(query).split()):
                 continue
         row = [
-            clip(topic, 90), clip(label, 70),
+            clip(topic, 90),
+            clip(label, 70),
             short(d.get("decision_outcome", "")).replace("statuses/", ""),
             short(d.get("decision_method", "")).replace("decision-methods/VOTE_", ""),
-            str(d.get("number_of_votes_favor", "")), str(d.get("number_of_votes_against", "")),
+            str(d.get("number_of_votes_favor", "")),
+            str(d.get("number_of_votes_against", "")),
             str(d.get("number_of_votes_abstention", "")),
         ]
         if person:
-            how = next((k.removeprefix("had_voter_") for k in
-                        ("had_voter_favor", "had_voter_against", "had_voter_abstention")
-                        if person in (d.get(k) or [])), "absent/no vote")
+            how = next(
+                (
+                    k.removeprefix("had_voter_")
+                    for k in ("had_voter_favor", "had_voter_against", "had_voter_abstention")
+                    if person in (d.get(k) or [])
+                ),
+                "absent/no vote",
+            )
             row.append(how)
         rows.append(row)
     if not rows:
@@ -292,8 +357,11 @@ async def ep_votes(
 
 @safe
 async def ep_query(
-    endpoint: str, params: dict[str, Any] | None = None, language: str = "en",
-    limit: int = 10, offset: int = 0,
+    endpoint: str,
+    params: dict[str, Any] | None = None,
+    language: str = "en",
+    limit: int = 10,
+    offset: int = 0,
 ) -> str:
     """Read any EP Open Data endpoint, e.g. 'adopted-texts' {'text':'housing','year':2026},
     'procedures/2024-2526', 'meetings' {'year':2026}, 'speeches', 'documents/{id}'.

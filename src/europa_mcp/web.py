@@ -104,7 +104,9 @@ MAX_REDIRECTS = 5
 
 
 async def fetch_prefix(
-    url: str, max_bytes: int, check: Callable[[str], Awaitable[None]] | None = None,
+    url: str,
+    max_bytes: int,
+    check: Callable[[str], Awaitable[None]] | None = None,
 ) -> tuple[bytes, bool, str]:
     """The first `max_bytes` of a file (no retries): (body, truncated, content type).
     `check(url)` vets the URL and every redirect target before it is requested."""

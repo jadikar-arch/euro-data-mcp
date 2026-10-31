@@ -35,8 +35,20 @@ async def test_log_records_calls_without_identifying_callers(tmp_path, monkeypat
 def test_report_lists_unanswered_topics(tmp_path):
     path = tmp_path / "usage.jsonl"
     lines = [
-        {"ts": "2026-10-30T10:00:00Z", "tool": "find_data", "args": {"query": "Ferry delays"}, "outcome": "empty", "ms": 40},
-        {"ts": "2026-10-30T10:01:00Z", "tool": "find_data", "args": {"query": "ferry delays"}, "outcome": "empty", "ms": 50},
+        {
+            "ts": "2026-10-30T10:00:00Z",
+            "tool": "find_data",
+            "args": {"query": "Ferry delays"},
+            "outcome": "empty",
+            "ms": 40,
+        },
+        {
+            "ts": "2026-10-30T10:01:00Z",
+            "tool": "find_data",
+            "args": {"query": "ferry delays"},
+            "outcome": "empty",
+            "ms": 50,
+        },
         {"ts": "2026-10-30T10:02:00Z", "tool": "find_data", "args": {"query": "inflation"}, "outcome": "ok", "ms": 30},
     ]
     path.write_text("\n".join(json.dumps(x) for x in lines) + "\nnot json\n")

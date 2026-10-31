@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from fastmcp import FastMCP
 
-from ...common import load_hints
 from ... import web
+from ...common import load_hints
 
 CODE = "eu"
 NAME = "European Union"
