@@ -386,6 +386,11 @@ is the number to quote. To improve it without fooling yourself, add real questio
 uv run python eval/run_eval.py [--fresh] [--set holdout] [--min-hit3 0.95]
 ```
 
+**End-to-end golden set:** [`eval/golden/`](eval/golden/README.md) has 20 questions with expected
+answers fetched from the official APIs (Eurostat, regional, city, Destatis, agri-food, Parliament,
+DG TAXUD, data.europa.eu, a Spanish question and a no-data trap), a score sheet and a scorer, for
+comparing how different models and apps use the server.
+
 The map is rebuilt in the background every `EUROPA_REFRESH_HOURS` (default 6).
 If one source fails, its previous rows are kept. To build it by hand or export it as a CSV for review:
 

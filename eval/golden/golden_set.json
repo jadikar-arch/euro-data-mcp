@@ -1,0 +1,350 @@
+{
+  "name": "europa-mcp golden set",
+  "version": "1.0",
+  "created": "2026-10-31",
+  "values_fetched": "2026-10-31 from the live APIs via europa-mcp 0.4.0; official figures can be revised later (flag p = provisional)",
+  "how_to_use": "Ask each question in a fresh chat with the europa MCP server connected. When the model shows ranked datasets, pick the first accepted dataset if offered; if it doesn't offer a choice, note that. Grade with the rubric in README.md.",
+  "rubric": {
+    "value": "Correct value within tolerance (absolute = same unit; percent = relative %). Behaviour/no_answer items are graded on behaviour.",
+    "dataset": "Used one of the accepted datasets (or tool for G19).",
+    "citation": "Gave the source link and licence (the 'source:' line).",
+    "user_choice": "Showed ranked options and let the user choose before fetching (or used the picker).",
+    "no_hallucination": "No invented numbers, datasets or URLs."
+  },
+  "questions": [
+    {
+      "id": "G01",
+      "category": "Eurostat · labour",
+      "question": "What was the unemployment rate in Spain in 2024?",
+      "answer": "11.4%",
+      "value": 11.4,
+      "unit": "% of labour force (age 15-74)",
+      "period": "2024",
+      "tolerance": 0.1,
+      "datasets": [
+        "une_rt_a",
+        "tps00203",
+        "une_rt_m"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/une_rt_a/default/table?lang=en",
+      "notes": "Annual figure. A monthly 2024 figure is not the annual rate; accept only if the model explains.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G02",
+      "category": "Eurostat · prices",
+      "question": "What was the average annual inflation rate in the EU in 2024?",
+      "answer": "2.6%",
+      "value": 2.6,
+      "unit": "% (HICP, annual average rate of change, EU27_2020)",
+      "period": "2024",
+      "tolerance": 0.1,
+      "datasets": [
+        "prc_hicp_aind",
+        "prc_hicp_manr",
+        "prc_hicp_minr"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_aind/default/table?lang=en",
+      "notes": "EU-27. The euro area figure differs; accept only if clearly labelled as euro area.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G03",
+      "category": "Eurostat · economy",
+      "question": "How large was Germany's GDP in 2024, in euros?",
+      "answer": "€4,386,940 million (≈ €4.39 trillion), current prices, provisional",
+      "value": 4386940,
+      "unit": "million EUR, current prices",
+      "period": "2024",
+      "tolerance": 0.5,
+      "tolerance_type": "percent",
+      "datasets": [
+        "nama_10_gdp",
+        "namq_10_gdp"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/nama_10_gdp/default/table?lang=en",
+      "notes": "Flag p (provisional): figure may be revised. Quarterly sum is acceptable within tolerance."
+    },
+    {
+      "id": "G04",
+      "category": "Eurostat · population",
+      "question": "How many people lived in Poland on 1 January 2025?",
+      "answer": "36,497,495",
+      "value": 36497495,
+      "unit": "persons",
+      "period": "2025-01-01",
+      "tolerance": 0.1,
+      "tolerance_type": "percent",
+      "datasets": [
+        "tps00001",
+        "demo_pjan",
+        "demo_gind"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/tps00001/default/table?lang=en",
+      "notes": ""
+    },
+    {
+      "id": "G05",
+      "category": "Eurostat · health",
+      "question": "What was life expectancy at birth in Italy in 2023?",
+      "answer": "83.3 years",
+      "value": 83.3,
+      "unit": "years (total, at birth)",
+      "period": "2023",
+      "tolerance": 0.1,
+      "datasets": [
+        "demo_mlexpec",
+        "tps00208"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/demo_mlexpec/default/table?lang=en",
+      "notes": "Both sexes.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G06",
+      "category": "Eurostat · regional (NUTS 2)",
+      "question": "What was the unemployment rate in Andalusia in 2024?",
+      "answer": "16.5%",
+      "value": 16.5,
+      "unit": "% (age 15-74, all education levels)",
+      "period": "2024",
+      "tolerance": 0.1,
+      "datasets": [
+        "tgs00010",
+        "lfst_r_lfu3rt"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/tgs00010/default/table?lang=en",
+      "notes": "Region code ES61. Tests regional routing: a national Spain figure (11.4%) is wrong.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G07",
+      "category": "Eurostat · housing",
+      "question": "By how much did house prices in the Netherlands rise in the second quarter of 2025 compared with a year earlier?",
+      "answer": "+9.5%",
+      "value": 9.5,
+      "unit": "% annual rate of change (house price index, all dwellings)",
+      "period": "2025-Q2",
+      "tolerance": 0.1,
+      "datasets": [
+        "prc_hpi_q"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/prc_hpi_q/default/table?lang=en",
+      "notes": "Index levels (2015=100 or 2025=100) are not the answer.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G08",
+      "category": "Eurostat · public finance",
+      "question": "What was Italy's government debt as a share of GDP in 2024?",
+      "answer": "134.3% of GDP",
+      "value": 134.3,
+      "unit": "% of GDP (general government consolidated gross debt)",
+      "period": "2024",
+      "tolerance": 0.1,
+      "datasets": [
+        "gov_10dd_edpt1"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/gov_10dd_edpt1/default/table?lang=en",
+      "notes": "",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G09",
+      "category": "Eurostat · energy",
+      "question": "What share of Sweden's energy came from renewable sources in 2023?",
+      "answer": "66.4%",
+      "value": 66.393,
+      "unit": "% of gross final energy consumption",
+      "period": "2023",
+      "tolerance": 0.1,
+      "datasets": [
+        "nrg_ind_ren"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/nrg_ind_ren/default/table?lang=en",
+      "notes": "Overall share (REN), not electricity only.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G10",
+      "category": "Eurostat · earnings",
+      "question": "What was the monthly minimum wage in France in the first half of 2026?",
+      "answer": "€1,823 per month",
+      "value": 1823,
+      "unit": "EUR per month (gross)",
+      "period": "2026-S1",
+      "tolerance": 1,
+      "datasets": [
+        "earn_mw_cur"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/earn_mw_cur/default/table?lang=en",
+      "notes": "PPS or national-currency figures are not the answer.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G11",
+      "category": "Eurostat · living conditions",
+      "question": "What share of people in the EU were at risk of poverty or social exclusion in 2024?",
+      "answer": "21.0%",
+      "value": 21.0,
+      "unit": "% of population (EU27_2020)",
+      "period": "2024",
+      "tolerance": 0.1,
+      "datasets": [
+        "ilc_peps01n",
+        "tipslc10"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/ilc_peps01n/default/table?lang=en",
+      "notes": "AROPE indicator.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G12",
+      "category": "Eurostat · cities",
+      "question": "How many people lived in Amsterdam on 1 January 2024?",
+      "answer": "1,073,736 (Amsterdam greater city, Eurostat Urban Audit)",
+      "value": 1073736,
+      "unit": "persons",
+      "period": "2024-01-01",
+      "tolerance": 0.1,
+      "tolerance_type": "percent",
+      "datasets": [
+        "urb_cpop1"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/urb_cpop1/default/table?lang=en",
+      "notes": "Eurostat only has the 'greater city' (NL001C). A municipality figure (~930k, CBS) is acceptable only if the model says it comes from elsewhere; it must not attribute it to this server."
+    },
+    {
+      "id": "G13",
+      "category": "Destatis (Germany)",
+      "question": "How many people lived in Bavaria on 31 December 2025?",
+      "answer": "13,245,503",
+      "value": 13245503,
+      "unit": "persons",
+      "period": "2025-12-31",
+      "tolerance": 0,
+      "tolerance_type": "exact",
+      "datasets": [
+        "12411-0010",
+        "12411-0001"
+      ],
+      "source": "https://www-genesis.destatis.de/genesis/online?operation=table&code=12411-0010",
+      "notes": ""
+    },
+    {
+      "id": "G14",
+      "category": "Destatis (Germany)",
+      "question": "What was Germany's consumer price index in August 2026, and how much had prices risen in a year?",
+      "answer": "125.8 (2020=100); +2.9% on August 2025",
+      "value": 125.8,
+      "unit": "index 2020=100",
+      "period": "2026-08",
+      "tolerance": 0.1,
+      "datasets": [
+        "61111-0002",
+        "61111-0004"
+      ],
+      "source": "https://www-genesis.destatis.de/genesis/online?operation=table&code=61111-0002",
+      "notes": "National CPI (Destatis). Eurostat's HICP for Germany is a different index; accept only if labelled HICP.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G15",
+      "category": "EU agri-food",
+      "question": "What was the price of class E pig carcasses in Germany in week 40 of 2026?",
+      "answer": "€155.34 per 100 kg (28 Sep – 4 Oct 2026)",
+      "value": 155.34,
+      "unit": "EUR per 100 kg carcass weight",
+      "period": "2026-W40",
+      "tolerance": 0.01,
+      "datasets": [
+        "pigmeat/prices"
+      ],
+      "source": "https://api.tech.ec.europa.eu/agrifood/api/pigmeat/prices?memberStateCodes=DE&pigClasses=E",
+      "notes": "",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G16",
+      "category": "European Parliament",
+      "question": "How did the European Parliament vote on the EU–Mexico Interim Agreement on Trade on 8 July 2026?",
+      "answer": "Adopted: 474 for, 131 against, 60 abstentions (roll-call)",
+      "value": 474,
+      "unit": "votes in favour",
+      "period": "2026-07-08",
+      "tolerance": 0,
+      "tolerance_type": "exact",
+      "datasets": [
+        "ep_votes"
+      ],
+      "source": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-07-08/decisions",
+      "notes": "Report A10-0198/2026 (rapporteur Borja Giménez Larraz). All three counts must match."
+    },
+    {
+      "id": "G17",
+      "category": "European Commission · DG TAXUD",
+      "question": "What was the implicit tax rate on labour in the Netherlands in 2024?",
+      "answer": "31.87%",
+      "value": 31.87,
+      "unit": "%",
+      "period": "2024",
+      "tolerance": 0.01,
+      "datasets": [
+        "TAX_ITR"
+      ],
+      "source": "https://webgate.ec.europa.eu/taxation_customs/redisstat/databrowser/view/TAX_ITR/default/table",
+      "notes": "",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G18",
+      "category": "Other language (Spanish)",
+      "question": "¿Cuál fue la tasa de desempleo juvenil (15-24 años) en Italia en 2024?",
+      "answer": "20,3 %",
+      "value": 20.3,
+      "unit": "% of labour force aged 15-24",
+      "period": "2024",
+      "tolerance": 0.1,
+      "datasets": [
+        "une_rt_a",
+        "yth_empl_100",
+        "tesem140"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/une_rt_a/default/table?lang=en",
+      "notes": "The answer should be in Spanish.",
+      "tolerance_type": "absolute"
+    },
+    {
+      "id": "G19",
+      "category": "data.europa.eu",
+      "question": "Find downloadable CSV open datasets about air quality in the Netherlands.",
+      "answer": "Real data.europa.eu datasets with CSV files, e.g. 'Air quality' (GGD Amsterdam, id jlag-g3ubn4sha) and 'Air quality The Hague' (id denhaagluchtkwaliteit); about 347 matches",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "tolerance": null,
+      "tolerance_type": "behaviour",
+      "datasets": [
+        "dataeu_search"
+      ],
+      "source": "https://data.europa.eu",
+      "notes": "Pass: uses dataeu_search (country nl, format CSV), lists at least 2 real Dutch datasets with ids or links. Bonus: previews one file with dataeu_preview. Fail: invented dataset names or URLs."
+    },
+    {
+      "id": "G20",
+      "category": "No official data (hallucination check)",
+      "question": "What was the average daily screen time of teenagers in Belgium in 2025?",
+      "answer": "No official figure. The closest Eurostat data (time-use survey, tus_20screen, 2020 wave) covers 11 countries and not Belgium.",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "tolerance": null,
+      "tolerance_type": "no_answer",
+      "datasets": [
+        "tus_20screen"
+      ],
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/tus_20screen/default/table?lang=en",
+      "notes": "Pass: says no official 2025/Belgium figure exists and does not give a number. Fail: any invented figure, or a figure presented as Belgian/2025."
+    }
+  ]
+}
