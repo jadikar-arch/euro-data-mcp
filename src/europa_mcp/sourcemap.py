@@ -31,8 +31,12 @@ CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
 CREATE TABLE IF NOT EXISTS map_meta(source TEXT PRIMARY KEY, built REAL, count INTEGER);
 """
 CANDIDATES = 600
-HEADLINE_MARK = "zqheadline"  # token in an entry's keywords: rank first among equally good matches
-# (made-up word: Eurostat theme paths contain "Headline indicators", so a real word collides)
+# Headline span in an entry's keywords: "zqheadline <everyday words> zqend". The entry ranks first
+# when those words alone answer the query ('unemployment rate' → une_rt_m), not merely when its title
+# does ('Part-time employment rate' is not the answer to 'employment rate'). Made-up tokens:
+# Eurostat theme paths contain "Headline indicators", so a real word would collide.
+HEADLINE_MARK, HEADLINE_END = "zqheadline", "zqend"
+HEADLINE_SPAN = re.compile(rf"\b{HEADLINE_MARK}\b(.*?)\b{HEADLINE_END}\b")
 PREFIX_MIN = 6  # shorter terms match whole words only ('house' must not match 'household')
 
 Entry = dict[str, str]
@@ -55,10 +59,13 @@ def keyword_hint(kw: dict[str, str], source: str, ident: str) -> str:
 # ---- the map ----------------------------------------------------------------------------
 
 
+RND = re.compile(r"\br\s*&\s*d\b")  # 'R&D' would tokenise into the useless letters r and d
+
+
 def expand(query: str, synonyms: dict[str, list[str]]) -> list[list[str]]:
     """Query → OR-groups of terms, each the query word plus its synonyms (see merge_synonyms)."""
     groups = []
-    for tok in re.findall(r"\w+", fold(query)):
+    for tok in re.findall(r"\w+", RND.sub(" research development ", fold(query))):
         if len(tok) < 2 or tok in STOPWORDS:
             continue
         alts = [tok, *synonyms.get(tok, ())]
@@ -67,19 +74,45 @@ def expand(query: str, synonyms: dict[str, list[str]]) -> list[list[str]]:
     return groups
 
 
+def stem(a: str) -> str:
+    """Long single words lose a plural ending so the prefix match also finds the singular:
+    'bankruptcies' → 'bankruptc' (bankruptcy), 'homicides' → 'homicide'."""
+    if " " in a or len(a) < PREFIX_MIN:
+        return a
+    if a.endswith("ies"):  # 'cities' stays whole: 'cit*' would match far too much
+        return a[:-3] if len(a) - 3 >= 5 else a
+    if a.endswith("s") and not a.endswith(("ss", "us", "is")) and len(a) - 1 >= 5:
+        return a[:-1]
+    return a
+
+
+def short_forms(a: str) -> list[str]:
+    """Whole-word variants of a short term: city → city, citys, cityes, cities."""
+    return [a, f"{a}s", f"{a}es", *([f"{a[:-1]}ies"] if a.endswith("y") else [])]
+
+
 def fts_term(a: str) -> str:
     if len(a) >= PREFIX_MIN:
-        return f'"{a}"*'
-    return f'("{a}" OR "{a}s" OR "{a}es")'
+        return f'"{stem(a)}"*'
+    return "(" + " OR ".join(f'"{f}"' for f in short_forms(a)) + ")"
 
 
 def term_regex(groups: list[list[str]]) -> list[re.Pattern[str]]:
     """One regex per query group, matching like fts_term (word start; whole word if short)."""
     pats = []
     for alts in groups:
-        parts = [re.escape(a) + (r"" if len(a) >= PREFIX_MIN else r"(?:s|es)?\b") for a in alts]
+        parts = [re.escape(stem(a)) if len(a) >= PREFIX_MIN
+                 else "(?:" + "|".join(map(re.escape, short_forms(a))) + r")\b" for a in alts]
         pats.append(re.compile(r"\b(?:" + "|".join(parts) + ")"))
     return pats
+
+
+def demoted(entry: dict[str, Any], this_year: int) -> bool:
+    """Rarely what a user wants: EU-neighbourhood (ENP) copies and discontinued datasets."""
+    if entry["id"].lower().startswith(("enpe_", "enps_")):
+        return True
+    years = re.findall(r"(?:19|20)\d\d", entry.get("period") or "")
+    return bool(years) and int(years[-1]) < this_year - 3
 
 
 def merge_synonyms(
@@ -113,11 +146,27 @@ class SourceMap:
         self._lock = asyncio.Lock()
         self.synonyms = synonyms or {}
         self.builders = builders or {}
+        self.prune()
 
     def count(self, source: str | None = None) -> int:
         if source:
             return self.db.execute("SELECT count(*) FROM entries WHERE source=?", (source,)).fetchone()[0]
         return self.db.execute("SELECT count(*) FROM entries").fetchone()[0]
+
+    def prune(self) -> int:
+        """Drop rows of builders this server no longer has (e.g. a removed country), so find_data
+        never points to tools that don't exist. Returns the number of rows removed."""
+        if not self.builders:
+            return 0
+        known = list(self.builders)
+        marks = ",".join("?" * len(known))
+        with self.db:
+            n = self.db.execute(f"DELETE FROM entries WHERE builder NOT IN ({marks})", known).rowcount
+            self.db.execute(f"DELETE FROM entries_fts WHERE builder NOT IN ({marks})", known)
+            self.db.execute(f"DELETE FROM map_meta WHERE source NOT IN ({marks})", known)
+        if n:
+            log.info("source map: removed %d rows of retired sources", n)
+        return n
 
     def missing(self) -> list[str]:
         """Builders that have never run (or failed) against this database."""
@@ -143,7 +192,10 @@ class SourceMap:
             self.db.execute("DELETE FROM entries WHERE builder=?", (builder,))
             self.db.execute("DELETE FROM entries_fts WHERE builder=?", (builder,))
             for e in entries:
-                row = (e["source"], e["id"], e.get("title", ""), e.get("path", ""), e.get("keywords", ""))
+                kw = e.get("keywords", "")
+                if RND.search(fold(e.get("title", ""))):
+                    kw += " research development"
+                row = (e["source"], e["id"], e.get("title", ""), e.get("path", ""), kw)
                 self.db.execute(
                     "INSERT OR REPLACE INTO entries VALUES(?,?,?,?,?,?,?,?,?)",
                     (*row, e.get("period", ""), e.get("updated", ""), e.get("call", ""), builder),
@@ -198,7 +250,7 @@ class SourceMap:
             text = fold(text)
             return sum(bool(p.search(text)) for p in patterns)
 
-        ranked, seen = [], set()
+        ranked, seen, this_year = [], set(), time.gmtime().tm_year
         rows = [*self.db.execute(sql, params), *self.db.execute(sql, headline_params)]
         for r in rows:
             r = dict(r)
@@ -207,8 +259,12 @@ class SourceMap:
             seen.add((r["source"], r["id"]))
             text = f"{r['title']} {r['path']} {r['keywords']}"
             covered = hits(text)
-            headline = covered == len(groups) and HEADLINE_MARK in r["keywords"].split()
-            key = (-covered, -headline, -hits(text, own), -hits(r["title"]), -hits(r["title"], own), r["score"])
+            words = r["keywords"].split()
+            span = HEADLINE_SPAN.search(r["keywords"])
+            headline = covered == len(groups) and span is not None and hits(span.group(1)) == len(groups)
+            main_table = "table" in words[:3]  # Eurostat's own curated key-indicator tables
+            key = (-covered, -headline, demoted(r, this_year), -hits(text, own), -hits(r["title"]),
+                   -main_table, -hits(r["title"], own), r["score"])
             ranked.append((key, r))
         ranked.sort(key=lambda t: t[0])
         return [{**r, "coverage": -k[0] / len(groups)} for k, r in ranked]

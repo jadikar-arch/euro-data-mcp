@@ -440,6 +440,195 @@
     ],
     "asilo": [
       "asylum"
+    ],
+    "doctors": [
+      "physicians"
+    ],
+    "doctor": [
+      "physicians"
+    ],
+    "nurses": [
+      "nursing"
+    ],
+    "online": [
+      "internet"
+    ],
+    "shopping": [
+      "purchases",
+      "e-commerce"
+    ],
+    "investment": [
+      "gross fixed capital formation"
+    ],
+    "investments": [
+      "gross fixed capital formation"
+    ],
+    "output": [
+      "production"
+    ],
+    "naturalisations": [
+      "acquisition of citizenship"
+    ],
+    "naturalisation": [
+      "acquisition of citizenship"
+    ],
+    "naturalizations": [
+      "acquisition of citizenship"
+    ],
+    "foreign": [
+      "citizenship",
+      "foreigners"
+    ],
+    "graduates": [
+      "tertiary educational attainment"
+    ],
+    "university": [
+      "tertiary"
+    ],
+    "universities": [
+      "tertiary"
+    ],
+    "adult": [
+      "education and training"
+    ],
+    "learning": [
+      "education and training",
+      "training"
+    ],
+    "holiday": [
+      "trips",
+      "tourism"
+    ],
+    "holidays": [
+      "trips",
+      "tourism"
+    ],
+    "vacation": [
+      "trips",
+      "tourism"
+    ],
+    "child": [
+      "children"
+    ],
+    "kids": [
+      "children"
+    ],
+    "salary": [
+      "earnings",
+      "wages"
+    ],
+    "pay": [
+      "earnings",
+      "wages"
+    ],
+    "kindergarten": [
+      "early childhood education"
+    ],
+    "preschool": [
+      "early childhood education"
+    ],
+    "childcare": [
+      "early childhood education"
+    ],
+    "companies": [
+      "enterprises"
+    ],
+    "firms": [
+      "enterprises"
+    ],
+    "businesses": [
+      "enterprises"
+    ],
+    "startups": [
+      "business demography"
+    ],
+    "spending": [
+      "expenditure"
+    ],
+    "budget": [
+      "deficit"
+    ],
+    "cars": [
+      "passenger cars"
+    ],
+    "students": [
+      "enrolled",
+      "pupils and students"
+    ],
+    "pupils": [
+      "enrolled"
+    ],
+    "jobs": [
+      "employment"
+    ],
+    "farms": [
+      "agricultural",
+      "farm"
+    ],
+    "pollution": [
+      "particulate matter",
+      "pollutants"
+    ],
+    "ai": [
+      "artificial intelligence"
+    ],
+    "elderly": [
+      "aged 65",
+      "older people"
+    ],
+    "pensioners": [
+      "pension",
+      "aged 65"
+    ],
+    "wealth": [
+      "net worth"
+    ],
+    "rents": [
+      "rent",
+      "actual rentals"
+    ],
+    "homeless": [
+      "housing exclusion"
+    ],
+    "commuting": [
+      "commuting"
+    ],
+    "publique": [
+      "public",
+      "government"
+    ],
+    "publica": [
+      "public",
+      "government"
+    ],
+    "pubblico": [
+      "public",
+      "government"
+    ],
+    "pubblica": [
+      "public",
+      "government"
+    ],
+    "vida": [
+      "life"
+    ],
+    "vie": [
+      "life"
+    ],
+    "vita": [
+      "life"
+    ],
+    "invernadero": [
+      "greenhouse"
+    ],
+    "efecto": [
+      "greenhouse"
+    ],
+    "serre": [
+      "greenhouse"
+    ],
+    "gases": [
+      "gas"
     ]
   },
   "keywords": {
@@ -579,7 +768,35 @@
       "road_eqs_carhab": "cars per inhabitants car ownership",
       "tran_sf_roadus": "road deaths traffic fatalities accidents",
       "hlth_rs_bds1": "hospital beds health care",
-      "crim_off_cat": "crime offences police"
+      "crim_off_cat": "crime offences police",
+      "tesem100": "part-time",
+      "lfsi_pt_a": "part-time temporary contracts employment",
+      "sdg_08_20": "neet young people not in employment education training",
+      "sdg_05_20": "gender pay gap",
+      "ilc_di03": "median income mean household income",
+      "sdg_09_10": "research development r&d expenditure gerd",
+      "tps00044": "doctors physicians",
+      "tec00011": "investment gross fixed capital formation",
+      "sdg_04_20": "tertiary education university graduates attainment",
+      "trng_lfse_01": "adult learning lifelong education training participation",
+      "isoc_ec_ib20": "online shopping internet purchases e-commerce",
+      "sdg_07_11": "final energy consumption",
+      "sdg_02_40": "organic farming area",
+      "migr_pop1ctz": "foreign population citizenship foreigners",
+      "tps00024": "naturalisations acquisition citizenship",
+      "demo_pjanind": "median age population structure ageing dependency",
+      "tespm030": "material social deprivation",
+      "tessi170": "overcrowding overcrowded housing",
+      "tepsr_spi110": "child poverty children at risk of poverty",
+      "sts_rb_q": "bankruptcies business registrations",
+      "tps00203": "unemployment rate",
+      "tgs00010": "regional unemployment rate by region",
+      "sts_copr_m": "construction output production monthly",
+      "tsc00003": "researchers number",
+      "lc_lci_lev": "hourly labour costs per hour",
+      "tour_dem_ttpur": "holiday trips tourism purpose",
+      "apro_cpsh1": "crop production harvest",
+      "apro_mk_farm": "milk production"
     }
   }
 }

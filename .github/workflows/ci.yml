@@ -20,9 +20,12 @@ jobs:
       - name: Live smoke tests (real APIs)
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: uv run pytest -q -m live
-      - name: find_data evaluation (hit@1 / hit@3)
+      - name: find_data evaluation, tuning set (fails below 95% hit@3)
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        run: uv run python eval/run_eval.py
+        run: uv run python eval/run_eval.py --min-hit3 0.95
+      - name: find_data evaluation, holdout set (never tuned on; fails below 60% hit@3)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: uv run python eval/run_eval.py --set holdout --min-hit3 0.60
 
   docker:
     runs-on: ubuntu-latest

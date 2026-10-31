@@ -1,0 +1,337 @@
+{
+ "_comment": "HOLDOUT: fresh questions never used to tune the ranking. Report this score alongside the dev set; don't add headline words or synonyms to fix a specific miss here.",
+ "cases": [
+  {
+   "q": "self-employed people",
+   "ok": [
+    "lfsa_esgais",
+    "lfsa_esgan",
+    "lfsa_esgaed",
+    "lfsq_esgais"
+   ]
+  },
+  {
+   "q": "weekly working hours",
+   "ok": [
+    "tps00071",
+    "lfst_r_lfe2ehour"
+   ]
+  },
+  {
+   "q": "social protection spending",
+   "ok": [
+    "tps00101",
+    "tps00098",
+    "tps00100",
+    "spr_exp_type",
+    "spr_net_gros"
+   ]
+  },
+  {
+   "q": "gender pension gap",
+   "ok": [
+    "ilc_pnp13",
+    "ilc_pnp13m"
+   ]
+  },
+  {
+   "q": "food inflation",
+   "ok": [
+    "teicp010",
+    "teicp260"
+   ]
+  },
+  {
+   "q": "electricity prices for businesses",
+   "ok": [
+    "nrg_pc_205"
+   ]
+  },
+  {
+   "q": "budget deficit",
+   "ok": [
+    "tec00127",
+    "gov_10dd_edpt1",
+    "teina200",
+    "teina205"
+   ]
+  },
+  {
+   "q": "tax revenue as share of GDP",
+   "ok": [
+    "gov_10a_taxag"
+   ]
+  },
+  {
+   "q": "number of students",
+   "ok": [
+    "educ_uoe_enra02",
+    "educ_uoe_enra11",
+    "educ_uoe_enra12"
+   ]
+  },
+  {
+   "q": "kindergarten participation",
+   "ok": [
+    "sdg_04_31",
+    "educ_uoe_enrp02",
+    "educ_uoe_enrp01"
+   ]
+  },
+  {
+   "q": "foreign languages learned at school",
+   "ok": [
+    "educ_uoe_lang01",
+    "educ_uoe_lang03"
+   ]
+  },
+  {
+   "q": "broadband coverage",
+   "ok": [
+    "isoc_cbs",
+    "isoc_cbt",
+    "isoc_r_broad_h"
+   ]
+  },
+  {
+   "q": "how often people use the internet",
+   "ok": [
+    "isoc_ci_ifp_fu",
+    "isoc_ci_ifp_iu"
+   ]
+  },
+  {
+   "q": "first-time asylum applications",
+   "ok": [
+    "migr_asyapp1mp",
+    "migr_asyapp1mpm",
+    "migr_asyapp1pc",
+    "migr_asyappctzm"
+   ]
+  },
+  {
+   "q": "residence permits",
+   "ok": [
+    "tps00170",
+    "migr_resfirst",
+    "migr_resfas",
+    "migr_respop"
+   ]
+  },
+  {
+   "q": "hospital discharges",
+   "ok": [
+    "hlth_co_inpagg",
+    "hlth_tinpat1",
+    "hlth_rinpat1"
+   ]
+  },
+  {
+   "q": "number of nurses",
+   "ok": [
+    "hlth_rs_nurse"
+   ]
+  },
+  {
+   "q": "high-tech exports",
+   "ok": [
+    "tin00140",
+    "tipsex12",
+    "htec_si_exp4"
+   ]
+  },
+  {
+   "q": "tourist arrivals",
+   "ok": [
+    "tour_occ_arnat",
+    "tour_occ_arm",
+    "tour_occ_arn2"
+   ]
+  },
+  {
+   "q": "farm land use",
+   "ok": [
+    "tag00007",
+    "ef_fsi_lus",
+    "ef_lus_main"
+   ]
+  },
+  {
+   "q": "fertiliser use",
+   "ok": [
+    "aei_fm_usefert"
+   ]
+  },
+  {
+   "q": "number of cattle",
+   "ok": [
+    "tag00016",
+    "apro_mt_lscatl"
+   ]
+  },
+  {
+   "q": "energy productivity",
+   "ok": [
+    "nrg_ind_ep",
+    "sdg_07_30"
+   ]
+  },
+  {
+   "q": "renewables in transport",
+   "ok": [
+    "nrg_ind_urtd",
+    "nrg_ind_ren"
+   ]
+  },
+  {
+   "q": "deaths from air pollution",
+   "ok": [
+    "sdg_11_52"
+   ]
+  },
+  {
+   "q": "water abstraction",
+   "ok": [
+    "env_wat_abs",
+    "env_watabs_rb"
+   ]
+  },
+  {
+   "q": "age young people leave home",
+   "ok": [
+    "yth_demo_030"
+   ]
+  },
+  {
+   "q": "employment by industry",
+   "ok": [
+    "tec00109",
+    "nama_10_a10_e",
+    "lfsa_egan2"
+   ]
+  },
+  {
+   "q": "unemployment of foreigners",
+   "ok": [
+    "lfsa_urgan",
+    "lfsq_urgan"
+   ]
+  },
+  {
+   "q": "government expenditure by function",
+   "ok": [
+    "gov_10a_exp",
+    "tepsr_sp110"
+   ]
+  },
+  {
+   "q": "company births and deaths",
+   "ok": [
+    "bd_size",
+    "bd_l_form",
+    "bd_size_r"
+   ]
+  },
+  {
+   "q": "monthly unemployment in the euro area",
+   "ok": [
+    "une_rt_m",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "quarterly GDP growth",
+   "ok": [
+    "namq_10_gdp",
+    "teina011",
+    "tipsna10"
+   ]
+  },
+  {
+   "q": "house prices by quarter",
+   "ok": [
+    "prc_hpi_q"
+   ]
+  },
+  {
+   "q": "people at risk of poverty",
+   "ok": [
+    "ilc_li02",
+    "ilc_peps01n"
+   ]
+  },
+  {
+   "q": "life expectancy at birth",
+   "ok": [
+    "demo_mlexpec",
+    "tps00205"
+   ]
+  },
+  {
+   "q": "population on 1 January",
+   "ok": [
+    "tps00001",
+    "demo_pjan"
+   ]
+  },
+  {
+   "q": "greenhouse gas emissions by sector",
+   "ok": [
+    "env_air_gge"
+   ]
+  },
+  {
+   "q": "youth unemployment rate",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "yth_empl_100",
+    "tesem140"
+   ]
+  },
+  {
+   "q": "gas prices for households",
+   "ok": [
+    "nrg_pc_202"
+   ]
+  },
+  {
+   "q": "taux d'emploi",
+   "ok": [
+    "lfsi_emp_a",
+    "lfsi_emp_q"
+   ]
+  },
+  {
+   "q": "Bevölkerung",
+   "ok": [
+    "tps00001",
+    "demo_pjan",
+    "demo_gind",
+    "12411-0001",
+    "12411-0010"
+   ]
+  },
+  {
+   "q": "tasa de pobreza",
+   "ok": [
+    "ilc_li02",
+    "ilc_peps01n"
+   ]
+  },
+  {
+   "q": "prezzi delle abitazioni",
+   "ok": [
+    "prc_hpi_q",
+    "prc_hpi_a"
+   ]
+  },
+  {
+   "q": "pigmeat market prices",
+   "ok": [
+    "pigmeat/prices"
+   ]
+  }
+ ]
+}

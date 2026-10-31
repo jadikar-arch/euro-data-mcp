@@ -1,58 +1,1364 @@
 {
-  "_comment": "Questions people actually ask -> dataset/endpoint ids that count as a correct answer. Scored by eval/run_eval.py (hit@3 = a correct id in the top 3 rows).",
-  "cases": [
-    {"q": "unemployment rate", "ok": ["une_rt_m", "une_rt_a", "une_rt_q"]},
-    {"q": "youth unemployment", "ok": ["une_rt_m", "une_rt_a", "une_rt_q", "yth_empl_090", "lfsa_urgaed"]},
-    {"q": "inflation", "ok": ["prc_hicp_minr", "prc_hicp_aind", "prc_hicp_manr"]},
-    {"q": "consumer prices", "ok": ["prc_hicp_minr", "prc_hicp_aind", "prc_hicp_manr"]},
-    {"q": "GDP", "ok": ["nama_10_gdp", "namq_10_gdp", "nama_10_pc"]},
-    {"q": "economic growth", "ok": ["nama_10_gdp", "namq_10_gdp", "sdg_08_10"]},
-    {"q": "GDP per capita", "ok": ["nama_10_pc", "sdg_08_10"]},
-    {"q": "regional GDP", "ok": ["nama_10r_2gdp"]},
-    {"q": "population", "ok": ["tps00001", "demo_pjan", "demo_gind"]},
-    {"q": "population by region", "ok": ["demo_r_d2jan"]},
-    {"q": "life expectancy", "ok": ["demo_mlexpec"]},
-    {"q": "fertility rate", "ok": ["demo_find"]},
-    {"q": "deaths", "ok": ["demo_magec", "demo_gind"]},
-    {"q": "immigration", "ok": ["migr_imm1ctz"]},
-    {"q": "asylum seekers", "ok": ["migr_asyappctzm"]},
-    {"q": "house prices", "ok": ["prc_hpi_q"]},
-    {"q": "government debt", "ok": ["gov_10dd_edpt1"]},
-    {"q": "government spending", "ok": ["gov_10a_main"]},
-    {"q": "employment rate", "ok": ["lfsi_emp_a", "lfsi_emp_q"]},
-    {"q": "minimum wage", "ok": ["earn_mw_cur"]},
-    {"q": "net earnings", "ok": ["earn_nt_net"]},
-    {"q": "labour costs", "ok": ["lc_lci_r2_q"]},
-    {"q": "poverty", "ok": ["ilc_li02", "ilc_peps01n"]},
-    {"q": "income inequality", "ok": ["ilc_di12"]},
-    {"q": "electricity prices", "ok": ["nrg_pc_204"]},
-    {"q": "gas prices", "ok": ["nrg_pc_202"]},
-    {"q": "renewable energy", "ok": ["nrg_ind_ren"]},
-    {"q": "greenhouse gas emissions", "ok": ["env_air_gge"]},
-    {"q": "CO2 emissions", "ok": ["env_air_gge"]},
-    {"q": "tourism", "ok": ["tour_occ_nim"]},
-    {"q": "industrial production", "ok": ["sts_inpr_m"]},
-    {"q": "retail sales", "ok": ["sts_trtu_m"]},
-    {"q": "cost of living", "ok": ["prc_ppp_ind"]},
-    {"q": "interest rates", "ok": ["irt_lt_mcby_m"]},
-    {"q": "exchange rates", "ok": ["ert_bil_eur_m"]},
-    {"q": "exports", "ok": ["ext_lt_maineu"]},
-    {"q": "early school leavers", "ok": ["edat_lfse_14"]},
-    {"q": "internet use", "ok": ["isoc_ci_ifp_iu"]},
-    {"q": "road deaths", "ok": ["tran_sf_roadus"]},
-    {"q": "hospital beds", "ok": ["hlth_rs_bds1"]},
-    {"q": "crime", "ok": ["crim_off_cat"]},
-    {"q": "chômage", "ok": ["une_rt_m", "une_rt_a", "une_rt_q"]},
-    {"q": "inflación", "ok": ["prc_hicp_minr", "prc_hicp_aind", "prc_hicp_manr"]},
-    {"q": "prix électricité", "ok": ["nrg_pc_204"]},
-    {"q": "popolazione", "ok": ["tps00001", "demo_pjan", "demo_gind"]},
-    {"q": "Arbeitslosigkeit", "ok": ["une_rt_m", "une_rt_a", "une_rt_q", "13211-0001", "13211-0002", "13211-0005"]},
-    {"q": "pork prices", "ok": ["pigmeat/prices"]},
-    {"q": "milk prices", "ok": ["rawMilk/prices", "dairy/prices"]},
-    {"q": "cereal prices", "ok": ["cereal/prices"]},
-    {"q": "MEP votes", "ok": ["ep_votes"]},
-    {"q": "members of parliament", "ok": ["ep_meps", "meps"]},
-    {"q": "dataset quality", "ok": ["dataeu_quality"]},
-    {"q": "implicit tax rate on labour", "ok": ["TAX_ITR"]}
-  ]
+ "_comment": "Questions people ask -> ids that count as a correct answer (several datasets can be equally valid). Accepted ids come from catalogue titles, chosen before scoring. Scored by eval/run_eval.py; CI fails below the --min-hit3 threshold. Widened after one review (catalogue main tables that equally answer the question): unemployment by education += tps00066, causes of death += tps00152, marriages += tps00206, esperanza de vida += tps00208, life expectancy += tps00208, producer prices += teiis020, at risk of poverty or social exclusion += tipslc10.",
+ "cases": [
+  {
+   "q": "unemployment rate",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "youth unemployment",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020",
+    "yth_empl_090",
+    "lfsa_urgaed",
+    "tesem140",
+    "yth_empl_100"
+   ]
+  },
+  {
+   "q": "inflation",
+   "ok": [
+    "prc_hicp_minr",
+    "prc_hicp_aind",
+    "prc_hicp_manr"
+   ]
+  },
+  {
+   "q": "consumer prices",
+   "ok": [
+    "prc_hicp_minr",
+    "prc_hicp_aind",
+    "prc_hicp_manr"
+   ]
+  },
+  {
+   "q": "GDP",
+   "ok": [
+    "nama_10_gdp",
+    "namq_10_gdp",
+    "nama_10_pc"
+   ]
+  },
+  {
+   "q": "economic growth",
+   "ok": [
+    "nama_10_gdp",
+    "namq_10_gdp",
+    "sdg_08_10"
+   ]
+  },
+  {
+   "q": "GDP per capita",
+   "ok": [
+    "nama_10_pc",
+    "sdg_08_10",
+    "tec00114"
+   ]
+  },
+  {
+   "q": "regional GDP",
+   "ok": [
+    "nama_10r_2gdp",
+    "nama_10r_3gdp"
+   ]
+  },
+  {
+   "q": "population",
+   "ok": [
+    "tps00001",
+    "demo_pjan",
+    "demo_gind"
+   ]
+  },
+  {
+   "q": "population by region",
+   "ok": [
+    "demo_r_d2jan",
+    "demo_r_pjanaggr3"
+   ]
+  },
+  {
+   "q": "life expectancy",
+   "ok": [
+    "demo_mlexpec",
+    "tps00208"
+   ]
+  },
+  {
+   "q": "fertility rate",
+   "ok": [
+    "demo_find"
+   ]
+  },
+  {
+   "q": "deaths",
+   "ok": [
+    "demo_magec",
+    "demo_gind"
+   ]
+  },
+  {
+   "q": "immigration",
+   "ok": [
+    "migr_imm1ctz"
+   ]
+  },
+  {
+   "q": "asylum seekers",
+   "ok": [
+    "migr_asyappctzm"
+   ]
+  },
+  {
+   "q": "house prices",
+   "ok": [
+    "prc_hpi_q",
+    "prc_hpi_a"
+   ]
+  },
+  {
+   "q": "government debt",
+   "ok": [
+    "gov_10dd_edpt1"
+   ]
+  },
+  {
+   "q": "government spending",
+   "ok": [
+    "gov_10a_main"
+   ]
+  },
+  {
+   "q": "employment rate",
+   "ok": [
+    "lfsi_emp_a",
+    "lfsi_emp_q"
+   ]
+  },
+  {
+   "q": "minimum wage",
+   "ok": [
+    "earn_mw_cur"
+   ]
+  },
+  {
+   "q": "net earnings",
+   "ok": [
+    "earn_nt_net"
+   ]
+  },
+  {
+   "q": "labour costs",
+   "ok": [
+    "lc_lci_r2_q",
+    "lc_lci_lev"
+   ]
+  },
+  {
+   "q": "poverty",
+   "ok": [
+    "ilc_li02",
+    "ilc_peps01n"
+   ]
+  },
+  {
+   "q": "income inequality",
+   "ok": [
+    "ilc_di12"
+   ]
+  },
+  {
+   "q": "electricity prices",
+   "ok": [
+    "nrg_pc_204"
+   ]
+  },
+  {
+   "q": "gas prices",
+   "ok": [
+    "nrg_pc_202"
+   ]
+  },
+  {
+   "q": "renewable energy",
+   "ok": [
+    "nrg_ind_ren"
+   ]
+  },
+  {
+   "q": "greenhouse gas emissions",
+   "ok": [
+    "env_air_gge"
+   ]
+  },
+  {
+   "q": "CO2 emissions",
+   "ok": [
+    "env_air_gge"
+   ]
+  },
+  {
+   "q": "tourism",
+   "ok": [
+    "tour_occ_nim"
+   ]
+  },
+  {
+   "q": "industrial production",
+   "ok": [
+    "sts_inpr_m"
+   ]
+  },
+  {
+   "q": "retail sales",
+   "ok": [
+    "sts_trtu_m"
+   ]
+  },
+  {
+   "q": "cost of living",
+   "ok": [
+    "prc_ppp_ind"
+   ]
+  },
+  {
+   "q": "interest rates",
+   "ok": [
+    "irt_lt_mcby_m"
+   ]
+  },
+  {
+   "q": "exchange rates",
+   "ok": [
+    "ert_bil_eur_m"
+   ]
+  },
+  {
+   "q": "exports",
+   "ok": [
+    "ext_lt_maineu"
+   ]
+  },
+  {
+   "q": "early school leavers",
+   "ok": [
+    "edat_lfse_14"
+   ]
+  },
+  {
+   "q": "internet use",
+   "ok": [
+    "isoc_ci_ifp_iu"
+   ]
+  },
+  {
+   "q": "road deaths",
+   "ok": [
+    "tran_sf_roadus",
+    "sdg_11_40"
+   ]
+  },
+  {
+   "q": "hospital beds",
+   "ok": [
+    "hlth_rs_bds1"
+   ]
+  },
+  {
+   "q": "crime",
+   "ok": [
+    "crim_off_cat"
+   ]
+  },
+  {
+   "q": "unemployment by region",
+   "ok": [
+    "tgs00010",
+    "lfst_r_lfu3rt",
+    "lfst_r_lfur2gan"
+   ]
+  },
+  {
+   "q": "regional unemployment rate",
+   "ok": [
+    "tgs00010",
+    "lfst_r_lfu3rt"
+   ]
+  },
+  {
+   "q": "employment rate by region",
+   "ok": [
+    "lfst_r_lfe2emprt",
+    "tgs00007"
+   ]
+  },
+  {
+   "q": "GDP by region",
+   "ok": [
+    "nama_10r_2gdp",
+    "nama_10r_3gdp",
+    "nama_10r_2gvagr",
+    "tgs00037"
+   ]
+  },
+  {
+   "q": "life expectancy by region",
+   "ok": [
+    "demo_r_mlifexp",
+    "tgs00101"
+   ]
+  },
+  {
+   "q": "tourism nights by region",
+   "ok": [
+    "tour_occ_nin2",
+    "tgs00111",
+    "tour_occ_nin3",
+    "tour_occ_nin2m"
+   ]
+  },
+  {
+   "q": "population of cities",
+   "ok": [
+    "urb_cpop1",
+    "urb_cpopstr"
+   ]
+  },
+  {
+   "q": "population density",
+   "ok": [
+    "tps00003",
+    "demo_r_d3dens",
+    "tgs00024"
+   ]
+  },
+  {
+   "q": "population density by region",
+   "ok": [
+    "demo_r_d3dens",
+    "tgs00024"
+   ]
+  },
+  {
+   "q": "unemployment by age",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "lfsa_urgaed"
+   ]
+  },
+  {
+   "q": "unemployment by education",
+   "ok": [
+    "lfsq_urgaed",
+    "lfsa_urgaed",
+    "lfst_r_lfu3rt",
+    "tps00066"
+   ]
+  },
+  {
+   "q": "deaths by age",
+   "ok": [
+    "demo_magec"
+   ]
+  },
+  {
+   "q": "births by region",
+   "ok": [
+    "demo_r_births"
+   ]
+  },
+  {
+   "q": "infant mortality",
+   "ok": [
+    "demo_minf",
+    "tps00027",
+    "demo_minfind"
+   ]
+  },
+  {
+   "q": "infant mortality by region",
+   "ok": [
+    "demo_r_minf",
+    "demo_r_minfind"
+   ]
+  },
+  {
+   "q": "youth unemployment by region",
+   "ok": [
+    "yth_empl_110"
+   ]
+  },
+  {
+   "q": "labour productivity by region",
+   "ok": [
+    "nama_10r_2rlp",
+    "nama_10r_2nlp",
+    "nama_10r_3nlp"
+   ]
+  },
+  {
+   "q": "R&D expenditure by region",
+   "ok": [
+    "tgs00042"
+   ]
+  },
+  {
+   "q": "internet access by region",
+   "ok": [
+    "tgs00047",
+    "isoc_r_iacc_h"
+   ]
+  },
+  {
+   "q": "housing cost overburden by region",
+   "ok": [
+    "ilc_lvho07_r"
+   ]
+  },
+  {
+   "q": "causes of death by region",
+   "ok": [
+    "hlth_cd_asdr2",
+    "hlth_cd_ysdr1",
+    "hlth_cd_ysdr2"
+   ]
+  },
+  {
+   "q": "NEET by region",
+   "ok": [
+    "edat_lfse_22"
+   ]
+  },
+  {
+   "q": "doctors by region",
+   "ok": [
+    "hlth_rs_physreg"
+   ]
+  },
+  {
+   "q": "long-term unemployment",
+   "ok": [
+    "une_ltu_a",
+    "une_ltu_q",
+    "sdg_08_40",
+    "tesem130"
+   ]
+  },
+  {
+   "q": "job vacancies",
+   "ok": [
+    "ei_lmjv_q_r2",
+    "teilm310",
+    "jvs_a_r21",
+    "tps00172",
+    "jvs_q_nace2",
+    "jvs_a_rate_r2"
+   ]
+  },
+  {
+   "q": "job vacancy rate",
+   "ok": [
+    "ei_lmjv_q_r2",
+    "teilm310",
+    "jvs_a_r21",
+    "jvs_a_rate_r2"
+   ]
+  },
+  {
+   "q": "part-time employment",
+   "ok": [
+    "tesem100",
+    "tps00159",
+    "lfsi_pt_a",
+    "lfsa_epgar"
+   ]
+  },
+  {
+   "q": "temporary contracts",
+   "ok": [
+    "lfsi_pt_a",
+    "tesem190",
+    "lfsa_etgar"
+   ]
+  },
+  {
+   "q": "young people not in employment or education",
+   "ok": [
+    "sdg_08_20",
+    "tesem150",
+    "lfsi_neet_a",
+    "lfsi_neet_q",
+    "edat_lfse_23"
+   ]
+  },
+  {
+   "q": "NEET rate",
+   "ok": [
+    "sdg_08_20",
+    "tesem150",
+    "lfsi_neet_a",
+    "lfsi_neet_q"
+   ]
+  },
+  {
+   "q": "gender pay gap",
+   "ok": [
+    "sdg_05_20",
+    "tesem180",
+    "earn_gr_gpgr2"
+   ]
+  },
+  {
+   "q": "labour productivity",
+   "ok": [
+    "nama_10_lp_ulc",
+    "namq_10_lp_ulc",
+    "tipsna70",
+    "tipsna71"
+   ]
+  },
+  {
+   "q": "unit labour costs",
+   "ok": [
+    "nama_10_lp_ulc",
+    "namq_10_lp_ulc"
+   ]
+  },
+  {
+   "q": "hourly labour costs",
+   "ok": [
+    "lc_lci_lev"
+   ]
+  },
+  {
+   "q": "investment",
+   "ok": [
+    "tec00011",
+    "teina040",
+    "teina041",
+    "nama_10_an6",
+    "namq_10_an6",
+    "tipsna20"
+   ]
+  },
+  {
+   "q": "gross fixed capital formation",
+   "ok": [
+    "tec00011",
+    "teina040",
+    "teina041",
+    "nama_10_an6",
+    "namq_10_an6",
+    "tipsna20"
+   ]
+  },
+  {
+   "q": "current account balance",
+   "ok": [
+    "tipsbp20",
+    "tipsbp40",
+    "tipsbp10",
+    "ei_bpm6ca_q",
+    "ei_bpm6ca_m",
+    "teibp010",
+    "teibp050"
+   ]
+  },
+  {
+   "q": "government revenue",
+   "ok": [
+    "tec00021",
+    "gov_10a_main"
+   ]
+  },
+  {
+   "q": "household consumption",
+   "ok": [
+    "tec00134",
+    "teina020",
+    "teina021"
+   ]
+  },
+  {
+   "q": "producer prices",
+   "ok": [
+    "sts_inpp_m",
+    "sts_inpp_a",
+    "sts_inpp_q",
+    "sts_inppd_m",
+    "sts_inppd_a",
+    "sts_inppd_q",
+    "teiis020"
+   ]
+  },
+  {
+   "q": "construction output",
+   "ok": [
+    "sts_copr_m",
+    "sts_copr_a",
+    "sts_copr_q",
+    "teiis500"
+   ]
+  },
+  {
+   "q": "building permits",
+   "ok": [
+    "sts_cobp_m",
+    "sts_cobp_a",
+    "sts_cobp_q",
+    "teiis550",
+    "tipsho50"
+   ]
+  },
+  {
+   "q": "bankruptcies",
+   "ok": [
+    "sts_rb_a",
+    "sts_rb_m",
+    "sts_rb_q"
+   ]
+  },
+  {
+   "q": "house price index annual",
+   "ok": [
+    "prc_hpi_a",
+    "tipsho20",
+    "tipsho10"
+   ]
+  },
+  {
+   "q": "house price to income ratio",
+   "ok": [
+    "tipsho60"
+   ]
+  },
+  {
+   "q": "GDP in purchasing power standards",
+   "ok": [
+    "tec00114"
+   ]
+  },
+  {
+   "q": "monthly inflation rate",
+   "ok": [
+    "prc_hicp_minr",
+    "prc_hicp_manr",
+    "prc_hicp_mmor"
+   ]
+  },
+  {
+   "q": "price levels",
+   "ok": [
+    "prc_ppp_ind"
+   ]
+  },
+  {
+   "q": "births",
+   "ok": [
+    "tps00204",
+    "demo_fmonth",
+    "demo_gind",
+    "demo_find",
+    "eq_fer05"
+   ]
+  },
+  {
+   "q": "marriages",
+   "ok": [
+    "demo_nmsta",
+    "demo_marcz",
+    "demo_marcb",
+    "tps00206"
+   ]
+  },
+  {
+   "q": "divorces",
+   "ok": [
+    "demo_divcz",
+    "demo_divcb",
+    "demo_ndivdur"
+   ]
+  },
+  {
+   "q": "emigration",
+   "ok": [
+    "tps00177",
+    "migr_emi2",
+    "migr_emi1ctz"
+   ]
+  },
+  {
+   "q": "foreign population",
+   "ok": [
+    "migr_pop1ctz",
+    "migr_pop2ctz",
+    "migr_pop5ctz"
+   ]
+  },
+  {
+   "q": "population by citizenship",
+   "ok": [
+    "migr_pop1ctz",
+    "migr_pop2ctz",
+    "migr_pop5ctz"
+   ]
+  },
+  {
+   "q": "acquisition of citizenship",
+   "ok": [
+    "tps00024",
+    "migr_acq"
+   ]
+  },
+  {
+   "q": "naturalisations",
+   "ok": [
+    "tps00024",
+    "migr_acq"
+   ]
+  },
+  {
+   "q": "population projections",
+   "ok": [
+    "proj_stp24",
+    "proj_stp25"
+   ]
+  },
+  {
+   "q": "median age",
+   "ok": [
+    "demo_pjanind",
+    "eq_pop04",
+    "demo_popmdctz"
+   ]
+  },
+  {
+   "q": "population structure",
+   "ok": [
+    "demo_pjanind",
+    "demo_r_pjanind2",
+    "demo_r_pjanind3"
+   ]
+  },
+  {
+   "q": "child poverty",
+   "ok": [
+    "tepsr_spi110",
+    "ilc_li33",
+    "ilc_li34",
+    "ilc_li02"
+   ]
+  },
+  {
+   "q": "housing cost overburden",
+   "ok": [
+    "tespm140",
+    "ilc_lvho07c",
+    "ilc_lvho07e",
+    "sdg_01_50",
+    "tessi160"
+   ]
+  },
+  {
+   "q": "overcrowding",
+   "ok": [
+    "tessi170",
+    "tessi171",
+    "ilc_lvho05c",
+    "ilc_lvho05b"
+   ]
+  },
+  {
+   "q": "material deprivation",
+   "ok": [
+    "tespm030",
+    "ilc_mddd11",
+    "tessi080"
+   ]
+  },
+  {
+   "q": "median income",
+   "ok": [
+    "ilc_di03"
+   ]
+  },
+  {
+   "q": "household income",
+   "ok": [
+    "ilc_di03",
+    "ilc_di12"
+   ]
+  },
+  {
+   "q": "at risk of poverty or social exclusion",
+   "ok": [
+    "ilc_peps01n",
+    "tipslc10"
+   ]
+  },
+  {
+   "q": "tertiary education attainment",
+   "ok": [
+    "sdg_04_20",
+    "tesem030",
+    "yth_educ_020",
+    "tgs00109",
+    "edat_lfse_03"
+   ]
+  },
+  {
+   "q": "university graduates",
+   "ok": [
+    "sdg_04_20",
+    "tesem030",
+    "yth_educ_020",
+    "edat_lfse_03"
+   ]
+  },
+  {
+   "q": "adult learning",
+   "ok": [
+    "trng_lfse_01",
+    "trng_lfs_17",
+    "trng_aes_100",
+    "trng_aes_101"
+   ]
+  },
+  {
+   "q": "R&D expenditure",
+   "ok": [
+    "sdg_09_10",
+    "tgs00042"
+   ]
+  },
+  {
+   "q": "researchers",
+   "ok": [
+    "tsc00003",
+    "rd_p_persage",
+    "tgs00043"
+   ]
+  },
+  {
+   "q": "household internet access",
+   "ok": [
+    "isoc_ci_in_h",
+    "tin00134",
+    "isoc_r_iacc_h"
+   ]
+  },
+  {
+   "q": "online shopping",
+   "ok": [
+    "isoc_ec_ib20",
+    "isoc_ec_ibuy"
+   ]
+  },
+  {
+   "q": "ICT specialists",
+   "ok": [
+    "isoc_ske_itspen2",
+    "isoc_ske_itspe",
+    "isoc_sks_itspt"
+   ]
+  },
+  {
+   "q": "artificial intelligence use by enterprises",
+   "ok": [
+    "isoc_eb_ai",
+    "isoc_eb_ain2"
+   ]
+  },
+  {
+   "q": "health expenditure",
+   "ok": [
+    "tps00207",
+    "hlth_sha11_hf",
+    "hlth_sha11_hc",
+    "hlth_sha11_hp"
+   ]
+  },
+  {
+   "q": "doctors",
+   "ok": [
+    "tps00044",
+    "tps00167",
+    "hlth_rs_phys",
+    "hlth_rs_physcat"
+   ]
+  },
+  {
+   "q": "obesity",
+   "ok": [
+    "sdg_02_10",
+    "hlth_ehis_bm1e",
+    "hlth_ehis_bm1i"
+   ]
+  },
+  {
+   "q": "smoking",
+   "ok": [
+    "sdg_03_30",
+    "hlth_ehis_sk1i",
+    "hlth_ehis_sk3i"
+   ]
+  },
+  {
+   "q": "healthy life years",
+   "ok": [
+    "hlth_hlye",
+    "tps00150",
+    "sdg_03_11"
+   ]
+  },
+  {
+   "q": "causes of death",
+   "ok": [
+    "hlth_cd_asdr",
+    "hlth_cd_msdr2",
+    "tps00152"
+   ]
+  },
+  {
+   "q": "suicide",
+   "ok": [
+    "tps00122",
+    "tps00202"
+   ]
+  },
+  {
+   "q": "waste generation",
+   "ok": [
+    "env_wasgen",
+    "ten00108",
+    "ten00106",
+    "sdg_12_51"
+   ]
+  },
+  {
+   "q": "municipal waste",
+   "ok": [
+    "env_wasmun",
+    "cei_pc031"
+   ]
+  },
+  {
+   "q": "recycling rate",
+   "ok": [
+    "cei_wm011",
+    "sdg_11_60",
+    "cei_wm010"
+   ]
+  },
+  {
+   "q": "environmental taxes",
+   "ok": [
+    "env_ac_tax",
+    "ten00141",
+    "sdg_17_50"
+   ]
+  },
+  {
+   "q": "protected areas",
+   "ok": [
+    "env_bio4"
+   ]
+  },
+  {
+   "q": "forest area",
+   "ok": [
+    "sdg_15_11",
+    "for_area"
+   ]
+  },
+  {
+   "q": "final energy consumption",
+   "ok": [
+    "sdg_07_11",
+    "ten00124",
+    "ten00123",
+    "nrg_ind_eff",
+    "nrg_bal_c"
+   ]
+  },
+  {
+   "q": "energy import dependency",
+   "ok": [
+    "nrg_ind_id"
+   ]
+  },
+  {
+   "q": "energy consumption",
+   "ok": [
+    "nrg_bal_s",
+    "nrg_bal_c",
+    "sdg_07_11",
+    "nrg_ind_eff",
+    "ten00124",
+    "ten00123"
+   ]
+  },
+  {
+   "q": "new car registrations",
+   "ok": [
+    "road_eqr_carpda",
+    "road_eqr_carmot"
+   ]
+  },
+  {
+   "q": "electric cars",
+   "ok": [
+    "road_eqr_carpda",
+    "road_eqr_carmot",
+    "road_eqs_carpda"
+   ]
+  },
+  {
+   "q": "air passengers",
+   "ok": [
+    "avia_paoc",
+    "avia_paoa",
+    "ttr00012"
+   ]
+  },
+  {
+   "q": "rail passengers",
+   "ok": [
+    "ttr00015",
+    "tran_r_rapa",
+    "rail_pa_total"
+   ]
+  },
+  {
+   "q": "road freight",
+   "ok": [
+    "road_go_ta_tott",
+    "road_tert_go",
+    "road_go_ta_rl"
+   ]
+  },
+  {
+   "q": "modal split passenger transport",
+   "ok": [
+    "tran_hv_psmod",
+    "tran_hv_ms_psmod"
+   ]
+  },
+  {
+   "q": "modal split freight",
+   "ok": [
+    "tran_hv_frmod",
+    "tran_hv_ms_frmod"
+   ]
+  },
+  {
+   "q": "cars per inhabitant",
+   "ok": [
+    "road_eqs_carhab"
+   ]
+  },
+  {
+   "q": "organic farming",
+   "ok": [
+    "sdg_02_40",
+    "org_cropar",
+    "org_croppro"
+   ]
+  },
+  {
+   "q": "crop production",
+   "ok": [
+    "apro_cpsh1",
+    "apro_cpnh1"
+   ]
+  },
+  {
+   "q": "milk production",
+   "ok": [
+    "apro_mk_farm",
+    "apro_mk_pobta"
+   ]
+  },
+  {
+   "q": "holiday trips",
+   "ok": [
+    "tour_dem_ttpur",
+    "tin00188",
+    "tour_dem_tttot"
+   ]
+  },
+  {
+   "q": "prisoners",
+   "ok": [
+    "crim_pris_cap",
+    "crim_pris_age",
+    "crim_pris_off"
+   ]
+  },
+  {
+   "q": "homicides",
+   "ok": [
+    "sdg_16_10",
+    "tps00146",
+    "crim_off_cat",
+    "crim_hom_vrel"
+   ]
+  },
+  {
+   "q": "chômage",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "inflación",
+   "ok": [
+    "prc_hicp_minr",
+    "prc_hicp_aind",
+    "prc_hicp_manr"
+   ]
+  },
+  {
+   "q": "prix électricité",
+   "ok": [
+    "nrg_pc_204"
+   ]
+  },
+  {
+   "q": "popolazione",
+   "ok": [
+    "tps00001",
+    "demo_pjan",
+    "demo_gind"
+   ]
+  },
+  {
+   "q": "Arbeitslosigkeit",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020",
+    "13211-0001",
+    "13211-0002",
+    "13211-0005"
+   ]
+  },
+  {
+   "q": "taux de chômage",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "tasa de desempleo",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "tasso di disoccupazione",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "werkloosheid",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "bezrobocie",
+   "ok": [
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "inflation France",
+   "ok": [
+    "prc_hicp_minr",
+    "prc_hicp_aind",
+    "prc_hicp_manr"
+   ]
+  },
+  {
+   "q": "inflazione",
+   "ok": [
+    "prc_hicp_minr",
+    "prc_hicp_aind",
+    "prc_hicp_manr"
+   ]
+  },
+  {
+   "q": "PIB",
+   "ok": [
+    "nama_10_gdp",
+    "namq_10_gdp",
+    "nama_10_pc"
+   ]
+  },
+  {
+   "q": "población",
+   "ok": [
+    "tps00001",
+    "demo_pjan",
+    "demo_gind"
+   ]
+  },
+  {
+   "q": "bevolking",
+   "ok": [
+    "tps00001",
+    "demo_pjan",
+    "demo_gind"
+   ]
+  },
+  {
+   "q": "pauvreté",
+   "ok": [
+    "ilc_li02",
+    "ilc_peps01n"
+   ]
+  },
+  {
+   "q": "esperanza de vida",
+   "ok": [
+    "demo_mlexpec",
+    "tps00208"
+   ]
+  },
+  {
+   "q": "prix du logement",
+   "ok": [
+    "prc_hpi_q",
+    "prc_hpi_a"
+   ]
+  },
+  {
+   "q": "emisiones de gases de efecto invernadero",
+   "ok": [
+    "env_air_gge"
+   ]
+  },
+  {
+   "q": "dette publique",
+   "ok": [
+    "gov_10dd_edpt1"
+   ]
+  },
+  {
+   "q": "tourisme",
+   "ok": [
+    "tour_occ_nim"
+   ]
+  },
+  {
+   "q": "pork prices",
+   "ok": [
+    "pigmeat/prices"
+   ]
+  },
+  {
+   "q": "milk prices",
+   "ok": [
+    "rawMilk/prices",
+    "dairy/prices"
+   ]
+  },
+  {
+   "q": "cereal prices",
+   "ok": [
+    "cereal/prices"
+   ]
+  },
+  {
+   "q": "beef prices",
+   "ok": [
+    "beef/prices"
+   ]
+  },
+  {
+   "q": "egg prices",
+   "ok": [
+    "poultry/egg/prices"
+   ]
+  },
+  {
+   "q": "MEP votes",
+   "ok": [
+    "ep_votes"
+   ]
+  },
+  {
+   "q": "members of parliament",
+   "ok": [
+    "ep_meps",
+    "meps"
+   ]
+  },
+  {
+   "q": "dataset quality",
+   "ok": [
+    "dataeu_quality"
+   ]
+  },
+  {
+   "q": "apps built on open data",
+   "ok": [
+    "dataeu_use_cases"
+   ]
+  },
+  {
+   "q": "implicit tax rate on labour",
+   "ok": [
+    "TAX_ITR"
+   ]
+  },
+  {
+   "q": "labour market policy expenditure",
+   "ok": [
+    "LMP_EXPSUMM",
+    "LMP_EXPME",
+    "LMP_EXPLMP"
+   ]
+  }
+ ]
 }

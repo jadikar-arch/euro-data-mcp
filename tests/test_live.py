@@ -4,6 +4,8 @@ import pytest
 from fastmcp import Client
 
 from europa_mcp import server, web
+from europa_mcp.countries import COUNTRIES
+from europa_mcp.sourcemap import SourceMap
 
 pytestmark = pytest.mark.live
 
@@ -45,9 +47,13 @@ async def test_eu_apis_end_to_end():
         assert "source: http" in previews[-1], previews
 
 
-async def test_find_data_ranks_headline_datasets_first():
-    smap = server.get_map()
-    await smap.ensure()
-    assert smap.search("unemployment rate")[0]["id"] in ("une_rt_m", "une_rt_a", "une_rt_q")
+async def test_find_data_ranks_headline_datasets_first(tmp_path, monkeypatch):
+    builders = {name: fn for c in COUNTRIES for name, fn in c.map_builders().items()}
+    smap = SourceMap(tmp_path / "map.db", synonyms=server.all_synonyms(), builders=builders)
+    await smap.build()
+    assert smap.count("Eurostat") > 5000
+    assert "zqheadline" in smap.db.execute("SELECT keywords FROM entries WHERE id='une_rt_m'").fetchone()[0]
+    assert smap.search("unemployment rate")[0]["id"] in ("une_rt_m", "une_rt_a", "une_rt_q", "tps00203", "teilm020")
     assert smap.search("inflation")[0]["id"] in ("prc_hicp_minr", "prc_hicp_aind")
+    assert smap.search("population by region")[0]["id"].startswith(("demo_r_", "tgs"))  # metabase breakdowns
     await web.aclose()

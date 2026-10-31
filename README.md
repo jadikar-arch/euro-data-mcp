@@ -342,12 +342,35 @@ Eurostat datasets and English queries find Destatis tables. Ranking: share of qu
 then headline datasets (only when every word matched), then matches on the user's own words over
 synonym matches, then BM25.
 
-**Search quality is measured**, not guessed: `eval/find_data_cases.json` holds 53 everyday
-questions (in English, French, Spanish, Italian and German) with the datasets that count as a
-correct answer, and `uv run python eval/run_eval.py` scores the live map. Current score: **hit@3
-53/53 (100%), hit@1 49/53 (92%)**, up from 14/53 and 8/53 before the headline ranking. These
-questions were written while tuning the ranking, so treat the score as a regression check; add
-questions from real usage (see `europa-mcp usage`) to keep it honest. CI runs it nightly.
+**How a question becomes data.** The map answers *which dataset?*; the live APIs answer *what
+exactly is in it?* (`*_describe`, `*_codes`) and return the values (`*_data`), rejecting unknown
+codes instead of guessing. `find_data` and `eurostat_search` share one ranking:
+
+1. share of the query words matched (title, theme path, keywords, breakdowns, synonyms; plurals
+   stemmed, `R&D` kept, country names ignored since they are filters, not topics);
+2. headline datasets, but only when their own everyday words answer the query (*unemployment
+   rate* → `une_rt_m`; *Part-time employment rate* is not the answer to *employment rate*);
+3. EU-neighbourhood (ENP) copies and discontinued datasets (no data for 3+ years) last;
+4. the user's own words over synonyms, title matches, then Eurostat's curated main tables, then BM25.
+
+Breakdowns come from Eurostat's metabase (one file listing every dataset's dimensions), so
+*"… by region"*, *"… by age"* or *"… in cities"* reach datasets that actually have those breakdowns.
+
+**Search quality is measured**, with two question sets in `eval/` (several datasets can be
+correct for one question; accepted ids come from catalogue titles):
+
+| Set | Questions | hit@3 | hit@1 | Purpose |
+|---|---|---|---|---|
+| `find_data_cases.json` (dev) | 178 | 176 (99%) | 144 (81%) | tuned on: headline words, synonyms; CI fails below 95% |
+| `find_data_holdout.json` | 45 | 31 (69%) | 19 (42%) | **never tuned on**: the honest estimate for new questions; CI fails below 60% |
+
+Before this work the same holdout scored 25/45 (56%) and the dev set 137/178 (77%). The holdout
+is the number to quote. To improve it without fooling yourself, add real questions from
+`europa-mcp usage` to the dev set, fix them there, and occasionally write a fresh holdout.
+
+```bash
+uv run python eval/run_eval.py [--fresh] [--set holdout] [--min-hit3 0.95]
+```
 
 The map is rebuilt in the background every `EUROPA_REFRESH_HOURS` (default 6).
 If one source fails, its previous rows are kept. To build it by hand or export it as a CSV for review:

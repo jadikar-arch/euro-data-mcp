@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.0 (2026-10-31)
+
+**Search: map first, then the API, measured**
+- `eurostat_search` now uses the same ranking as `find_data` (one search quality to measure).
+- Eurostat entries carry their breakdowns from the metabase (age, sex, NUTS level, cities,
+  industry, education…), so "… by region" questions reach regional datasets.
+- Ranking: plural stemming, `R&D`, country names ignored, ENP and discontinued datasets last,
+  Eurostat main tables preferred among equal matches; headline datasets win only when their own
+  words answer the query. Broader everyday vocabulary (doctors → physicians, online shopping →
+  internet purchases…) and more headline datasets.
+- Evaluation: 178-question dev set (hit@3 77% → 99%) and a 45-question holdout never tuned on
+  (56% → 69%); CI fails below 95% / 60%.
+- Server instructions: start with `find_data`, pick by title/period/breakdowns, and check the title
+  and `fixed:` line against the question before answering.
+
+**Fixed**
+- Map rows of removed sources (e.g. CBS after 0.2.0) are pruned on startup instead of lingering
+  in existing caches and pointing to tools that no longer exist.
+
 ## 0.2.0 (2026-10-31)
 
 **Breaking**

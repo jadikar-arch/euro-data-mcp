@@ -140,6 +140,19 @@ def rank(rows: list[dict[str, str]], query: str) -> list[dict[str, str]]:
 # ---- structure ----------------------------------------------------------------
 
 
+MAP_SOURCES = {"eurostat": "Eurostat", "empl": "DG EMPL", "grow": "DG GROW", "taxud": "DG TAXUD"}
+
+
+async def map_search(key: str, query: str) -> list[dict[str, str]]:
+    """The same ranking as find_data (headline datasets, breakdowns, synonyms), for one agency."""
+    from ... import server  # the map is owned by the server, which imports this package
+
+    smap = server.get_map()
+    await smap.ensure()
+    return [{k: r[k] or "" for k in ("id", "title", "period", "updated")}
+            for r in smap.search(query, [MAP_SOURCES[key]])]
+
+
 @dataclass
 class Dim:
     id: str
@@ -252,11 +265,13 @@ def jsonstat_rows(js: dict[str, Any]) -> tuple[list[str], list[list[str]], list[
 
 @safe
 async def eurostat_search(query: str, agency: str = "eurostat", limit: int = 10) -> str:
-    """Find Eurostat datasets by English keywords (e.g. 'house price index', 'unemployment').
+    """Find Eurostat datasets by topic (same ranking as find_data), e.g. 'house prices', 'unemployment by region'.
     agency: eurostat (default, ~8k datasets) | empl (labour market policy) | grow (postal) | taxud (tax)."""
     key, *_ = resolve_agency(agency)
     limit = max(1, min(limit, 50))
-    hits = rank(await catalog(key), query)
+    hits = await map_search(key, query) if query.strip() else []
+    if not hits:  # empty query (list all), map not built yet, or nothing in the map matched
+        hits = rank(await catalog(key), query)
     if not hits:
         return f"No {key} datasets match '{query}'. Try broader English keywords."
     lines = ["id|title|period|updated"]

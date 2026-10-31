@@ -17,3 +17,12 @@ API probe findings live with each country: `src/europa_mcp/countries/<cc>/NOTES.
 - `*_preview` fetches publisher URLs from third-party metadata. `preview.check_url` resolves the hostname and requires every address to be public, and `web.fetch_prefix` follows redirects by hand so each hop is re-checked (a public URL can redirect to 127.0.0.1).
 - Per-client rate limit keys on the first `X-Forwarded-For` hop (Cloud Run, Fly and most proxies set it). Behind no proxy it falls back to the socket address.
 - `EUROPA_API_KEYS` uses FastMCP's StaticTokenVerifier (bearer token). Claude.ai custom connectors need OAuth, so keys are off by default.
+
+## Map first, then the API (2026-10-31)
+- The APIs can't route a question (Eurostat has no search endpoint; the TOC is titles only), and the map has no codes. So: map → dataset, live API → dimensions/codes/values, which also validates every code.
+- `metabase.txt.gz` (4 MB, 1.3M lines `dataset<TAB>dim<TAB>code`) gives every dataset's dimensions in one download. `geo` NUTS level = code length − 2 after dropping aggregates (EU*, EA*, EFTA, EEA); city datasets use a `cities`/`metroreg` dimension, not `geo`. No `freq` dimension in it.
+- A removed builder's rows used to stay in the SQLite cache forever (1,300 CBS rows were still served after 0.2.0). `SourceMap.prune()` runs on open.
+- Headline rule bug: matching anywhere (incl. the title) made "Part-time employment rate" the headline answer to "employment rate". The span `zqheadline … zqend` holds the headline words (+ breakdowns); only those must cover the query.
+- Main-table preference placed before title matches let loosely related `sdg_`/`tps` tables win ("population of cities" → crime-in-area SDG table); it now comes after title matches.
+- Staleness cut-off is 3 years: some datasets update every 2–4 years (forest area ends 2024).
+- Holdout misses worth fixing with real usage data: "euro area" read as topic words; "pigmeat market prices" matching "GDP at market prices"; "number of cattle" losing to agri-food beef endpoints.

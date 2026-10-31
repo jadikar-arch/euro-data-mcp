@@ -36,12 +36,16 @@ for _c in COUNTRIES:
 
 INSTRUCTIONS = (
     "Official open data from European countries and EU institutions.\n"
-    "1. Unsure which source fits? find_data(topic) maps a topic to the best datasets/endpoints "
-    "across all sources and gives the exact next call.\n"
+    "1. Start with find_data(topic) unless you already know the dataset id: it maps a topic (any "
+    "language) to the best datasets/endpoints across all sources, with the exact next call. Several "
+    "rows can fit; choose by title, period and breakdowns (e.g. 'by NUTS 2 region').\n"
     "2. Before using a country's tools the first time, read its guide: country_guide(code) "
     "(also served as resource skill://<code>/SKILL.md).\n"
-    "Countries: " + ", ".join(f"{c.CODE} = {c.NAME}" for c in COUNTRIES) + ".\n"
     "3. Every data answer ends with a 'source:' line (link + licence); pass it on to the user.\n"
+    "4. Before answering, check that the fetched data answers the question: the dataset title and the "
+    "'fixed:' line (unit, age, sex, geo…). If it doesn't (wrong unit, national when regions were asked, "
+    "an old period), try the next find_data candidate, or tell the user what the data does cover.\n"
+    "Countries: " + ", ".join(f"{c.CODE} = {c.NAME}" for c in COUNTRIES) + ".\n"
     "europa-mcp is an independent project, not affiliated with or endorsed by the EU or any "
     "statistics office; the data comes unchanged from their public APIs."
 )

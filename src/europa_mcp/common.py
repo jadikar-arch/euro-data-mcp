@@ -59,6 +59,11 @@ STOPWORDS = set(
     "el los las y o en por para con es son que cual cuantos cuantas datos estadisticas numero "
     # Italian
     "il lo gli e o di da per con su che quale quanti quante dati statistiche numero "
+    # Countries (English names): datasets are per topic, the country is a filter applied later
+    "austria belgium bulgaria croatia cyprus czechia czech denmark estonia finland france greece "
+    "hungary ireland italy latvia lithuania luxembourg malta netherlands poland portugal romania "
+    "slovakia slovenia spain sweden norway iceland liechtenstein switzerland turkey turkiye "
+    "albania montenegro serbia macedonia ukraine moldova "
     # Dutch
     "de het een en van op voor met naar over bij uit door zijn wat hoe hoeveel welke gegevens "
     "cijfers aantal".split()

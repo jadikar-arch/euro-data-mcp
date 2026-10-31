@@ -13,13 +13,19 @@ description: EU-level official data - Eurostat statistics (all EU/EEA countries)
 | MEPs, plenary votes, adopted texts, procedures, speeches, questions | European Parliament | `ep_*` |
 | Find any dataset (incl. national/regional portals), download links, metadata quality | data.europa.eu | `dataeu_*` |
 
+**Check before answering.** Compare the question with what came back: dataset title and the
+`fixed:` line (unit, age, sex, geo). National figures when regions were asked, an index when a
+level was asked, or a period years old: try the next candidate, or say what the data covers.
+
 **Cite every figure.** Data answers end with `source: <url> · licence: <licence>`. Give the user
 that link and licence with the numbers (and the dataset id), so they can check and reuse them.
 
 ## Eurostat and DGs
 
-1. `eurostat_search(query, agency="eurostat")`: **English** keywords. Dataset ids such as
-   `prc_hpi_q`; `tps…`/`tag…`/`tec…` ids are small "main tables".
+1. `find_data(topic)` or `eurostat_search(query, agency="eurostat")` (same ranking): ids such as
+   `prc_hpi_q`; `tps…`/`tec…`/`tes…`/`sdg_…` ids are Eurostat's curated "main tables" (few
+   breakdowns, quick answers); `…_r_…`/`tgs…` ids have regions. Several rows can be right: pick by
+   title, period and breakdowns, not just the first row.
 2. `eurostat_describe(id)`: dimensions with their codes and the period range.
 3. `eurostat_codes(id, dimension, query)`: e.g. `geo` "Netherlands" → `NL`.
 4. `eurostat_data(id, filters={dim: [codes]}, last_n=N | since/until)`: newest first.
