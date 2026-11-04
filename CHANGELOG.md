@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 (2026-11-04)
+
+- Published on PyPI: install with `uvx europa-mcp` (e.g. `claude mcp add europa -- uvx europa-mcp`).
+- Short README focused on connecting Claude, ChatGPT, VS Code, Cursor and other MCP apps; technical
+  details moved to `DEVELOPMENT.md`. Plainer wording ("open data", not "official data").
+- Packaging: `mcp` declared as a dependency, `fastmcp` capped below 5, slimmer source distribution,
+  Python 3.13/3.14 classifiers, absolute links so the PyPI page works.
+
 ## 0.4.0 (2026-10-31)
 
 **The user chooses the dataset**

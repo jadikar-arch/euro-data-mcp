@@ -343,11 +343,12 @@ wheels = [
 
 [[package]]
 name = "europa-mcp"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
     { name = "httpx" },
+    { name = "mcp" },
     { name = "platformdirs" },
 ]
 
@@ -361,8 +362,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fastmcp", specifier = ">=4.1.0" },
+    { name = "fastmcp", specifier = ">=4.1.0,<5" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "mcp", specifier = ">=2.3.0" },
     { name = "platformdirs", specifier = ">=4.12.4" },
 ]
 

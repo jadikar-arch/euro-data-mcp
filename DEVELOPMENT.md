@@ -206,7 +206,14 @@ npx @modelcontextprotocol/inspector uv run europa-mcp
 Put the server command first. The Inspector parses flags such as `uvx --from .` as its own options.
 API findings are in each `countries/<cc>/NOTES.md`; core notes in [NOTES.md](NOTES.md).
 
-The package is not on PyPI yet, so the setup commands in the README install straight from GitHub
-(`uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp`). To run your own
-checkout instead, use `uvx --from /path/to/checkout europa-mcp`. Once it is published, the shorter
-`uvx europa-mcp` will work.
+The package is on PyPI as [`europa-mcp`](https://pypi.org/project/europa-mcp/), so users run
+`uvx europa-mcp`. To run your own checkout instead, use `uvx --from /path/to/checkout europa-mcp`;
+for the latest unreleased code, `uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp`.
+
+## Releasing to PyPI
+
+1. Raise `version` in `pyproject.toml` and add a section to `CHANGELOG.md`.
+2. `rm -rf dist && uv build`
+3. `uv publish` (token in `UV_PUBLISH_TOKEN`; never commit it).
+
+A version number can be published only once.

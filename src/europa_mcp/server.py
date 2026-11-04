@@ -1,4 +1,4 @@
-"""europa-mcp: one MCP server for official open data across Europe.
+"""europa-mcp: one MCP server for open data across Europe.
 
 The core is country-agnostic: it loads every package in `countries/`, serves their usage guides
 from `skills/` (as skill:// resources and via `country_guide`), and runs `find_data`, which
@@ -37,7 +37,7 @@ for _c in COUNTRIES:
     SOURCES.update(_c.HINTS["sources"])
 
 INSTRUCTIONS = (
-    "Official open data from European countries and EU institutions.\n"
+    "Open data from European countries and EU institutions.\n"
     "1. Start with find_data(topic) unless you already know the dataset id: it ranks the best "
     "datasets/endpoints across all sources, with the exact next call. The user chooses: in apps that "
     "support it they pick from the list themselves; otherwise show them the ranked list (rank, title, "
@@ -328,7 +328,7 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    p = argparse.ArgumentParser(prog="europa-mcp", description="Official European open data MCP server")
+    p = argparse.ArgumentParser(prog="europa-mcp", description="European open data MCP server")
     p.add_argument(
         "command",
         nargs="?",
