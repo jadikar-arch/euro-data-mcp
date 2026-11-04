@@ -1,476 +1,110 @@
-# Europa: ask a question, get real European data to analyse
+# Europa: official European data for your AI assistant
 
-**European open data is hard to find, even for data scientists. Europa lets you get it by asking
-in plain language, so your AI assistant can analyse it and build dashboards on real numbers.**
+Europa is an [MCP](https://modelcontextprotocol.io) server that lets Claude, ChatGPT, Copilot,
+Cursor and other AI apps find and fetch **official open data** from Europe. You ask in plain
+language; the assistant picks the right dataset, gets the latest figures and names the source.
 
-> Europa is an independent open-source project (EUPL-1.2). It is **not affiliated with or endorsed
-> by the European Union**, its institutions or any statistics office. It passes their public data on
-> unchanged and names the source and licence with every answer.
-
-Official data about Europe and its countries is public, but it is spread across hundreds of
-portals, thousands of tables with cryptic codes, and APIs in different formats and languages.
-Finding the right table and pulling the right slice can take hours. Ask ChatGPT or Claude
-instead, and they can't fetch the data at all: they guess from old training knowledge.
-
-Europa closes that gap. It connects AI assistants such as **Claude**, **ChatGPT**,
-**VS Code Copilot** and **Cursor** to official sources: national statistics offices and the EU's
-own sources (Eurostat, the European Commission, the European Parliament and the EU open data
-portal). You ask a question; the assistant finds the right dataset, retrieves the **latest
-official figures**, and tells you which table it used. From there it can analyse, compare,
-chart, or build a dashboard on data you can trace back to the source: every answer ends with a
-`source:` line giving the link to the official page and the licence.
-
-### Countries and sources
-
-| | Sources | Good for |
-|---|---|---|
-| 🇪🇺 **EU** | Eurostat, European Commission (labour market, tax, postal, agri-food markets), European Parliament, data.europa.eu | Comparing countries, EU totals, farm prices, how the Parliament voted, finding open datasets |
-| 🇩🇪 **Germany** | Destatis (Federal Statistical Office) tables, GovData (168,000 open datasets) | German figures down to state and district; finding German open data files, maps and services |
-
-More countries are being added. Each country is a self-contained package with its own guide for the
-assistant (see [For developers](#for-developers)).
-
----
-
-## What can I ask?
-
-Write the way you'd ask a colleague. You can ask in any language. If you don't know which source
-has the answer, just ask; the assistant first looks up which source fits best.
-
-**You choose the dataset.** Before fetching any numbers, Europa shows the best matching datasets,
-ranked, with how well each matches, the period it covers and how it can be broken down (by age,
-sex, region…). You pick one; then the assistant fetches it. In apps that support it (MCP
-"elicitation") the choice opens as a picker; in others the assistant lists the options and asks.
-
-```
-find_data("unemployment rate")
-rank|match|source|id|title|period|breakdowns
-1|100%|Eurostat|tps00203|Unemployment rate|2014–2025|age, sex
-2|100%|Eurostat|tgs00010|Unemployment rate by NUTS 2 region|2014–2025|age, education, sex, NUTS 2 regions
-3|100%|Eurostat|une_rt_q|Unemployment by sex and age - quarterly data|2003-Q1–2026-Q2|age, sex
-4|100%|Eurostat|une_rt_m|Unemployment by sex and age - monthly data|1983-01–2026-09|age, sex
-```
-
-| You ask | The assistant finds |
+| | Sources |
 |---|---|
-| *"Compare unemployment in Germany, France and the Netherlands"* | **4.1%, 8.5% and 4.0%** (September 2026), from Eurostat *une_rt_m Unemployment by sex and age - monthly data* |
-| *"Compare house price growth in the Netherlands and Germany"* | Eurostat's house price index, quarter by quarter |
-| *"What is the implicit tax rate on labour in the Netherlands?"* | **31.87%** (2024), from the European Commission's tax data |
-| *"What do Dutch farmers get for their pigs this month?"* | Weekly EU pig prices per country |
-| *"Which Dutch MEPs are in Renew, and how did Parliament vote on 8 July?"* | MEP list and vote results from the European Parliament |
-| *"Find open datasets about air quality in the Netherlands"* | Datasets and download links from data.europa.eu |
-| *"Show me the first rows of that file"* | The columns and first rows of the CSV or JSON file, before you download it |
-| *"How many people live in Bavaria?"* | **13,245,503** (31 Dec 2025), from Destatis table *12411-0010 Bevölkerung: Bundesländer* |
-| *"What was German inflation last month?"* | **+3.3%** (September 2026), from Destatis *61111-0002 Verbraucherpreisindex* |
-| *"What open data does Hamburg publish about cycling?"* | Datasets, files and map services from GovData |
+| 🇪🇺 **EU** | Eurostat, European Commission, European Parliament, data.europa.eu |
+| 🇩🇪 **Germany** | Destatis, GovData |
 
-> **Good to know:** national sources often publish in their own language (Destatis and GovData in
-> German). Your assistant translates, so you can ask and get answers in English or any other language.
-> Common topics are also recognised in French, Spanish, Italian, Dutch and German (*chômage*,
-> *inflación*, *popolazione*…).
+Example questions: *"Compare unemployment in Germany, France and the Netherlands"*,
+*"What was German inflation last month?"*, *"How did Parliament vote on 8 July?"*
+
+> Independent open-source project (EUPL-1.2), not affiliated with the EU or any statistics office.
+> Data is passed on unchanged, with a `source:` link and licence in every answer.
 
 ---
 
-## How to set it up
+## Connect it
 
-Choose the app you use. Each setup takes about 5 minutes and only has to be done once.
+There are two ways to connect:
 
-### Step 1: install the helper program "uv" (needed for options A–C)
+- **Desktop apps** (Claude Desktop, Claude Code, VS Code, Cursor) run Europa on your own computer.
+- **Web apps** (claude.ai, ChatGPT) need Europa running on a server, reachable at a URL ending in `/mcp`.
+  See [Host it online](#host-it-online).
 
-This small program downloads and runs the tool for you. You need it for Claude Desktop, VS Code and
-Cursor. If you use **ChatGPT or Claude in the browser**, skip to [Option D](#option-d-chatgpt-or-claude-in-your-web-browser).
+### Desktop apps
 
-**Mac:** open the **Terminal** app (press `⌘ + Space`, type *Terminal*, press Enter), paste this
-line and press Enter:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) first:
 
-```
+```bash
+# Mac / Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-**Windows:** open **PowerShell** (Start menu → type *PowerShell*), paste this line and press Enter:
-
-```
+# Windows (PowerShell)
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-When it says it's done, **close the window**.
-
-> The commands below download the tool straight from GitHub (it isn't on PyPI yet). While the
-> repository is private, only people with access to it can install it this way.
-
-### Option A: Claude Desktop app
-
-1. Open Claude Desktop and go to **Settings → Developer → Edit Config**.
-   This opens a file called `claude_desktop_config.json`.
-2. Replace everything in the file with the text below (if the file already has other servers in
-   it, add only the `"europa"` part):
-
-   ```json
-   {
-     "mcpServers": {
-       "europa": {
-         "command": "uvx",
-         "args": ["--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"]
-       }
-     }
-   }
-   ```
-
-3. Save the file and **quit Claude completely**, then reopen it. On a Mac, use Claude → Quit;
-   closing the window isn't enough.
-4. Start a new chat and ask: *"What is the unemployment rate in Germany? Use the europa tools."*
-
-The first time, Claude asks for permission to use the europa tools. Click **Allow**.
-
-### Option B: VS Code (with GitHub Copilot)
-
-1. Open your project folder in VS Code.
-2. Create a folder named `.vscode` (if it doesn't exist) with a file named `mcp.json` inside it.
-3. Paste this into the file and save:
-
-   ```json
-   {
-     "servers": {
-       "europa": { "type": "stdio", "command": "uvx", "args": ["--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"] }
-     }
-   }
-   ```
-
-4. A small **Start** button appears above the `"europa"` line. Click it.
-5. Open Copilot Chat, switch it to **Agent** mode, and ask your question.
-
-### Option C: Cursor
-
-1. Go to **Cursor Settings → MCP → Add new MCP server**. Or create a file
-   `~/.cursor/mcp.json` (for all projects) or `.cursor/mcp.json` (for this project only).
-2. Paste this and save:
-
-   ```json
-   {
-     "mcpServers": {
-       "europa": { "type": "stdio", "command": "uvx", "args": ["--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"] }
-     }
-   }
-   ```
-
-3. Check that **europa** shows a green dot in the MCP settings, then ask your question in the chat.
-
-### Option D: ChatGPT or Claude in your web browser
-
-Websites can't start programs on your computer, so for this option the tool has to run on a
-**server on the internet**. Someone technical (a colleague or your IT team) does that once; see
-[Hosting it online](#hosting-it-online). They give you a web address that ends in `/mcp`, for
-example `https://europa.example.com/mcp`.
-
-**Claude (claude.ai):**
-1. Go to **Customize → Connectors**, click **+**, and choose **Add custom connector**.
-2. Give it a name (*Europa*), paste the web address, and click **Add**.
-3. In a chat, click **+** → **Connectors** and switch **Europa** on.
-
-**ChatGPT:**
-1. Go to **Settings → Apps → Advanced settings** and turn on **Developer mode**.
-2. Click **Create** to add a connector. Name it *Europa*, paste the web address, and set
-   authentication to **None**.
-3. In a chat, enable the Europa connector and ask your question.
-
-> OpenAI moves these menus around from time to time, and custom connectors aren't available on
-> every ChatGPT plan. If you can't find the option, search the OpenAI help center for
-> *"developer mode connectors"*.
-
-<details>
-<summary><b>Other apps (Claude Code, OpenCode, …)</b></summary>
-
-**Claude Code** (terminal):
-
-```
-claude mcp add --transport stdio europa -- uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp
-```
-
-**OpenCode**: add to `opencode.json`:
+**Claude Desktop**: open **Settings → Developer → Edit Config**, add the following, then restart Claude completely:
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "europa": { "type": "local", "command": ["uvx", "--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"], "enabled": true }
+  "mcpServers": {
+    "europa": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"]
+    }
   }
 }
 ```
 
-**Any app that supports MCP:** run the command `uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp` (local), or connect to the web
-address `https://<your-server>/mcp` (online).
+**Cursor**: put the same JSON in `~/.cursor/mcp.json`.
 
-</details>
+**VS Code (Copilot)**: create `.vscode/mcp.json`, then click **Start** and use Copilot Chat in **Agent** mode:
+
+```json
+{
+  "servers": {
+    "europa": { "type": "stdio", "command": "uvx", "args": ["--from", "git+https://github.com/jadikar-arch/euro-data-mcp", "europa-mcp"] }
+  }
+}
+```
+
+**Claude Code**:
+
+```bash
+claude mcp add europa -- uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp
+```
+
+**Any other MCP app**: run the command `uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp` (stdio).
+
+### Web apps
+
+**claude.ai**: **Customize → Connectors → Add custom connector**. Name it *Europa*, paste your
+`https://<your-server>/mcp` URL and click **Add**. In a chat, enable it under **+ → Connectors**.
+
+**ChatGPT**: **Settings → Apps → Advanced settings**, turn on **Developer mode**, then **Create**
+a connector with your `https://<your-server>/mcp` URL and authentication **None**. Enable it in a chat.
+(Custom connectors are not available on every ChatGPT plan.)
+
+### Host it online
+
+```bash
+docker build -t europa-mcp .
+docker run -p 8000:8000 europa-mcp   # endpoint: http://<host>:8000/mcp
+```
+
+Put it behind HTTPS (Cloud Run, Fly.io, Railway or a reverse proxy) and use `https://<host>/mcp`.
+For a quick test, run `uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp --transport http`
+and expose it with `cloudflared tunnel --url http://localhost:8000`.
 
 ---
 
-## Tips for better answers
+## Tips
 
-- **Mention the place and the time:** *"in Eindhoven"*, *"in Germany and France"*, *"in 2024"*,
-  *"the latest figures"*.
-- **Ask for the source** if you want to check it: *"Which table did you use?"* You can look it up
-  on the source's website (the `source:` link at the end of each answer opens the official page, e.g. on
-  [ec.europa.eu/eurostat](https://ec.europa.eu/eurostat/databrowser)).
-- **Compare like with like.** For comparisons between countries, ask for Eurostat figures: they use
-  the same definitions everywhere. National offices often have more detail for their own country.
-- **Mind the definitions.** *"Population on 1 January"* differs from *"average population over the
-  year"*. Ask the assistant to explain the definition if it matters.
+- The first question can take up to a minute while the dataset index downloads. After that it's fast.
+- If the assistant doesn't use the tools, add *"use the europa tools"* to your question.
+- Mac: if the app can't find `uvx`, replace `"uvx"` with the full path from `which uvx`.
 
-## Common questions
+## Developers
 
-**The very first question is a bit slow.**
-The first time, the tool downloads the lists of available tables (about 8,000 from Eurostat and
-3,000 from Destatis) so it can search them. This takes up to a minute. Later questions are fast.
-
-**The assistant says it can't find the tools.**
-- Restart the app completely after changing the settings.
-- Make sure Step 1 finished. On a Mac, open Terminal and type `uvx --version`; it should print a
-  version number.
-- **Mac:** if it still doesn't work, the app may not find `uvx`. In Terminal, type `which uvx` and
-  copy the result (something like `/Users/yourname/.local/bin/uvx`). Paste that full path in the
-  settings file instead of just `"uvx"`.
-
-**The assistant gives an answer, but not from these sources.**
-Add *"use the europa tools"* to your question.
-
-**Are new figures included?**
-Yes. The tool always fetches figures directly from the source. Its lists of tables update
-themselves every 6 hours, so brand-new tables become searchable the same day.
-
-**Does this cost anything? Is my data shared?**
-The tool is free, and the data is public. The tool sends only data requests to the sources. Your
-conversation stays between you and your AI app, as usual.
-
-**What can't it do?**
-It only knows what the connected sources publish (see [Countries and sources](#countries-and-sources)).
-Figures are as recent as the sources have published them, usually a few weeks to months behind.
-
----
-
-## Hosting it online
-
-*For the technical person setting up Option D.*
-
-```bash
-docker build -t europa-mcp .        # a few minutes; includes the search indexes
-docker run -p 8000:8000 europa-mcp  # MCP endpoint: http://<host>:8000/mcp
-```
-
-Put it behind HTTPS (any cloud host such as Cloud Run, Fly.io or Railway, or a reverse proxy) and
-share `https://<host>/mcp`. Requests are rate-limited per client IP (`EUROPA_RATE_LIMIT_RPS`,
-default 5 per second, burst 20).
-
-- **Login (optional):** the data is public, so no login is needed by default. To limit who can use
-  your server, set `EUROPA_API_KEYS=key1,key2`; clients then send `Authorization: Bearer key1`.
-  Claude.ai custom connectors only support OAuth, so leave this off for Option D on claude.ai.
-- **Usage insights (optional):** set `EUROPA_USAGE_LOG=/data/usage.jsonl` to log each tool call
-  anonymously (tool, query, found/not found, duration; no IP addresses or conversation text). Then
-  `europa-mcp usage --log /data/usage.jsonl` lists the most-asked topics and the questions no source
-  could answer, which shows what data people are missing. To try it quickly without deploying, run
-`uv run europa-mcp --transport http` from a checkout and expose it with `cloudflared tunnel --url http://localhost:8000`.
-
----
-
-## For developers
-
-<details>
-<summary><b>Architecture, tools and configuration</b></summary>
-
-### Architecture: one package and one skill per country
-
-```
-src/europa_mcp/
-  server.py         core: loads every country, serves the skills, find_data, country_guide, CLI
-  sourcemap.py      the find_data map (SQLite FTS5) and its ranking
-  common.py, web.py shared errors, text tables, settings, source lines and HTTP client (retries, short errors)
-  preview.py        first rows of publishers' CSV/JSON files (public hosts only, redirects re-checked)
-  usage.py          opt-in anonymous usage log and the `europa-mcp usage` report
-  countries/
-    __init__.py     COUNTRIES registry and the country contract
-    eu/             Eurostat + DGs, agri-food, European Parliament, data.europa.eu
-    de/             GovData (CKAN catalogue) and Destatis GENESIS tables
-  skills/
-    eu/SKILL.md     guide for the assistant: when to use which source, workflow, codes, pitfalls
-    de/SKILL.md
-```
-
-Each `countries/<cc>/` package exposes `CODE`, `NAME`, `HINTS` (its `hints.json`), `SYNONYMS`,
-`register(mcp)`, `map_builders()`, `start()` and `stop()`. It also keeps its API findings in its
-own `NOTES.md`. The server serves every `skills/<cc>/SKILL.md` as an MCP resource
-(`skill://<cc>/SKILL.md`), and through the `country_guide` tool for apps that don't show
-resources to the model.
-
-**Adding a country:** use the `add-country` Claude Code skill in `.claude/skills/add-country`
-(probe the API, copy the templates, write the skill, test). Tool names are
-`<source>_<verb>` (e.g. `govdata_search`) so they stay unique as countries are added.
-
-### Tools
-
-| Tool | Purpose |
-|---|---|
-| `find_data(query, sources=None, per_source=4, limit=10, ask_user=True)` | **Start here.** Ranks the best datasets/endpoints across all sources (rank, match %, source, id, title, period, breakdowns, next call) and **lets the user choose**: in apps that support MCP elicitation a picker opens with the ranked options; elsewhere the assistant shows the list and asks. |
-| `country_guide(country)` | The country's skill text: sources, workflow, codes, pitfalls. |
-| `eurostat_search(query, agency="eurostat", limit=10)` | Find Eurostat datasets (English). `agency`: `eurostat`, `empl`, `grow` or `taxud` (DG dissemination APIs). |
-| `eurostat_describe(dataset_id, agency)` | Dimensions with the codes in use (SDMX `referencepartial`), period range, observation count. |
-| `eurostat_codes(dataset_id, dimension, query=None, agency, limit=50)` | Code lookup, e.g. geo `Netherlands → NL`. |
-| `eurostat_data(dataset_id, filters, agency, last_n, since, until, limit=500)` | JSON-stat values, newest first, with status flags. Over-broad queries are rejected before download. |
-| `agri_endpoints(query=None)` | DG AGRI agri-food endpoints (prices, production, trade, CMEF indicators) and their params, read from the OpenAPI spec. |
-| `agri_data(endpoint, params, limit=200)` | Rows from one endpoint; params are validated against the spec. |
-| `ep_meps(name, country, group, limit=50)` | Current MEPs. |
-| `ep_votes(date, query, roll_call_only, mep_id, language="en", limit=40)` | Plenary votes on a sitting day with counts, and optionally one MEP's vote. |
-| `ep_query(endpoint, params, language="en", limit=10, offset=0)` | Any European Parliament API v2 GET endpoint, with labels in one language and nested data compacted. |
-| `dataeu_search(query, country, format, catalogue, category, hvd, min_quality, sort="relevance", language="en", page, limit=10)` | Search data.europa.eu (1.9M datasets) with a short description per row. `sort="newest"` puts recently updated datasets first; `language` picks the title/description language. |
-| `dataeu_facets(query, by, country, format, catalogue, category, hvd, min_quality, top=10)` | Dataset counts per catalogue, format, category, country, publisher, licence or quality, for picking filters. |
-| `dataeu_dataset(dataset_id, language="en", max_files=15)` | Description, publisher, licence and numbered download URLs. |
-| `dataeu_preview(dataset_id, file=1, limit=20)` | First rows of a CSV or JSON file of a dataset (reads at most 2 MB), with its licence. |
-| `dataeu_sparql(query, limit=100)` | Read-only SPARQL SELECT/ASK on the portal's DCAT graph. |
-| `dataeu_quality(scope, id)` | Metadata quality (MQA) score and coverage per metric: global, country (ISO3) or catalogue. |
-| `dataeu_use_cases(query, country, sector, limit=10)` | Apps and projects built on EU open data. |
-| `govdata_search(query, theme, publisher, format, level, page=0, limit=10)` | Search GovData, Germany's open data catalogue (168k datasets, German titles; English terms are translated). Filters: DCAT theme (`envi`, `soci`…), publisher, file format, level (federal/state/district/municipality). |
-| `govdata_dataset(dataset_id, max_files=15)` | Description, publisher, licence, level and numbered files. |
-| `govdata_preview(dataset_id, file=1, limit=20)` | First rows of a CSV or JSON file (reads at most 2 MB). |
-| `govdata_table(table_id, query, last_n, limit=100)` | Values of a Destatis GENESIS table (e.g. `12411-0010`), newest first, filtered by label words. |
-
-### Source map (`find_data`)
-
-The APIs publish little "what is this about" metadata, so the server builds one searchable **map
-table** (SQLite FTS5, `sourcemap.db` in the cache directory) with one row per dataset or endpoint:
-`source | id | title | topic_path | period | updated | next_call | keywords`. Each source is
-enriched from the best signal it has:
-
-| Source | Rows | Enrichment |
-|---|---|---|
-| Eurostat | ~7,500 datasets | Theme path from the table-of-contents tree (e.g. *Economy and finance > Prices*); extra theme locations as keywords; ~50 most-asked datasets (unemployment, inflation, GDP…) marked as headline with everyday words |
-| DG EMPL / GROW / TAXUD | ~40 | Dataflow names; per-country copies (`LMP_EXPME$HR`) collapsed into their parent |
-| Agri-food | ~40 data endpoints | OpenAPI tag and summary, plus the values of the sector's code lookups (e.g. *Durum wheat*, *Feed barley* for `cereal/*`) |
-| European Parliament | ~20 list endpoints + `ep_meps`/`ep_votes` | OpenAPI tag and description |
-| data.europa.eu | its 4 tools | Hand-written |
-| Destatis | ~3,000 GENESIS tables | Theme from GovData groups, keywords from the dataset tags (regions, statistic, measures) |
-| GovData | 13 themes + ~200 theme × publisher slices | 168k datasets are too many for one row each, so each row says what kind of data a publisher has on a theme (*Environment data from Land Schleswig-Holstein: 4,210 datasets*), with its top tags and formats and a ready `govdata_search` call |
-
-Hand-written metadata lives in each country's `hints.json`: source descriptions, extra keywords,
-synonyms (e.g. *pork → pigmeat*, *chômage → unemployment*) and, for the EU, a `headline` list of
-the most-asked Eurostat datasets. Search also expands English ↔ local-language terms through each
-country's `SYNONYMS` (for DE, a German list in `countries/de/__init__.py`), so German queries find
-Eurostat datasets and English queries find Destatis tables. Ranking: share of query words matched,
-then headline datasets (only when every word matched), then matches on the user's own words over
-synonym matches, then BM25.
-
-**How a question becomes data.** The map answers *which dataset?*; the live APIs answer *what
-exactly is in it?* (`*_describe`, `*_codes`) and return the values (`*_data`), rejecting unknown
-codes instead of guessing. `find_data` and `eurostat_search` share one ranking:
-
-1. share of the query words matched (title, theme path, keywords, breakdowns, synonyms; plurals
-   stemmed, `R&D` kept, country names ignored since they are filters, not topics);
-2. headline datasets, but only when their own everyday words answer the query (*unemployment
-   rate* → `une_rt_m`; *Part-time employment rate* is not the answer to *employment rate*);
-3. EU-neighbourhood (ENP) copies and discontinued datasets (no data for 3+ years) last;
-4. the user's own words over synonyms, title matches, then Eurostat's curated main tables, then BM25.
-
-Breakdowns come from Eurostat's metabase (one file listing every dataset's dimensions), so
-*"… by region"*, *"… by age"* or *"… in cities"* reach datasets that actually have those breakdowns.
-
-**Search quality is measured**, with two question sets in `eval/` (several datasets can be
-correct for one question; accepted ids come from catalogue titles):
-
-| Set | Questions | hit@3 | hit@1 | Purpose |
-|---|---|---|---|---|
-| `find_data_cases.json` (dev) | 178 | 176 (99%) | 144 (81%) | tuned on: headline words, synonyms; CI fails below 95% |
-| `find_data_holdout.json` | 45 | 31 (69%) | 19 (42%) | **never tuned on**: the honest estimate for new questions; CI fails below 60% |
-
-Before this work the same holdout scored 25/45 (56%) and the dev set 137/178 (77%). The holdout
-is the number to quote. To improve it without fooling yourself, add real questions from
-`europa-mcp usage` to the dev set, fix them there, and occasionally write a fresh holdout.
-
-```bash
-uv run python eval/run_eval.py [--fresh] [--set holdout] [--min-hit3 0.95]
-```
-
-**End-to-end golden set:** [`eval/golden/`](eval/golden/README.md) has 20 questions with expected
-answers fetched from the official APIs (Eurostat, regional, city, Destatis, agri-food, Parliament,
-DG TAXUD, data.europa.eu, a Spanish question and a no-data trap), a score sheet and a scorer, for
-comparing how different models and apps use the server.
-
-The map is rebuilt in the background every `EUROPA_REFRESH_HOURS` (default 6).
-If one source fails, its previous rows are kept. To build it by hand or export it as a CSV for review:
-
-```bash
-uv run europa-mcp map --export source_map.csv
-```
-
-EU sources used (one entry per API; probe findings in `countries/eu/NOTES.md`):
-
-| Source | Base URL |
-|---|---|
-| Eurostat | `https://ec.europa.eu/eurostat/api/dissemination` |
-| DG EMPL / GROW / TAXUD | `https://webgate.ec.europa.eu/{empl,grow,taxation_customs}/redisstat/api/dissemination` |
-| Agri-food (DG AGRI) | `https://api.tech.ec.europa.eu/agrifood/api` |
-| European Parliament | `https://data.europarl.europa.eu/api/v2` |
-| data.europa.eu search, SPARQL, MQA, use cases | `https://data.europa.eu/api/hub/search`, `/sparql`, `/api/mqa/cache`, `/en/export-use-cases` |
-
-German sources (probe findings in `countries/de/NOTES.md`):
-
-| Source | Base URL |
-|---|---|
-| GovData (CKAN action API) | `https://ckan.govdata.de/api/3/action` |
-| Destatis GENESIS table downloads (keyless CSV) | `https://genesis.destatis.de/genesisWS/downloads/00/tables/<id>_00.csv` |
-
-Not wrapped: the data.europa.eu registry (`/api/hub/repo`) serves the same metadata as search, but as slow RDF. The MQA reporter only serves PDFs, so `dataeu_quality` links to it instead. SHACL validation is publisher tooling and currently returns 503.
-
-The output is compact text with `|` separators, and values that are the same in every row are
-printed once under `fixed:`. Every data answer ends with a `source:` line (official page + licence).
-A typical answer takes 3–4 calls of under 400 tokens each:
-
-```
-find_data("unemployment rate")                        → une_rt_m Unemployment by sex and age - monthly data
-eurostat_codes("une_rt_m", "geo", "Germany")          → DE|Germany
-eurostat_data("une_rt_m", {"geo": ["DE"], "sex": ["T"], "age": ["TOTAL"], "unit": ["PC_ACT"], "s_adj": ["SA"]}, last_n=1)
-                                                      → 2026-09|4.1
-                                                        source: https://ec.europa.eu/eurostat/databrowser/view/une_rt_m/… · licence: CC BY 4.0
-```
-
-### Configuration
-
-| Env var | Default | |
-|---|---|---|
-| `EUROPA_CACHE_DIR` | user cache dir (`europa-mcp`) | Where the source map (`sourcemap.db`) is stored |
-| `EUROPA_REFRESH_HOURS` | `6` | Refresh interval of the map |
-| `EUROPA_RATE_LIMIT_RPS` | `5` | HTTP mode: sustained requests per second per client IP (burst 20) |
-| `EUROPA_API_KEYS` | unset | HTTP mode: comma-separated bearer tokens; when set, every request needs one |
-| `EUROPA_USAGE_LOG` | unset | Path of the anonymous JSONL usage log (see [Hosting it online](#hosting-it-online)) |
-| `EUROPA_HOST` / `PORT` | `127.0.0.1` / `8000` | HTTP bind address |
-| `EUROPA_LOG_LEVEL` | `INFO` | Logs go to stderr only |
-
-### Development
-
-```bash
-uv sync
-uv run prek install      # git hook: ruff lint + format, file checks, unit tests on every commit
-uv run prek run --all-files
-uv run pytest            # mocked HTTP (respx)
-uv run pytest -m live    # end-to-end smoke tests against the real APIs
-uv run python eval/run_eval.py   # find_data search quality (hit@1 / hit@3)
-npx @modelcontextprotocol/inspector uv run europa-mcp
-```
-
-Put the server command first. The Inspector parses flags such as `uvx --from .` as its own options.
-API findings are in each `countries/<cc>/NOTES.md`; core notes in [NOTES.md](NOTES.md).
-
-The package is not on PyPI yet, so the setup commands above install straight from GitHub
-(`uvx --from git+https://github.com/jadikar-arch/euro-data-mcp europa-mcp`). To run your own
-checkout instead, use `uvx --from /path/to/checkout europa-mcp`. Once it is published, the shorter
-`uvx europa-mcp` will work.
-
-</details>
-
----
+Architecture, tools, configuration and tests: see [DEVELOPMENT.md](DEVELOPMENT.md).
+Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Licence
 
-The code is licensed under the [European Union Public Licence v1.2](LICENSE) (EUPL-1.2). Changes
-are listed in [CHANGELOG.md](CHANGELOG.md).
-
-*Data: [Destatis](https://www.destatis.de) and [GovData](https://www.govdata.de) (Datenlizenz Deutschland or the licence given per dataset); [Eurostat](https://ec.europa.eu/eurostat),
-the European Commission, the [European Parliament](https://data.europarl.europa.eu) and
-[data.europa.eu](https://data.europa.eu) (reuse authorised under the Commission's reuse policy /
-CC BY 4.0). Europa is an independent project and is not affiliated with or endorsed by any of these organisations.*
+Code: [EUPL-1.2](LICENSE). Data: [Eurostat](https://ec.europa.eu/eurostat), the European Commission,
+the [European Parliament](https://data.europarl.europa.eu), [data.europa.eu](https://data.europa.eu)
+(CC BY 4.0 / Commission reuse policy), [Destatis](https://www.destatis.de) and
+[GovData](https://www.govdata.de) (Datenlizenz Deutschland or per-dataset licence).
