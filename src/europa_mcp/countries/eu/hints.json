@@ -629,6 +629,72 @@
     ],
     "gases": [
       "gas"
+    ],
+    "air quality": [
+      "particulate matter",
+      "air pollution",
+      "air pollutants",
+      "pm2",
+      "pm10",
+      "nitrogen dioxide",
+      "ozone",
+      "luftqualitat",
+      "feinstaub"
+    ],
+    "per capita": [
+      "per inhabitant",
+      "per head",
+      "pro kopf",
+      "je einwohner"
+    ],
+    "capita": [
+      "inhabitant"
+    ],
+    "natural gas": [
+      "gas",
+      "erdgas"
+    ],
+    "taux": [
+      "rate"
+    ],
+    "tasa": [
+      "rate"
+    ],
+    "tasso": [
+      "rate"
+    ],
+    "jeunes": [
+      "youth",
+      "young"
+    ],
+    "jovenes": [
+      "youth",
+      "young"
+    ],
+    "giovani": [
+      "youth",
+      "young"
+    ],
+    "jongeren": [
+      "youth",
+      "young"
+    ],
+    "jugendliche": [
+      "youth",
+      "young"
+    ],
+    "jugend": [
+      "youth",
+      "young"
+    ],
+    "youth": [
+      "young"
+    ],
+    "young": [
+      "youth"
+    ],
+    "gdp": [
+      "gross domestic product"
     ]
   },
   "keywords": {

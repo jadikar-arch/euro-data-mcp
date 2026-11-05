@@ -366,3 +366,22 @@ async def test_destatis_table_found_by_url_whatever_the_publisher(fake):
     out = await call("govdata_dataset", dataset_id="container-binnenschifffahrt")
     assert 'values: govdata_table("46321-0101")' in out
     assert govdata.table_id("https://example.org/tables/46321-0101_00") == ""  # not a Destatis URL
+
+
+@pytest.mark.parametrize("ranges", [True, False])
+async def test_preview_of_a_large_csv_shows_its_last_rows_too(monkeypatch, ranges):
+    monkeypatch.setattr(preview, "PREVIEW_BYTES", 60)
+    monkeypatch.setattr(preview, "TAIL_BYTES", 60)
+    body = "day;count\n" + "".join(f"2023-09-{d:02d};\n" for d in range(1, 29)) + "2026-11-03;12\n2026-11-04;7\n"
+
+    def respond(request):
+        rng = request.headers.get("range", "")
+        if ranges and rng.startswith("bytes=-"):
+            return httpx.Response(206, text=body[-int(rng[7:]) :])
+        return httpx.Response(200, text=body)  # a server that ignores ranges sends everything
+
+    with respx.mock() as mock:
+        mock.get("https://x/counts.csv").mock(side_effect=respond)
+        out = await preview.preview("counts", "https://x/counts.csv", "CSV", 2)
+    assert out[1:4] == ["day|count", "2023-09-01|", "2023-09-02|"]
+    assert out[5:] == ["# last rows of the file:", "2023-09-28|", "2026-11-03|12", "2026-11-04|7"]

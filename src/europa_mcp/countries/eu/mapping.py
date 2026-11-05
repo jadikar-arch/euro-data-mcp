@@ -252,7 +252,7 @@ async def build_agrifood() -> list[Entry]:
                 "title": op.get("summary") or ep,
                 "path": f"EU agri-food > {tag}" if tag else "EU agri-food",
                 "keywords": f"{words_of(ep)} {keyword_hint(kw, 'Agrifood', ep)} {harvested}".strip(),
-                "period": "",
+                "period": "current",
                 "updated": "",
                 "call": f'agri_data("{ep}", params={{{", ".join(params[:4])}{", …" if len(params) > 4 else ""}}})',
             }

@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.4.2 (2026-11-05)
+
+Fixes from a live test of all tools (2026-11-05). Data values were already correct; these are about
+validation, search relevance and output shape.
+
+**Could give confidently wrong answers**
+- `eurostat_data`: checks time and size arguments before calling the API. An inverted range
+  (`since` after `until`), `last_n` together with `since`/`until`, malformed periods (`2025-13`),
+  and `limit`/`last_n` below 1 return a clear error. Before, an inverted range came back as a
+  series with a silent gap. An empty result now says which period the dataset covers.
+- `dataeu_search(sort="newest")`: takes the 100 most relevant matches and sorts those by date.
+  Upstream's date sort matched any word and ignored relevance (EV charging stations → sewage plants).
+- `find_data` ranking:
+  - `capita` no longer matches `capital`.
+  - Titles with a query word only in negated form (`non-household`) rank lower.
+  - Price and "latest" questions prefer live sources (Agrifood weekly prices) over tables that
+    ended more than a year ago.
+  - Phrase synonyms (`air quality` → particulate matter, NO2…; `per capita` → per inhabitant),
+    `GDP` → gross domestic product, and youth / rate words in French, Spanish, Italian, Dutch and
+    German.
+  - find_data eval: dev hit@3 99% (hit@1 81% → 82%), holdout hit@3 69% → 73% (hit@1 42% → 47%).
+
+**Failures and extra parsing**
+- `ep_query`: output budget (~12k characters) with an `offset` hint; `meetings` is one line per
+  sitting day (56k → 3k characters for a year); `parliamentary-questions` shows date, author,
+  answered and title.
+- `agri_data`: checks parameter formats (`beginDate must be dd/mm/yyyy (got 2026-09-01)`) before
+  the API turns them into a bare 500; prices get a numeric `value` and a `currency` column.
+- `ep_votes`: rows in voting order, labels keep the amendment number (rapporteur names go first),
+  same-label budget lines get their amendment number, and a `vote_id` column.
+- `govdata_preview` / `dataeu_preview`: large CSVs also show their last rows, via a range request
+  or, when the server ignores ranges, by reading through files up to 25 MB.
+
+**Polish**
+- `eurostat_data`: newest first for the DG agencies (TAXUD came oldest-first).
+- `eurostat_describe`: labels that clipping would make identical are shown in full.
+- `dataeu_dataset`: descriptions without HTML tags or entities.
+- `dataeu_sparql`: syntax errors as one short line.
+- `dataeu_use_cases`: a footer with the years the listed cases were published.
+- `country_guide`: for countries without a guide, points to `dataeu_search(country=…)`.
+
 ## 0.4.1 (2026-11-04)
 
 - Published on PyPI: install with `uvx europa-mcp` (e.g. `claude mcp add europa -- uvx europa-mcp`).

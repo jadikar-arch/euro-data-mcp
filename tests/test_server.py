@@ -51,7 +51,11 @@ async def test_country_guides_served_as_tool_and_skill_resources():
     out = await call("country_guide", country="Germany")
     assert out.startswith("# Germany") and "name: de" not in out  # frontmatter dropped
     assert (await call("country_guide", country="EU")).startswith("# EU level")
-    assert (await call("country_guide", country="nl")).startswith("Unknown country. Available: eu")
+    out = await call("country_guide", country="nl")
+    assert (
+        out.startswith("No guide for that country yet. Available: eu")
+        and 'dataeu_search(query, country="<iso2>")' in out
+    )
     async with Client(server.mcp) as c:
         uris = {str(r.uri) for r in await c.list_resources()}
         assert {"skill://eu/SKILL.md", "skill://de/SKILL.md"} <= uris

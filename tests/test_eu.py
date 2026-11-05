@@ -189,6 +189,52 @@ async def test_eurostat_data_errors(fake_eurostat, monkeypatch):
     assert (await call("eurostat_search", query="x", agency="dg foo")).startswith("Error: Unknown agency")
 
 
+@pytest.mark.parametrize(
+    ("args", "error"),
+    [
+        ({"since": "2024", "until": "2020"}, "since (2024) is after until (2020)."),
+        ({"since": "2024-Q2", "until": "2024-Q1"}, "since (2024-Q2) is after until (2024-Q1)."),
+        ({"last_n": 3, "since": "2015"}, "Use last_n or since/until, not both."),
+        ({"since": "2025-13"}, "since='2025-13' is not a valid period. Use 2024, 2024-Q1, 2024-03, 2024-S1"),
+        ({"limit": -5}, "limit must be at least 1 (got -5)."),
+        ({"last_n": 0}, "last_n must be at least 1 (got 0)."),
+    ],
+)
+async def test_eurostat_data_checks_time_and_limit_locally(fake_eurostat, monkeypatch, args, error):
+    async def no_request(*_a, **_k):
+        raise AssertionError("invalid input must not reach the API")
+
+    monkeypatch.setattr(eurostat, "structure", no_request)
+    out = await call("eurostat_data", dataset_id="prc_hpi_q", filters={"geo": ["DE"]}, **args)
+    assert out.startswith(f"Error: {error}")
+    assert not fake_eurostat.called
+
+
+def test_eurostat_valid_periods_pass():
+    eurostat.check_time(None, "2024-Q4", "2024", 10)  # until=2024 means the end of 2024
+    eurostat.check_time(None, "2024-03", "2024-03", 10)
+    eurostat.check_time(None, "2024-W05", "2024-03-15", 10)
+
+
+async def test_eurostat_data_empty_says_what_the_dataset_covers(fake_eurostat):
+    fake_eurostat.respond(200, json={**JSONSTAT, "value": {}, "status": {}})
+    out = await call("eurostat_data", dataset_id="prc_hpi_q", filters={"geo": ["DE"]}, since="2030")
+    assert out.splitlines()[-1] == "No values for these filters and period; the dataset covers 2005-Q1–."
+
+
+async def test_eurostat_describe_shows_whole_labels_that_clipping_would_merge(monkeypatch):
+    long = "Purchasing power standard (PPS, EU27 from 2020), per inhabitant"
+    dim = eurostat.Dim("unit", "Unit", {"A": long, "B": long + " in percentage of the EU27 average"})
+    st = eurostat.Structure("eurostat", "X", "X", [dim], None, None, "", "", "")
+
+    async def fake_structure(*_a):
+        return st
+
+    monkeypatch.setattr(eurostat, "structure", fake_structure)
+    out = await call("eurostat_describe", dataset_id="x")
+    assert f"B={long} in percentage of the EU27 average" in out
+
+
 # ---- agri-food --------------------------------------------------------------------
 
 AGRI_SPEC = {
@@ -234,10 +280,10 @@ async def test_agri_endpoints(fake_agri):
 async def test_agri_data(fake_agri):
     out = await call("agri_data", endpoint="/api/pigmeat/prices", params={"memberstatecodes": ["NL", "DE"]})
     assert out.splitlines()[:-1] == [
-        "fixed: unit=100 KG; weekNumber=40",
-        "memberStateCode|price",
-        "NL|€108.79",
-        "DE|€155.34",
+        "fixed: currency=EUR; unit=100 KG; weekNumber=40",
+        "memberStateCode|price|value",
+        "NL|€108.79|108.79",
+        "DE|€155.34|155.34",
     ]
     assert out.splitlines()[-1] == (
         f"source: {agrifood.BASE}/api/pigmeat/prices?memberStateCodes=NL%2CDE"
@@ -252,6 +298,28 @@ async def test_agri_data(fake_agri):
     )
     assert (await call("agri_data", endpoint="cereal/products")).startswith("No data for cereal/products")
     assert "Did you mean: pigmeat/prices" in await call("agri_data", endpoint="pig/prices")
+
+
+async def test_agri_data_checks_formats_before_calling(fake_agri):
+    out = await call(
+        "agri_data", endpoint="pigmeat/prices", params={"memberStateCodes": "NL", "beginDate": "2026-09-01"}
+    )
+    assert out == "Error: beginDate must be dd/mm/yyyy (got 2026-09-01); e.g. 01/09/2026."
+    assert not fake_agri.called  # no request upstream, so no opaque 500 after retries
+
+
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [("€145.25", 145.25), ("€233,59", 233.59), ("€1.234,50", 1234.5), ("€1,234.50", 1234.5), ("12", 12.0)],
+)
+def test_agri_prices_get_a_numeric_value(text, value):
+    assert agrifood.parse_price(text)[0] == value
+    assert agrifood.with_values({"price": text, "unit": "T"})["value"] == value
+    assert agrifood.with_values({"price": 3.5}) == {"price": 3.5}  # already numeric: unchanged
+
+
+def test_agri_olive_oil_date_typo_still_means_day_month_year():
+    assert agrifood._hint("The optional date (dd/yy/yyyy) interval start") == "dd/mm/yyyy"
 
 
 # ---- European Parliament ----------------------------------------------------------
@@ -398,13 +466,13 @@ async def test_ep_meps_filters(fake_ep):
 async def test_ep_votes(fake_ep):
     out = await call("ep_votes", date="2026-07-08")
     assert out.splitlines()[:-1] == [
-        "topic|item|outcome|method|for|against|abstain",
-        "Water resilience|After § 5|REJECTED|HAND|||",
-        "Report on Ukraine|§ 41|ADOPTED|ELECTRONIC_ROLLCALL|517|102|43",
+        "topic|item|outcome|method|for|against|abstain|vote_id",
+        "Water resilience|After § 5|REJECTED|HAND||||",
+        "Report on Ukraine|§ 41|ADOPTED|ELECTRONIC_ROLLCALL|517|102|43|",
     ]
     assert out.splitlines()[-1].startswith(f"source: {europarl.BASE}/meetings/MTG-PL-2026-07-08/decisions")
     out = await call("ep_votes", date="2026-07-08", mep_id="42")
-    assert out.splitlines()[1:-1] == ["Report on Ukraine|§ 41|ADOPTED|ELECTRONIC_ROLLCALL|517|102|43|against"]
+    assert out.splitlines()[1:-1] == ["Report on Ukraine|§ 41|ADOPTED|ELECTRONIC_ROLLCALL|517|102|43||against"]
     assert (await call("ep_votes", date="2026-08-01")).startswith("No plenary votes on 2026-08-01")
     assert (await call("ep_votes", date="8 July")).startswith("Error: date must be YYYY-MM-DD")
 
@@ -429,6 +497,67 @@ async def test_ep_query_memberships_and_validation(fake_ep):
         "Error: Unknown param 'foo' for adopted-texts"
     )
     assert (await call("ep_query", endpoint="nope")).startswith("Error: Unknown endpoint 'nope'. Roots:")
+
+
+def test_vote_labels_keep_the_amendment_number():
+    label = "A10-0272/2026 – Nils Ušakovs, Michalis Hadjipantela – Before § 1 – Am 12"
+    assert europarl.vote_label(label) == "A10-0272/2026 – Before § 1 – Am 12"
+    long = "A10-0272/2026 – Names – " + "x" * 80 + " – Am 34"
+    assert europarl.vote_label(long).endswith("– Am 34") and len(europarl.vote_label(long)) == 70
+
+
+def test_votes_follow_voting_order_not_per_item_order():
+    item = lambda parent, order, ts="": {  # noqa: E731
+        "inverse_consists_of": [parent],
+        "activity_order": order,
+        "activity_start_date": ts,
+        "id": f"{parent}-{order}",
+    }
+    decisions = [item("B", "1.0", "2026-10-21T13:40"), item("A", "2.0"), item("A", "1.0", "2026-10-21T13:20")]
+    assert [d["id"] for d in europarl.voting_order(decisions)] == ["A-1.0", "A-2.0", "B-1.0"]
+
+
+async def test_ep_votes_tells_same_label_budget_lines_apart():
+    same = {
+        "activity_label": {"en": "03 02 02"},
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "inverse_consists_of": ["eli/dl/event/ITM-2"],
+    }
+    decisions = [
+        {**same, "id": "x1", "activity_order": "3.0", "decisionAboutId": "437", "notation_votingId": "199085"},
+        {**same, "id": "x2", "activity_order": "4.0", "decisionAboutId": "222", "notation_votingId": "199086"},
+    ]
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{EP}/meetings/MTG-PL-2026-10-21/decisions").respond(200, json={"data": decisions})
+        mock.get(f"{EP}/meetings/MTG-PL-2026-10-21/vote-results").respond(200, json=VOTE_ITEMS)
+        rows = (await call("ep_votes", date="2026-10-21")).splitlines()[1:-1]
+    assert [r.split("|")[1] for r in rows] == ["03 02 02 – Am 437", "03 02 02 – Am 222"]
+    assert [r.split("|")[-1] for r in rows] == ["199085", "199086"]
+
+
+async def test_ep_query_meetings_are_one_line_each():
+    meeting = {
+        "activity_id": "MTG-PL-2026-01-19",
+        "activity_date": "2026-01-19",
+        "activity_label": {"en": "Monday, 19 January 2026"},
+        "consists_of": [f"item{i}" for i in range(24)],
+        "had_participant_person": [f"person/{i}" for i in range(700)],  # the bulk of the 1 KB+ records
+    }
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{EP}/").respond(200, json={"paths": {"/meetings": {"get": {"parameters": []}}}})
+        mock.get(f"{EP}/meetings").respond(200, json={"data": [meeting] * 50})
+        out = await call("ep_query", endpoint="meetings", limit=50)
+    lines = out.splitlines()
+    assert lines[:2] == ["date|id|label|agenda_items", "2026-01-19|MTG-PL-2026-01-19|Monday, 19 January 2026|24"]
+    assert len(out) < 15_000
+
+
+async def test_ep_query_output_has_a_size_budget(fake_ep, monkeypatch):
+    monkeypatch.setattr(europarl, "MAX_CHARS", 50)
+    fake_ep.respond(200, json={"meta": {"total": 30}, "data": [{"id": f"doc{i}", "label": "x" * 40} for i in range(5)]})
+    out = await call("ep_query", endpoint="adopted-texts", limit=5)
+    assert out.count("- id: doc") == 1
+    assert out.splitlines()[-2] == "# 1 of 30; use offset=1 or narrow params"
 
 
 def test_match_path_prefers_literal_segments():
@@ -667,10 +796,44 @@ async def test_dataeu_search_sort_and_language(fake_portal):
     search, _ = fake_portal
     out = await call("dataeu_search", query="food prices", sort="newest", language="nl", limit=1)
     sent = search.calls.last.request.url.params
-    assert sent["sort"] == "modified desc"
+    assert sent["sort"] == "relevance desc"  # newest = relevant hits re-sorted by date locally
+    assert sent["limit"] == "100"
     assert sent["includes"].endswith(",description.en,description.nl")
     assert "4420-food-prices|Voedselprijzen|" in out  # title in the requested language
     assert (await call("dataeu_search", query="x", sort="oldest")).startswith("Error: sort must be one of")
+
+
+async def test_dataeu_search_newest_keeps_relevance(fake_portal):
+    search, _ = fake_portal
+    hit = lambda i, day: {"id": i, "title": {"en": i}, "catalog_record": {"modified": f"2026-{day}T00:00:00Z"}}  # noqa: E731
+    search.respond(
+        200,
+        json={"result": {"count": 1862, "results": [hit("charging-a", "01-05"), hit("charging-b", "10-30")]}},
+    )
+    out = await call("dataeu_search", query="electric vehicle charging stations", sort="newest", limit=5)
+    ids = [line.split("|")[0] for line in out.splitlines()[1:3]]
+    assert ids == ["charging-b", "charging-a"]  # the relevant hits, newest first
+    assert out.splitlines()[-1] == "# newest first among the 2 most relevant of 1,862 matches"
+
+
+async def test_dataeu_sparql_syntax_error_is_short(fake_portal):
+    _, sparql = fake_portal
+    sparql.respond(
+        400,
+        text="Virtuoso 37000 Error SP030: SPARQL compiler, line 0: Parentheses are not balanced at '}'\n\n"
+        "SPARQL query:\ndefine sql:big-data-const 0\nSELECT ?s WHERE { FILTER( }\nLIMIT 101",
+    )
+    out = await call("dataeu_sparql", query="SELECT ?s WHERE { FILTER( }")
+    assert out == "Error: SPARQL syntax error: Parentheses are not balanced at '}'"
+
+
+def test_dataeu_descriptions_lose_html():
+    assert dataeuropa.plain("<p><strong>Air &amp; water</strong> quality</p>", 100) == "Air & water quality"
+
+
+async def test_dataeu_use_cases_say_how_old_they_are(fake_portal):
+    out = await call("dataeu_use_cases", country="netherlands")
+    assert out.splitlines()[-1].startswith("# published 2016–2021")
 
 
 async def test_dataeu_preview(fake_portal):
@@ -695,3 +858,13 @@ async def test_dataeu_preview_refuses_private_hosts_and_redirects(fake_portal):
     for n in (3, 4):
         out = await call("dataeu_preview", dataset_id="4420-food-prices", file=n)
         assert out.startswith("Error: Can't preview"), out
+
+
+def test_dataeu_newest_pool_drops_loose_matches():
+    rows = [
+        {"id": "a", "title": {"en": "Charging stations for electric vehicles"}},
+        {"id": "b", "title": {"en": "Meteorological Data of Station RODOS"}},
+        {"id": "c", "title": {"en": "Electric vehicle charging points"}, "description": {"en": "Station list"}},
+    ]
+    kept = dataeuropa.best_matches(rows, "electric vehicle charging stations")
+    assert [r["id"] for r in kept] == ["a", "c"]

@@ -39,6 +39,8 @@ CANDIDATES = 600
 HEADLINE_MARK, HEADLINE_END = "zqheadline", "zqend"
 HEADLINE_SPAN = re.compile(rf"\b{HEADLINE_MARK}\b(.*?)\b{HEADLINE_END}\b")
 PREFIX_MIN = 6  # shorter terms match whole words only ('house' must not match 'household')
+# Long terms that would prefix-match a different word: 'capita' is not 'capital'.
+WHOLE_WORD = {"capita"}
 
 Entry = dict[str, str]
 Builder = Callable[[], Awaitable[list[Entry]]]
@@ -62,9 +64,17 @@ RND = re.compile(r"\br\s*&\s*d\b")  # 'R&D' would tokenise into the useless lett
 
 
 def expand(query: str, synonyms: dict[str, list[str]]) -> list[list[str]]:
-    """Query → OR-groups of terms, each the query word plus its synonyms (see merge_synonyms)."""
+    """Query → OR-groups of terms, each the query word plus its synonyms (see merge_synonyms).
+    Multi-word synonym keys ('air quality', 'per capita') are matched as one phrase first."""
+    q = " " + " ".join(re.findall(r"\w+", RND.sub(" research development ", fold(query)))) + " "
+    for phrase in sorted((k for k in synonyms if " " in k), key=len, reverse=True):
+        q = q.replace(f" {phrase} ", f" {phrase.replace(' ', '_')} ")
     groups = []
-    for tok in re.findall(r"\w+", RND.sub(" research development ", fold(query))):
+    for tok in q.split():
+        if "_" in tok:  # a phrase
+            phrase = tok.replace("_", " ")
+            groups.append(list(dict.fromkeys(fold(a) for a in [phrase, *synonyms[phrase]] if a)))
+            continue
         if len(tok) < 2 or tok in STOPWORDS:
             continue
         alts = [tok, *synonyms.get(tok, ())]
@@ -76,7 +86,7 @@ def expand(query: str, synonyms: dict[str, list[str]]) -> list[list[str]]:
 def stem(a: str) -> str:
     """Long single words lose a plural ending so the prefix match also finds the singular:
     'bankruptcies' → 'bankruptc' (bankruptcy), 'homicides' → 'homicide'."""
-    if " " in a or len(a) < PREFIX_MIN:
+    if " " in a or len(a) < PREFIX_MIN or a in WHOLE_WORD:
         return a
     if a.endswith("ies"):  # 'cities' stays whole: 'cit*' would match far too much
         return a[:-3] if len(a) - 3 >= 5 else a
@@ -90,8 +100,12 @@ def short_forms(a: str) -> list[str]:
     return [a, f"{a}s", f"{a}es", *([f"{a[:-1]}ies"] if a.endswith("y") else [])]
 
 
+def prefix(a: str) -> bool:
+    return len(a) >= PREFIX_MIN and a not in WHOLE_WORD
+
+
 def fts_term(a: str) -> str:
-    if len(a) >= PREFIX_MIN:
+    if prefix(a):
         return f'"{stem(a)}"*'
     return "(" + " OR ".join(f'"{f}"' for f in short_forms(a)) + ")"
 
@@ -101,8 +115,7 @@ def term_regex(groups: list[list[str]]) -> list[re.Pattern[str]]:
     pats = []
     for alts in groups:
         parts = [
-            re.escape(stem(a)) if len(a) >= PREFIX_MIN else "(?:" + "|".join(map(re.escape, short_forms(a))) + r")\b"
-            for a in alts
+            re.escape(stem(a)) if prefix(a) else "(?:" + "|".join(map(re.escape, short_forms(a))) + r")\b" for a in alts
         ]
         pats.append(re.compile(r"\b(?:" + "|".join(parts) + ")"))
     return pats
@@ -112,8 +125,26 @@ def demoted(entry: dict[str, Any], this_year: int) -> bool:
     """Rarely what a user wants: EU-neighbourhood (ENP) copies and discontinued datasets."""
     if entry["id"].lower().startswith(("enpe_", "enps_")):
         return True
+    return last_year(entry) < this_year - 3
+
+
+def last_year(entry: dict[str, Any]) -> int:
+    """Final year of an entry's period; 9999 when it has none (live APIs such as Agrifood)."""
     years = re.findall(r"(?:19|20)\d\d", entry.get("period") or "")
-    return bool(years) and int(years[-1]) < this_year - 3
+    return int(years[-1]) if years else 9999
+
+
+# Questions where recency matters most: prices and "latest/current" figures. For these, live
+# sources (Agrifood weekly prices) beat annual tables that ended years ago.
+FRESH_INTENT = re.compile(
+    r"\b(?:prices?|prix|preise?|precios?|prezz[io]|prijz?e?n?|latest|current|newest|recent|now|today|this week)\b"
+)
+
+
+def negated(title: str, words: list[str]) -> bool:
+    """The title has a query word only in negated form: 'non-household' for 'households'."""
+    t = fold(title)
+    return any(not w.startswith("non") and re.search(rf"\bnon[- ]?{re.escape(stem(w))}", t) for w in words)
 
 
 def merge_synonyms(
@@ -253,6 +284,8 @@ class SourceMap:
 
         pats = term_regex(groups)
         own = term_regex([alts[:1] for alts in groups])  # the user's own words, no synonyms
+        own_words = [alts[0] for alts in groups]
+        fresh = bool(FRESH_INTENT.search(fold(query)))
 
         def hits(text: str, patterns: list[re.Pattern[str]] = pats) -> int:
             text = fold(text)
@@ -273,8 +306,10 @@ class SourceMap:
             main_table = "table" in words[:3]  # Eurostat's own curated key-indicator tables
             key = (
                 -covered,
+                negated(r["title"], own_words),
                 -headline,
                 demoted(r, this_year),
+                fresh and last_year(r) < this_year - 1,  # price/latest questions: ended over a year ago
                 -hits(text, own),
                 -hits(r["title"]),
                 -main_table,

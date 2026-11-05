@@ -110,12 +110,42 @@ async def fetch_prefix(
 ) -> tuple[bytes, bool, str]:
     """The first `max_bytes` of a file (no retries): (body, truncated, content type).
     `check(url)` vets the URL and every redirect target before it is requested."""
+    body, truncated, ctype, _ = await _stream(url, max_bytes, check)
+    return body, truncated, ctype
+
+
+TAIL_SCAN_MAX = 25_000_000  # servers without range support: read at most this much to reach the end
+
+
+async def fetch_tail(
+    url: str,
+    max_bytes: int,
+    check: Callable[[str], Awaitable[None]] | None = None,
+) -> bytes | None:
+    """The last `max_bytes` of a file: an HTTP range request, or (when the server ignores ranges)
+    reading through files up to TAIL_SCAN_MAX. None when that fails or the file is bigger."""
+    try:
+        body, too_big, _, _ = await _stream(url, max_bytes, check, {"Range": f"bytes=-{max_bytes}"}, tail=True)
+    except UserError:
+        return None
+    return None if too_big else body
+
+
+async def _stream(
+    url: str,
+    max_bytes: int,
+    check: Callable[[str], Awaitable[None]] | None,
+    headers: dict[str, str] | None = None,
+    tail: bool = False,
+) -> tuple[bytes, bool, str, int]:
+    """GET with vetted redirects. Head mode: the first max_bytes and whether there was more.
+    Tail mode: the last max_bytes and whether the file exceeded TAIL_SCAN_MAX."""
     host = urlsplit(url).netloc
     try:
         for _ in range(MAX_REDIRECTS + 1):
             if check:
                 await check(url)
-            req = get_client().build_request("GET", url)
+            req = get_client().build_request("GET", url, headers=headers)
             resp = await get_client().send(req, stream=True, follow_redirects=False)
             if not resp.is_redirect:
                 break
@@ -129,12 +159,19 @@ async def fetch_prefix(
                 raise NotFound(f"{host}: file not found")
             if resp.status_code >= 400:
                 raise UserError(f"{host} error {resp.status_code}")
-            body = b""
+            ctype = resp.headers.get("content-type", "")
+            body, seen = b"", 0
             async for chunk in resp.aiter_bytes():
+                if tail:
+                    seen += len(chunk)
+                    if seen > TAIL_SCAN_MAX:
+                        return b"", True, ctype, resp.status_code
+                    body = (body + chunk)[-max_bytes:]
+                    continue
                 body += chunk
                 if len(body) > max_bytes:
-                    return body[:max_bytes], True, resp.headers.get("content-type", "")
-            return body, False, resp.headers.get("content-type", "")
+                    return body[:max_bytes], True, ctype, resp.status_code
+            return body, False, ctype, resp.status_code
         finally:
             await resp.aclose()
     except httpx.TimeoutException:

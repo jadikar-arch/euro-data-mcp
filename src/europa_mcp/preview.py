@@ -16,9 +16,11 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from .common import UserError, cell, clip
-from .web import fetch_prefix
+from .web import fetch_prefix, fetch_tail
 
 PREVIEW_BYTES = 2_000_000
+TAIL_BYTES = 64_000  # large CSVs: the end of the file too, to show the latest rows
+TAIL_ROWS = 3
 PREVIEWABLE = ("CSV", "TXT", "TSV", "JSON", "GEOJSON")
 
 
@@ -52,15 +54,29 @@ def decode(body: bytes) -> str:
         return body.decode("latin-1")
 
 
-def csv_rows(text: str, truncated: bool) -> list[list[str]]:
-    if truncated:
-        text = text.rsplit("\n", 1)[0]  # drop the partial last line
+def sniff(text: str) -> str:
     sample = text[:20000]
     try:
-        delim = csv.Sniffer().sniff(sample, delimiters=";,\t|").delimiter
+        return csv.Sniffer().sniff(sample, delimiters=";,\t|").delimiter
     except csv.Error:
-        delim = ";" if sample.count(";") > sample.count(",") else ","
+        return ";" if sample.count(";") > sample.count(",") else ","
+
+
+def csv_rows(text: str, truncated: bool, delim: str | None = None) -> list[list[str]]:
+    if truncated:
+        text = text.rsplit("\n", 1)[0]  # drop the partial last line
+    delim = delim or sniff(text)
     return [r for r in csv.reader(io.StringIO(text), delimiter=delim) if any(c.strip() for c in r)]
+
+
+async def tail_rows(url: str, delim: str, width: int) -> list[list[str]]:
+    """The last rows of a large CSV (skipping the partial first line of the fetched range)."""
+    body = await fetch_tail(url, TAIL_BYTES, check=check_url)
+    if not body or b"\n" not in body:
+        return []
+    text = decode(body).split("\n", 1)[1]
+    rows = [r for r in csv_rows(text, False, delim) if len(r) >= width]
+    return rows[-TAIL_ROWS:]
 
 
 def json_rows(data: Any) -> list[list[str]]:
@@ -100,7 +116,7 @@ async def preview(label: str, url: str, fmt: str, limit: int) -> list[str]:
         except ValueError:
             raise UserError("File is not valid JSON.") from None
     else:
-        rows = csv_rows(text, truncated)
+        rows = csv_rows(text, truncated, delim := sniff(text))
     if len(rows) < 2:
         raise UserError(f"{label} has no rows to preview. Download: {url}")
     limit = max(1, min(limit, 50))
@@ -111,4 +127,8 @@ async def preview(label: str, url: str, fmt: str, limit: int) -> list[str]:
     out += ["|".join(cell(clip(c, 40)) for c in row[:width]) for row in data[:limit]]
     more = "first part of a large file" if truncated else f"{len(data)} rows"
     out.append(f"# showing {min(limit, len(data))} of {more}")
+    if truncated and kind not in ("JSON", "GEOJSON"):
+        if last := await tail_rows(url, delim, len(header)):
+            out.append("# last rows of the file:")
+            out += ["|".join(cell(clip(c, 40)) for c in row[:width]) for row in last]
     return out

@@ -68,6 +68,8 @@ DROP = {
     "inverse_decided_on_a_realization_of",
 }
 MAX_LIST = 6
+MAX_CHARS = 12_000  # ep_query output budget; the rest is reached with offset
+QUESTION_DETAILS = 20  # parliamentary-questions: items whose title/author are fetched
 # English/common names → the API's group labels (PPE, S&D, PfE, ECR, Renew, Verts/ALE, The Left, NI, ESN)
 GROUP_ALIASES = {
     "epp": "ppe",
@@ -289,6 +291,37 @@ async def sitting(date: str) -> tuple[list[dict], dict[str, str]]:
     return await SITTINGS.get(date, load)
 
 
+def vote_label(label: str, n: int = 70) -> str:
+    """Shorten a vote label without losing its tail: 'A10-0272/2026 – <rapporteurs> – § 3 – Am 70'
+    drops the rapporteur names first, then clips the middle, so amendment numbers stay visible."""
+    if len(label) <= n:
+        return label
+    parts = label.split(" – ")
+    if len(parts) >= 3:
+        label = " – ".join([parts[0], *parts[2:]])
+    if len(label) <= n:
+        return label
+    head = n // 3
+    return label[:head].rstrip() + "…" + label[-(n - head - 1) :].lstrip()
+
+
+def voting_order(decisions: list[dict]) -> list[dict]:
+    """Agenda items in the order they were voted (first roll-call timestamp), votes within an
+    item by their order number. Show-of-hands votes carry no timestamp, only the order."""
+    first: dict[str, str] = {}
+    for d in decisions:
+        parent, ts = (d.get("inverse_consists_of") or [""])[0], d.get("activity_start_date") or ""
+        if ts and (parent not in first or ts < first[parent]):
+            first[parent] = ts
+    return sorted(
+        decisions,
+        key=lambda d: (
+            first.get((d.get("inverse_consists_of") or [""])[0], "~"),
+            float(d.get("activity_order") or 0),
+        ),
+    )
+
+
 @safe
 async def ep_votes(
     date: str,
@@ -310,25 +343,31 @@ async def ep_votes(
         return f"No plenary votes on {date}. Sitting days: ep_query('meetings', {{'year': {date[:4]}}})."
     person = f"person/{mep_id.strip()}" if mep_id else None
     rows = []
-    for d in sorted(decisions, key=lambda d: float(d.get("activity_order") or 0)):
+    for d in voting_order(decisions):
         rc = "ROLLCALL" in str(d.get("decision_method", ""))
         if (roll_call_only or person) and not rc:
             continue
         parent = (d.get("inverse_consists_of") or [""])[0]
         topic = titles.get(parent, "")
-        label = pick_lang(d.get("activity_label"), language) or ""
+        label = " ".join(str(pick_lang(d.get("activity_label"), language) or "").split())
+        about = str(d.get("decisionAboutId") or "")
+        if (
+            about[:1].isdigit() and label and not re.search(r"\bAm\b", label)
+        ):  # budget lines: same label, other amendment
+            label += f" – Am {about}"
         if query:
             hay = fold(f"{topic} {label} {pick_lang(d.get('headingLabel'), language) or ''}")
             if not all(w in hay for w in fold(query).split()):
                 continue
         row = [
             clip(topic, 90),
-            clip(label, 70),
+            vote_label(label),
             short(d.get("decision_outcome", "")).replace("statuses/", ""),
             short(d.get("decision_method", "")).replace("decision-methods/VOTE_", ""),
             str(d.get("number_of_votes_favor", "")),
             str(d.get("number_of_votes_against", "")),
             str(d.get("number_of_votes_abstention", "")),
+            str(d.get("notation_votingId", "")),
         ]
         if person:
             how = next(
@@ -344,7 +383,7 @@ async def ep_votes(
     if not rows:
         return f"No votes on {date} match these filters ({len(decisions)} decisions that day)."
     limit = max(1, min(limit, 500))
-    head = "topic|item|outcome|method|for|against|abstain" + ("|mep_vote" if person else "")
+    head = "topic|item|outcome|method|for|against|abstain|vote_id" + ("|mep_vote" if person else "")
     lines = [head] + ["|".join(cell(x) for x in r) for r in rows[:limit]]
     if len(rows) > limit:
         lines.append(f"# {limit} of {len(rows)}; narrow query or raise limit")
@@ -353,6 +392,56 @@ async def ep_votes(
 
 
 # ---- generic ------------------------------------------------------------------------
+
+
+def meeting_rows(items: list[dict], lang: str) -> list[str]:
+    """Sitting days as one line each (the full records are ~1 KB): what ep_votes needs."""
+    rows = ["date|id|label|agenda_items"]
+    for it in items:
+        label = pick_lang(it.get("activity_label"), lang) or ""
+        rows.append(
+            "|".join(
+                cell(x)
+                for x in (
+                    str(it.get("activity_date") or it.get("activity_start_date") or "")[:10],
+                    it.get("activity_id", ""),
+                    clip(label, 80),
+                    len(it.get("consists_of") or []),
+                )
+            )
+        )
+    return rows
+
+
+async def question_rows(items: list[dict], lang: str) -> list[str]:
+    """The questions list has ids only; fetch each question for its date, author and title."""
+
+    async def detail(it: dict) -> dict:
+        try:
+            data = await fetch_json(f"{BASE}/parliamentary-questions/{it.get('identifier', '')}", FMT)
+        except UserError:
+            return it
+        return ((data or {}).get("data") or [it])[0]
+
+    full = await asyncio.gather(*(detail(it) for it in items[:QUESTION_DETAILS]))
+    names = {f"person/{m['id']}": m["name"] for m in await current_meps()}
+    rows = ["id|date|type|author|answered|title"]
+    for q in [*full, *items[QUESTION_DETAILS:]]:
+        authors = [names.get(p, short(p)) for p in q.get("creator") or []]
+        rows.append(
+            "|".join(
+                cell(x)
+                for x in (
+                    q.get("identifier", ""),
+                    q.get("document_date", ""),
+                    short(q.get("work_type", "")).replace("document-types/QUESTION_", "").lower(),
+                    clip(", ".join(authors), 60),
+                    "yes" if q.get("inverse_answers_to") else "no" if "document_date" in q else "",
+                    clip(pick_lang(q.get("title_dcterms"), lang) or "", 120),
+                )
+            )
+        )
+    return rows
 
 
 @safe
@@ -390,14 +479,24 @@ async def ep_query(
         return f"No results for {ep}."
     items = data["data"][:limit]
     total = (data.get("meta") or {}).get("total")
-    orgs = await org_labels() if any("hasMembership" in it for it in items) else None
-    out = []
-    for it in items:
-        lines = flatten(it, language, orgs)
-        if lines:
-            out.append("- " + "\n  ".join(lines))
-    if total and total > offset + len(items):
-        out.append(f"# {len(items)} of {total}; use offset={offset + len(items)} or narrow params")
+    if ep == "meetings":
+        out = meeting_rows(items, language)
+    elif ep == "parliamentary-questions":
+        out = await question_rows(items, language)
+    else:
+        orgs = await org_labels() if any("hasMembership" in it for it in items) else None
+        out, size = [], 0
+        for n, it in enumerate(items):
+            block = "- " + "\n  ".join(flatten(it, language, orgs))
+            if out and size + len(block) > MAX_CHARS:
+                items = items[:n]  # output budget reached: the rest via offset
+                break
+            out.append(block)
+            size += len(block)
+    shown = len(items)
+    if (total and total > offset + shown) or shown < len(data["data"][:limit]):
+        of = f" of {total}" if total else ""
+        out.append(f"# {shown}{of}; use offset={offset + shown} or narrow params")
     out.append(source_line(f"{BASE}/{ep}", EP_LICENCE))
     return "\n".join(out)
 

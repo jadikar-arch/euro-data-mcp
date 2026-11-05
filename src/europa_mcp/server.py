@@ -301,7 +301,12 @@ async def country_guide(country: str) -> str:
     match = next((c for c in COUNTRIES if key in (c.CODE, fold(c.NAME))), None)
     path = SKILLS_DIR / (match.CODE if match else key) / "SKILL.md"
     if match is None or not path.is_file():
-        return "Unknown country. Available: " + ", ".join(f"{c.CODE} ({c.NAME})" for c in COUNTRIES)
+        return (
+            "No guide for that country yet. Available: "
+            + ", ".join(f"{c.CODE} ({c.NAME})" for c in COUNTRIES)
+            + ". Eurostat (eu) covers every EU country; national portals' datasets are in "
+            'dataeu_search(query, country="<iso2>").'
+        )
     text = path.read_text("utf-8")
     return text.split("---", 2)[2].strip() if text.startswith("---") else text  # drop frontmatter
 

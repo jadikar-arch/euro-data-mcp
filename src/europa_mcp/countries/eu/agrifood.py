@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 from urllib.parse import urlencode
 
@@ -49,6 +50,8 @@ async def endpoints() -> dict[str, dict[str, Any]]:
 
 def _hint(desc: str) -> str:
     """The format part of a parameter description, e.g. 'dd/mm/yyyy' or 'yyyy/yyyy'."""
+    if "dd/yy/yyyy" in desc:  # typo in the olive oil docs; the API takes dd/mm/yyyy
+        return "dd/mm/yyyy"
     for token in (
         "dd/mm/yyyy",
         "yyyy/yyyy",
@@ -61,6 +64,63 @@ def _hint(desc: str) -> str:
         if token in desc:
             return token
     return ""
+
+
+FORMATS = {  # _hint → what each (comma-separated) value must look like
+    "dd/mm/yyyy": re.compile(r"(0[1-9]|[12]\d|3[01])/(0[1-9]|1[0-2])/\d{4}"),
+    "yyyy/yyyy": re.compile(r"\d{4}/\d{4}"),
+    "yyyy/yy": re.compile(r"\d{4}/\d{2}"),
+    "yyyy/mm": re.compile(r"\d{4}/(0[1-9]|1[0-2])"),
+    "yyyy": re.compile(r"\d{4}"),
+    "'annual' or 'monthly'": re.compile(r"annual|monthly"),
+    "'monthly' or 'short'": re.compile(r"monthly|short"),
+}
+
+
+def check_format(name: str, desc: str, vals: list[str]) -> None:
+    """Reject a badly formatted value before the API turns it into a bare 500."""
+    fmt = _hint(desc)
+    pat = FORMATS.get(fmt)
+    for v in vals:
+        if pat and not pat.fullmatch(v):
+            iso = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", v)
+            tip = f"; e.g. {iso[3]}/{iso[2]}/{iso[1]}" if iso and fmt == "dd/mm/yyyy" else ""
+            raise UserError(f"{name} must be {fmt} (got {v}){tip}.")
+
+
+def parse_price(s: str) -> tuple[float | None, str]:
+    """'€145.25' / '€233,59' / '€1.234,50' → (value, currency). The API mixes decimal separators."""
+    m = re.fullmatch(r"\s*([^\d\s.,-]*)\s*(-?[\d.,]+)\s*([^\d\s.,]*)\s*", s or "")
+    if not m:
+        return None, ""
+    sym, num = m[1] or m[3], m[2]
+    if "," in num and "." in num:  # the last separator is the decimal one
+        dec = "," if num.rfind(",") > num.rfind(".") else "."
+        num = num.replace("." if dec == "," else ",", "").replace(dec, ".")
+    elif num.count(",") == 1:
+        num = num.replace(",", ".")
+    elif num.count(",") > 1 or num.count(".") > 1:  # thousands only
+        num = num.replace(",", "").replace(".", "")
+    try:
+        value = float(num)
+    except ValueError:
+        return None, ""
+    return value, {"€": "EUR", "$": "USD", "£": "GBP"}.get(sym, sym)
+
+
+def with_values(row: dict[str, Any]) -> dict[str, Any]:
+    """Add numeric `value` and `currency` after a text `price` such as '€233,59'."""
+    if not isinstance(row.get("price"), str):
+        return row
+    value, cur = parse_price(row["price"])
+    if value is None:
+        return row
+    out: dict[str, Any] = {}
+    for k, v in row.items():
+        out[k] = v
+        if k == "price":
+            out["value"], out["currency"] = value, cur
+    return out
 
 
 def _resolve(name: str, eps: dict[str, Any]) -> str:
@@ -114,6 +174,7 @@ async def agri_data(endpoint: str, params: dict[str, Any] | None = None, limit: 
         if real is None:
             raise UserError(f"Unknown param '{name}' for {key}. Valid: {', '.join(allowed) or 'none'}")
         vals = as_list(val)
+        check_format(real, allowed[real][1], vals)
         if vals:
             query[real] = ",".join(vals)
     missing = [p for p, (req, _) in allowed.items() if req and p not in query]
@@ -129,7 +190,7 @@ async def agri_data(endpoint: str, params: dict[str, Any] | None = None, limit: 
         return f"No data for {key} with these params."
     limit = max(1, min(limit, 2000))
     total = len(data)
-    data = data[:limit]
+    data = [with_values(r) if isinstance(r, dict) else r for r in data[:limit]]
     if not isinstance(data[0], dict):  # plain lookup list
         lines = [", ".join(cell(fmt_value(x)) for x in data)]
     else:

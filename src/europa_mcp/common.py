@@ -47,7 +47,7 @@ class NotFound(UserError):
 STOPWORDS = set(
     # English
     "the a an and or of in on for with per to by from is are what how many much which latest "
-    "recent current newest number total data statistics figures table "
+    "recent current newest number total data statistics figures table measurements measurement "
     "europe european eu "
     # German
     "der die das des dem den und oder fur vom im mit wie viel viele welche zahl anzahl daten "

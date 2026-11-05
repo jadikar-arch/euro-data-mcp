@@ -1359,6 +1359,44 @@
     "LMP_EXPME",
     "LMP_EXPLMP"
    ]
+  },
+  {
+   "q": "GDP per capita by region",
+   "ok": [
+    "tgs00006",
+    "tgs00005",
+    "nama_10r_2gdp"
+   ]
+  },
+  {
+   "q": "air quality measurements",
+   "ok": [
+    "sdg_11_52",
+    "sdg_11_50",
+    "env_air_no2",
+    "hlth_cd_iap"
+   ]
+  },
+  {
+   "q": "diesel and natural gas prices for households",
+   "ok": [
+    "nrg_pc_202"
+   ]
+  },
+  {
+   "q": "wheat prices",
+   "ok": [
+    "cereal/prices"
+   ]
+  },
+  {
+   "q": "taux de chômage des jeunes",
+   "ok": [
+    "tipslm80",
+    "tesem140",
+    "yth_empl_090",
+    "yth_empl_100"
+   ]
   }
  ]
 }

@@ -348,3 +348,74 @@ def test_old_cache_gets_the_breakdown_column_and_a_rebuild(tmp_path):
     m = SourceMap(path, builders={"Eurostat": build})
     assert "detail" in {r[1] for r in m.db.execute("PRAGMA table_info(entries)")}
     assert m.missing() == ["Eurostat"]  # rebuilt on the next ensure()
+
+
+# ---- ranking regressions from the 2026-11-05 live test --------------------------------------
+
+
+def entry(source: str, ident: str, title: str, period: str = "2014–2025", keywords: str = "") -> dict[str, str]:
+    return {"source": source, "id": ident, "title": title, "path": "", "keywords": keywords, "period": period}
+
+
+@pytest.fixture
+def ranking(tmp_path):
+    m = SourceMap(tmp_path / "rank.db", synonyms=server.all_synonyms())
+    m.replace(
+        "Eurostat",
+        [
+            entry("Eurostat", "tec00011", "Gross fixed capital formation (investments)"),
+            entry("Eurostat", "tec00114", "GDP per capita in PPS"),
+            entry(
+                "Eurostat",
+                "tgs00006",
+                "Regional gross domestic product (PPS per inhabitant in % of the EU27 (from 2020) average) by NUTS 2 region",
+                "2013–2024",
+                "regional regions nuts2",
+            ),
+            entry("Eurostat", "ttr00012", "Air transport of passengers by country (yearly data)"),
+            entry("Eurostat", "sdg_11_52", "Premature deaths due to exposure to fine particulate matter (PM2.5)"),
+            entry(
+                "Eurostat", "nrg_pc_203", "Gas prices for non-household consumers - bi-annual data", "1985-S1–2026-S1"
+            ),
+            entry("Eurostat", "nrg_pc_202", "Gas prices for household consumers - bi-annual data", "1985-S1–2026-S1"),
+            entry("Eurostat", "tag00059", "Selling prices of soft wheat", "2013–2024"),
+            entry("Eurostat", "tps00203", "Unemployment rate"),
+            entry("Eurostat", "tipslm80", "Youth unemployment rate - % of active population aged 15-24"),
+        ],
+    )
+    m.replace("Agrifood", [entry("Agrifood", "cereal/prices", "Cereal prices", "current", "cereal prices grain wheat")])
+    return m
+
+
+def top(m: SourceMap, query: str, n: int = 3) -> list[str]:
+    return [r["id"] for r in m.search(query)[:n]]
+
+
+def test_capita_does_not_match_capital(ranking):
+    ids = top(ranking, "GDP per capita by region")
+    assert ids[0] == "tgs00006" and "tec00011" not in ids  # regional GDP per inhabitant
+
+
+def test_air_quality_is_pollution_not_air_transport(ranking):
+    ids = top(ranking, "air quality measurements")
+    assert ids[0] == "sdg_11_52" and "ttr00012" not in ids
+
+
+def test_non_household_ranks_below_household(ranking):
+    ids = top(ranking, "gas prices for households")
+    assert ids.index("nrg_pc_202") < ids.index("nrg_pc_203")
+    assert top(ranking, "diesel and natural gas prices for households", 1) == ["nrg_pc_202"]
+
+
+def test_price_questions_prefer_live_sources_over_ended_tables(ranking):
+    assert top(ranking, "wheat prices", 1) == ["cereal/prices"]
+
+
+def test_french_youth_unemployment(ranking):
+    assert top(ranking, "taux de chômage des jeunes", 1) == ["tipslm80"]
+
+
+def test_phrase_synonyms_expand_as_one_group(smap):
+    groups = expand("air quality per capita", smap.synonyms)
+    assert groups[0][0] == "air quality" and "particulate matter" in groups[0]
+    assert groups[1][0] == "per capita" and "per inhabitant" in groups[1]

@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import math
+import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Any
@@ -278,6 +279,45 @@ def jsonstat_rows(js: dict[str, Any]) -> tuple[list[str], list[list[str]], list[
     return [dims[d].get("label") or d for d in ids], rows, ids
 
 
+# ---- time periods -------------------------------------------------------------------
+
+PERIOD = re.compile(r"(\d{4})(?:-(?:Q([1-4])|S([12])|W(0[1-9]|[1-4]\d|5[0-3])|(0[1-9]|1[0-2])(?:-(\d{2}))?))?")
+PERIOD_FORMATS = "2024, 2024-Q1, 2024-03, 2024-S1, 2024-W05 or 2024-03-15"
+
+
+def period_months(p: str, name: str) -> tuple[tuple[int, int], tuple[int, int]]:
+    """(year, month) where a Eurostat period starts and ends; UserError on a malformed one."""
+    m = PERIOD.fullmatch(p.strip().upper())
+    if not m:
+        raise UserError(f"{name}='{p}' is not a valid period. Use {PERIOD_FORMATS}.")
+    year, q, s, w, month, _ = m.groups()
+    if q:
+        first, last = 3 * int(q) - 2, 3 * int(q)
+    elif s:
+        first, last = 6 * int(s) - 5, 6 * int(s)
+    elif w:
+        first = last = min(12, 1 + (int(w) - 1) * 12 // 52)
+    elif month:
+        first = last = int(month)
+    else:
+        first, last = 1, 12
+    return (int(year), first), (int(year), last)
+
+
+def check_time(last_n: int | None, since: str | None, until: str | None, limit: int) -> None:
+    """Validate the time and size arguments locally, before any request upstream."""
+    if limit <= 0:
+        raise UserError(f"limit must be at least 1 (got {limit}).")
+    if last_n is not None and int(last_n) <= 0:
+        raise UserError(f"last_n must be at least 1 (got {last_n}).")
+    if last_n and (since or until):
+        raise UserError("Use last_n or since/until, not both.")
+    start = period_months(since, "since")[0] if since else None
+    end = period_months(until, "until")[1] if until else None
+    if start and end and start > end:
+        raise UserError(f"since ({since}) is after until ({until}).")
+
+
 # ---- tools ------------------------------------------------------------------------
 
 
@@ -317,7 +357,10 @@ async def eurostat_describe(dataset_id: str, agency: str = "eurostat") -> str:
     out.append("dimensions (id|title|codes|values):")
     for d in st.dims:
         items = list(d.codes.items())
-        shown = ", ".join(f"{c}={clip(t, 60)}" for c, t in items[:INLINE_CODES])
+        labels = [clip(t, 60) for _, t in items[:INLINE_CODES]]
+        if len(set(labels)) < len(labels):  # clipping made two labels look the same: show them whole
+            labels = [t if labels.count(s) > 1 else s for s, (_, t) in zip(labels, items, strict=False)]
+        shown = ", ".join(f"{c}={t}" for (c, _), t in zip(items, labels, strict=False))
         if len(items) > INLINE_CODES:
             shown = ", ".join(c for c, _ in items[:INLINE_CODES]) + ", … (eurostat_codes)"
         out.append(f"{d.id}|{cell(d.title)}|{len(items)}|{cell(shown)}")
@@ -360,9 +403,10 @@ async def eurostat_data(
 ) -> str:
     """Fetch values. filters = {dimension: [codes]}, e.g. {'geo': ['NL','DE'], 'unit': ['I15_Q']}.
     Time: last_n=5 (latest periods) or since/until ('2020', '2024-Q1'). Constant columns shown once."""
+    check_time(last_n, since, until, limit)
     key, base, _ = resolve_agency(agency)
     st = await structure(dataset_id, key)
-    limit = max(1, min(limit, 5000))
+    limit = min(limit, 5000)
 
     params: list[tuple[str, str]] = [("lang", "en")]
     chosen: dict[str, list[str]] = {}
@@ -405,11 +449,13 @@ async def eurostat_data(
         + (f" (updated {js['updated'][:10]})" if js and js.get("updated") else "")
     ]
     if not rows:
-        out.append("No values for these filters.")
+        covers = f"; the dataset covers {st.oldest}–{st.latest}" if st.oldest else ""
+        out.append(f"No values for these filters and period{covers}.")
         return "\n".join(out)
-    # Newest periods first so truncation keeps recent data.
-    if "time" in ids:
-        t = ids.index("time")
+    # Newest periods first so truncation keeps recent data (the DG agencies call it TIME_PERIOD).
+    t_id = next((i for i in ids if i.lower() in ("time", "time_period") or i == st.time_id), None)
+    if t_id:
+        t = ids.index(t_id)
         rows.sort(key=lambda r: r[t], reverse=True)
     total = len(rows)
     rows = rows[:limit]

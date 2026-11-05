@@ -49,8 +49,8 @@ that link and licence with the numbers (and the dataset id), so they can check a
 
 - Dates are `dd/mm/yyyy`; lists are comma-separated. Marketing years follow the sector:
   cereals `2025/2026` (starting July), olive oil `2025/26`.
-- Prices are text with currency and unit columns ("€209.09", per "100 KG"), so compare like with
-  like. Some sectors (rice, olive oil, wine) only cover producing countries; "No data" usually
+- Prices come as text ("€209.09", "€233,59") plus a numeric `value` and a `currency` column; check
+  the `unit` (per "100 KG", per "TONNES") and compare like with like. Some sectors (rice, olive oil, wine) only cover producing countries; "No data" usually
   means the member state doesn't report that product.
 
 ## European Parliament
@@ -59,11 +59,13 @@ that link and licence with the numbers (and the dataset id), so they can check a
   (= EPP), `S&D`, `PfE`, `ECR`, `Renew`, `Verts/ALE` (= Greens/EFA), `The Left`, `ESN`, `NI`
   (non-attached); the English names work too.
 - `ep_votes(date, query, roll_call_only, mep_id)`: plenary votes on a **sitting day**
-  (YYYY-MM-DD). Find sitting days with `ep_query("meetings", {"year": 2026})`. `mep_id` shows that
-  MEP's vote on roll-call votes.
+  (YYYY-MM-DD), in voting order, with a `vote_id` per row. Find sitting days with
+  `ep_query("meetings", {"year": 2026})` (one line per day). `mep_id` shows that MEP's vote on
+  roll-call votes.
 - `ep_query(endpoint, params)`: any other endpoint, e.g. `adopted-texts` {"text": "housing"},
   `procedures/2024-2526`, `meps/{id}` (current memberships with committees), `speeches`,
-  `parliamentary-questions` {"year": 2026}. Labels come in `language` (default en).
+  `parliamentary-questions` {"year": 2026} (title, author, answered). Labels come in `language`
+  (default en). Long results stop at a size budget; continue with `offset`.
 - Limit: 500 requests per 5 minutes, so don't loop over many days.
 
 ## data.europa.eu
@@ -71,11 +73,12 @@ that link and licence with the numbers (and the dataset id), so they can check a
 - `dataeu_search(query, country="nl", format="CSV")`: 1.9M datasets from EU and national portals.
   Use it when no statistics table fits, or the user wants files or APIs to download.
   Filters: `category` (EU theme: HEAL, ECON, TRAN, ENVI, AGRI…), `hvd=True` (High-Value
-  Datasets only), `min_quality="good"` (metadata scoring), `sort="newest"` (recently updated
-  first, for "latest"/"current" questions), `language="fr"` (titles/descriptions in that language).
+  Datasets only), `min_quality="good"` (metadata scoring), `sort="newest"` (the 100 most
+  relevant matches, recently updated first, for "latest"/"current" questions), `language="fr"`
+  (titles/descriptions in that language).
   Each row has a short `about` text. `dataeu_dataset(id)` gives numbered files with format,
   licence and URL; `dataeu_preview(id, file=n)` shows the columns and first rows of a CSV/JSON
-  file, so check a file before telling the user it has what they need. Many publisher links are
+  file (and, for large CSVs, the last rows, to see how current it is), so check a file before telling the user it has what they need. Many publisher links are
   dead or are web pages: if a preview fails, try the next CSV/JSON file or dataset.
 - `dataeu_facets(query, country, by="catalogue,format,category")`: counts only, no datasets.
   Call it first on broad topics: results are noisy (Germany's 850k are mostly `gdi-de` zoning

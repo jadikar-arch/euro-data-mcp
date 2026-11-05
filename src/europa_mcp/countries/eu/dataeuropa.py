@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import html
 import io
 import json
 import re
@@ -10,7 +11,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ...common import READ_ONLY, NotFound, UserError, cell, clip, fold, safe, source_line
+from ...common import READ_ONLY, STOPWORDS, NotFound, UserError, cell, clip, fold, safe, source_line
 from ...preview import preview
 from ...web import Memo, fetch, fetch_json
 
@@ -19,7 +20,8 @@ SEARCH = f"{PORTAL}/api/hub/search"
 MQA = f"{PORTAL}/api/mqa/cache"
 USE_CASES = Memo(ttl=24 * 3600)
 SEARCH_FIELDS = "id,title,country,catalog,distributions.format,modified,issued,catalog_record"
-SORTS = {"relevance": "relevance+desc", "newest": "modified+desc"}
+SORTS = ("relevance", "newest")
+NEWEST_POOL = 100  # sort=newest: re-sort this many top relevance hits by date (upstream's date sort ignores relevance)
 CATEGORIES = {  # EU data themes (facet 'categories')
     "AGRI": "Agriculture, fisheries, forestry and food",
     "ECON": "Economy and finance",
@@ -69,8 +71,8 @@ def text(v: Any, lang: str = "en") -> str:
 
 
 def plain(v: Any, n: int) -> str:
-    """Description text without HTML tags, clipped."""
-    return clip(re.sub(r"<[^>]+>", " ", str(v or "")), n)
+    """Description text without HTML tags or entities, clipped."""
+    return clip(html.unescape(re.sub(r"<[^>]+>", " ", str(v or ""))), n)
 
 
 def formats(ds: dict[str, Any]) -> str:
@@ -91,6 +93,20 @@ def dmy_to_iso(s: str) -> str:
     """'31/05/2016' → '2016-05-31'."""
     parts = (s or "").strip()[:10].split("/")
     return "-".join(reversed(parts)) if len(parts) == 3 else (s or "")[:10]
+
+
+def best_matches(rows: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    """Of a relevance-ranked pool, the rows that contain the most query words. Upstream matches any
+    word, so a pool's tail holds 'stations' (weather) for 'electric vehicle charging stations'."""
+    words = [w.removesuffix("s") for w in fold(query).split() if len(w) > 2 and w not in STOPWORDS]
+    if not words:
+        return rows
+    hits = [
+        sum(w in fold(json.dumps([r.get("title"), r.get("description")], ensure_ascii=False)) for w in words)
+        for r in rows
+    ]
+    best = max(hits, default=0)
+    return [r for r, n in zip(rows, hits, strict=True) if n == best] if best else rows
 
 
 def category_code(c: str) -> str:
@@ -149,24 +165,32 @@ async def dataeu_search(
     country: ISO2; format: 'CSV'; catalogue: portal id; category: EU theme (HEAL, ECON, TRAN…); hvd: High-Value
     only; min_quality: excellent|good|sufficient; sort: relevance|newest; language: ISO2 for titles/descriptions."""
     facets = search_facets(country, format, catalogue, category, hvd, min_quality)
-    if sort.strip().lower() not in SORTS:
+    sort = sort.strip().lower()
+    if sort not in SORTS:
         raise UserError(f"sort must be one of: {', '.join(SORTS)}.")
     lang = language.strip().lower()[:2] or "en"
     limit = max(1, min(limit, 50))
+    page = max(0, page)
+    newest = sort == "newest"
     params = {
         "q": query,
         "filter": "dataset",
-        "limit": limit,
-        "page": max(0, page),
+        "limit": NEWEST_POOL if newest else limit,
+        "page": 0 if newest else page,
         "aggregation": "false",
         "includes": f"{SEARCH_FIELDS},description.en" + (f",description.{lang}" if lang != "en" else ""),
-        "sort": SORTS[sort.strip().lower()].replace("+", " "),
+        "sort": "relevance desc",
     }
     if facets:
         params["facets"] = json.dumps(facets)
     data = await fetch_json(f"{SEARCH}/search", params)
     res = (data or {}).get("result") or {}
     rows = res.get("results") or []
+    pool = len(rows)
+    if newest:  # the most relevant hits, newest first
+        rows = best_matches(rows, query)
+        pool = len(rows)
+        rows = sorted(rows, key=modified, reverse=True)[page * limit : (page + 1) * limit]
     if not rows:
         return f"No datasets match '{query}'" + (f" with {facets}" if facets else "") + "."
     lines = ["id|title|country|catalogue|formats|modified|about"]
@@ -186,7 +210,10 @@ async def dataeu_search(
             )
         )
     total = res.get("count") or 0
-    if total > (page + 1) * limit:
+    if newest:
+        more = f"; page={page + 1} for more" if pool > (page + 1) * limit else ""
+        lines.append(f"# newest first among the {pool} most relevant of {total:,} matches{more}")
+    elif total > (page + 1) * limit:
         lines.append(f"# {len(rows)} of {total:,}; page={page + 1} for more or add filters")
     return "\n".join(lines)
 
@@ -258,7 +285,7 @@ async def dataeu_dataset(dataset_id: str, language: str = "en", max_files: int =
         "portal": f"{PORTAL}/data/datasets/{d.get('id')}",
     }
     out += [f"{k}: {cell(v)}" for k, v in facts.items() if v]
-    out.append(f"description: {clip(text(d.get('description'), language), 600)}")
+    out.append(f"description: {plain(text(d.get('description'), language), 600)}")
     dists = d.get("distributions") or []
     if dists:
         out.append("files (n|format|title|licence|url); first rows: dataeu_preview(id, file=n):")
@@ -336,12 +363,17 @@ async def dataeu_sparql(query: str, limit: int = 100) -> str:
     q = query.strip()
     if re.search(r"\bSELECT\b", q, re.I) and not re.search(r"\bLIMIT\s+\d+", q, re.I):
         q += f"\nLIMIT {limit + 1}"
-    data = await fetch_json(
-        f"{PORTAL}/sparql",
-        {"query": q},
-        headers={"Accept": "application/sparql-results+json"},
-        timeout=90,
-    )
+    try:
+        data = await fetch_json(
+            f"{PORTAL}/sparql",
+            {"query": q},
+            headers={"Accept": "application/sparql-results+json"},
+            timeout=90,
+        )
+    except UserError as e:
+        if m := re.search(r"SPARQL compiler, line \d+: (.*?)(?: SPARQL query:|$)", str(e), re.S):
+            raise UserError(f"SPARQL syntax error: {m[1].strip()}") from None
+        raise
     if data is None or not isinstance(data, dict):
         raise UserError("SPARQL endpoint returned no JSON (query too heavy?). Add filters or LIMIT.")
     if "boolean" in data:
@@ -444,6 +476,11 @@ async def dataeu_use_cases(
     ]
     if len(hits) > limit:
         lines.append(f"# {limit} of {len(hits)}; narrow with query/country/sector")
+    dates = sorted(d for r in hits if (d := dmy_to_iso(r.get("Date of Publication", ""))))
+    if dates:
+        lines.append(
+            f"# published {dates[0][:4]}–{dates[-1][:4]}: the catalogue isn't updated often, so check apps still run"
+        )
     return "\n".join(lines)
 
 
