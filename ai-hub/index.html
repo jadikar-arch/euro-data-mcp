@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AIxona</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="AI models, tools, GitHub repositories, courses and websites in one place. English, Oʻzbekcha, Русский.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-row">
+    <a class="brand" href="#" aria-label="AIxona"><span class="brand-mark" aria-hidden="true"></span>AIxona</a>
+    <div class="lang" role="group" aria-label="Language / Til / Язык">
+      <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="uz">UZ</button>
+      <button type="button" data-lang="ru">RU</button>
+    </div>
+  </div>
+</header>
+<div class="tiles" aria-hidden="true"></div>
+<main class="wrap">
+  <section class="intro">
+    <h1 data-i18n="tagline"></h1>
+    <p class="lede" data-i18n="lede"></p>
+    <label class="search" for="q">
+      <span class="sr" data-i18n="searchLabel"></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      <input id="q" type="search" autocomplete="off" spellcheck="false">
+      <kbd>/</kbd>
+    </label>
+  </section>
+  <nav class="tabs-scroll" aria-label="Categories"><div class="tabs" id="tabs"></div></nav>
+  <div class="bar">
+    <div class="chips" id="price" role="group"></div>
+    <p class="count" id="count" aria-live="polite"></p>
+  </div>
+  <section id="grid" class="grid"></section>
+  <p id="empty" class="empty" hidden></p>
+</main>
+<footer class="wrap foot"><p data-i18n="footer"></p></footer>
+<script src="i18n.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
