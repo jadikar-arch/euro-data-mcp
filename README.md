@@ -1,5 +1,7 @@
 # Europa: European open data for AI assistants
 
+<!-- mcp-name: io.github.jadikar-arch/europa-mcp -->
+
 Europa is an [MCP](https://modelcontextprotocol.io) server that lets Claude, ChatGPT, Copilot,
 Cursor and other AI apps find and fetch public data from European statistics offices and EU
 sources. You ask in plain language; the assistant picks a dataset, gets the figures and names the source.
