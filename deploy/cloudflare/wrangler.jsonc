@@ -1,0 +1,22 @@
+// Europa on Cloudflare Containers (Workers Paid plan). Deploy: npm install && npx wrangler deploy
+{
+  "name": "europa-mcp",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "containers": [
+    {
+      "class_name": "Europa",
+      // The repo's Dockerfile; it bakes the find_data map into the image, so cold starts don't rebuild it.
+      "image": "../../Dockerfile",
+      "image_build_context": "../..",
+      // basic = 1/4 vCPU, 1 GiB RAM. One instance serves everyone; raise if it gets busy.
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "EUROPA", "class_name": "Europa" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Europa"] }]
+}

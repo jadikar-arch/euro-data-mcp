@@ -39,7 +39,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
-exclude = [".claude", ".vscode", ".github", ".pre-commit-config.yaml", ".python-version", ".dockerignore", "eval", "uv.lock"]
+exclude = [".claude", "deploy", ".vscode", ".github", ".pre-commit-config.yaml", ".python-version", ".dockerignore", "eval", "uv.lock"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/europa_mcp"]
