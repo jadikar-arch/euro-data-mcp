@@ -64,6 +64,10 @@ STOPWORDS = set(
     "hungary ireland italy latvia lithuania luxembourg malta netherlands poland portugal romania "
     "slovakia slovenia spain sweden norway iceland liechtenstein switzerland turkey turkiye "
     "albania montenegro serbia macedonia ukraine moldova "
+    # Dutch places: CBS tables are per topic, the municipality or province is a code picked later
+    "amsterdam rotterdam utrecht eindhoven groningen tilburg almere breda nijmegen haarlem maastricht "
+    "arnhem zwolle leiden dordrecht hague haag gravenhage drenthe flevoland friesland fryslan gelderland "
+    "limburg brabant overijssel zeeland holland "
     # Dutch
     "de het een en van op voor met naar over bij uit door zijn wat hoe hoeveel welke gegevens "
     "cijfers aantal".split()
@@ -139,3 +143,53 @@ def source_line(url: str, licence: str) -> str:
 
 
 EC_LICENCE = "CC BY 4.0, © European Union"  # Commission reuse policy (Decision 2011/833/EU)
+
+
+# Country names and demonyms (folded) → Eurostat `geo` code, so find_data can tell the user which
+# national source covers the country they named, or that only Eurostat does.
+COUNTRY_NAMES: dict[str, str] = {
+    **{
+        name: code
+        for code, names in {
+            "AT": "austria austrian",
+            "BE": "belgium belgian",
+            "BG": "bulgaria bulgarian",
+            "HR": "croatia croatian",
+            "CY": "cyprus cypriot",
+            "CZ": "czechia czech",
+            "DK": "denmark danish",
+            "EE": "estonia estonian",
+            "FI": "finland finnish",
+            "FR": "france french",
+            "DE": "germany german deutschland",
+            "EL": "greece greek",
+            "HU": "hungary hungarian",
+            "IE": "ireland irish",
+            "IT": "italy italian",
+            "LV": "latvia latvian",
+            "LT": "lithuania lithuanian",
+            "LU": "luxembourg",
+            "MT": "malta maltese",
+            "NL": "netherlands dutch nederland holland",
+            "PL": "poland polish",
+            "PT": "portugal portuguese",
+            "RO": "romania romanian",
+            "SK": "slovakia slovak",
+            "SI": "slovenia slovenian",
+            "ES": "spain spanish",
+            "SE": "sweden swedish",
+            "NO": "norway norwegian",
+            "IS": "iceland icelandic",
+            "CH": "switzerland swiss",
+        }.items()
+        for name in names.split()
+    },
+}
+
+
+def countries_in(query: str) -> list[str]:
+    """Eurostat geo codes of the countries a question names, in order, without repeats."""
+    import re
+
+    words = re.findall(r"\w+", fold(query))
+    return list(dict.fromkeys(COUNTRY_NAMES[w] for w in words if w in COUNTRY_NAMES))

@@ -39,6 +39,7 @@ src/europa_mcp/
     __init__.py     COUNTRIES registry and the country contract
     eu/             Eurostat + DGs, agri-food, European Parliament, data.europa.eu
     de/             GovData (CKAN catalogue) and Destatis GENESIS tables
+    nl/             CBS OData v4 tables
   skills/
     eu/SKILL.md     guide for the assistant: when to use which source, workflow, codes, pitfalls
     de/SKILL.md
@@ -80,6 +81,11 @@ resources to the model.
 | `govdata_dataset(dataset_id, max_files=15)` | Description, publisher, licence, level and numbered files. |
 | `govdata_preview(dataset_id, file=1, limit=20)` | First rows of a CSV or JSON file (reads at most 2 MB). |
 | `govdata_table(table_id, query, last_n, limit=100)` | Values of a Destatis GENESIS table (e.g. `12411-0010`), newest first, filtered by label words. |
+| `cbs_search(query, include_discontinued, limit=10)` | Find CBS tables by Dutch topic keywords (English terms are translated); the catalogue is cached and searched in memory. |
+| `cbs_describe(dataset_id)` | A CBS table's dimensions (code counts, latest period) and measures. |
+| `cbs_codes(dataset_id, dimension, query, limit=50)` | Look up region, period or measure codes by title (`Amsterdam` → `GM0363`). |
+| `cbs_data(dataset_id, measures, filters, latest, limit=500)` | Values of a CBS table; refuses queries above ~100k rows. |
+| `cbs_releases(days=14, limit=30)` | CBS tables getting new data soon. |
 
 ## Source map (`find_data`)
 
@@ -96,6 +102,7 @@ enriched from the best signal it has:
 | European Parliament | ~20 list endpoints + `ep_meps`/`ep_votes` | OpenAPI tag and description |
 | data.europa.eu | its 4 tools | Hand-written |
 | Destatis | ~3,000 GENESIS tables | Theme from GovData groups, keywords from the dataset tags (regions, statistic, measures) |
+| CBS | ~1,290 regular tables | Dimension and measure titles and the description as keywords; 34 most-asked tables marked as headline (hints.json); English terms via `nl.SYNONYMS` |
 | GovData | 13 themes + ~200 theme × publisher slices | 168k datasets are too many for one row each, so each row says what kind of data a publisher has on a theme (*Environment data from Land Schleswig-Holstein: 4,210 datasets*), with its top tags and formats and a ready `govdata_search` call |
 
 Hand-written metadata lives in each country's `hints.json`: source descriptions, extra keywords,
@@ -163,6 +170,7 @@ German sources (probe findings in `countries/de/NOTES.md`):
 | Source | Base URL |
 |---|---|
 | GovData (CKAN action API) | `https://ckan.govdata.de/api/3/action` |
+| CBS OData v4 (keyless JSON) | `https://datasets.cbs.nl/odata/v1` |
 | Destatis GENESIS table downloads (keyless CSV) | `https://genesis.destatis.de/genesisWS/downloads/00/tables/<id>_00.csv` |
 
 Not wrapped: the data.europa.eu registry (`/api/hub/repo`) serves the same metadata as search, but as slow RDF. The MQA reporter only serves PDFs, so `dataeu_quality` links to it instead. SHACL validation is publisher tooling and currently returns 503.

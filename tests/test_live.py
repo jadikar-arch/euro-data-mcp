@@ -62,3 +62,29 @@ async def test_find_data_ranks_headline_datasets_first(tmp_path, monkeypatch):
     assert smap.search("inflation")[0]["id"] in ("prc_hicp_minr", "prc_hicp_aind")
     assert smap.search("population by region")[0]["id"].startswith(("demo_r_", "tgs"))  # metabase breakdowns
     await web.aclose()
+
+
+async def test_cbs_end_to_end():
+    """The Netherlands: find a table, look up codes, fetch values; each answer cites CBS."""
+    async with Client(server.mcp) as c:
+
+        async def text(name, **args):
+            r = await c.call_tool(name, args, raise_on_error=False)
+            out = "".join(getattr(b, "text", "") for b in r.content)
+            assert not out.startswith("Error"), f"{name}: {out[:300]}"
+            assert len(out) < 8000, f"{name} response too large (~{len(out) // 4} tokens)"
+            return out
+
+        assert "37230ned" in await text("cbs_search", query="bevolkingsontwikkeling regio per maand")
+        assert "RegioS|" in await text("cbs_describe", dataset_id="37230ned")
+        assert "GM0363|Amsterdam" in await text(
+            "cbs_codes", dataset_id="37230ned", dimension="RegioS", query="Amsterdam"
+        )
+        out = await text(
+            "cbs_data", dataset_id="37230ned", measures=["M000098"], filters={"RegioS": ["GM0363"]}, latest=True
+        )
+        assert 500_000 < float(data_lines(out)[-1]) < 2_000_000
+        assert out.splitlines()[-1].startswith("source: https://opendata.cbs.nl/")
+        assert "Werkloosheidspercentage: Seizoengecorrigeerd" in await text(
+            "cbs_data", dataset_id="80590ned", latest=True, limit=20
+        )

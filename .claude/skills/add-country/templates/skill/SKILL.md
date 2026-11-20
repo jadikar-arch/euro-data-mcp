@@ -5,6 +5,20 @@ description: <Country> official data from <sources> - <main topics>. Read before
 
 # <Country>: <sources>
 
+## Profile
+
+| | |
+|---|---|
+| Country / code | <Country> (`<cc>`) |
+| Languages | <language of titles, labels and codes; are English query words translated?> |
+| APIs | <API name and base URL for each source> |
+| Access | <keyless or key; rate limits; page and size limits> |
+| Licence | <licence and attribution line, as printed in the `source:` line> |
+| Data types | <tables / time series / files / maps / parliament; how many; period range> |
+| Geographic detail | <country, region, municipality, neighbourhood levels> |
+| Tools | <`<source>_search`, `_describe`, `_codes`, `_data` ...> |
+| Use instead | <when another source fits better, e.g. Eurostat for cross-country comparisons> |
+
 **Use for** <what this country's sources are best at>. For comparisons between EU countries use
 Eurostat (`country_guide("eu")`).
 

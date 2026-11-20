@@ -5,6 +5,20 @@ description: Germany official data - Destatis statistics tables (population, lab
 
 # Germany: Destatis and GovData
 
+## Profile
+
+| | |
+|---|---|
+| Country / code | Germany (`de`) |
+| Languages | German titles, labels and codes. English query words are translated (`population` → `bevölkerung`); answer in the user's language and name the table |
+| APIs | GovData CKAN catalogue (`ckan.govdata.de/api/3/action`) and Destatis GENESIS table downloads (`genesis.destatis.de/genesisWS/downloads/00/tables/<id>_00.csv`) |
+| Access | Keyless, read-only |
+| Licence | Destatis: Datenlizenz Deutschland, Namensnennung 2.0 (dl-de/by-2-0); GovData: per-dataset licence, shown by `govdata_dataset` |
+| Data types | Official statistics tables (Destatis, ~3,000: time series by state and district); an open data catalogue of 168k datasets, mostly files, maps (WMS/WFS) and APIs from federal, state and municipal publishers |
+| Geographic detail | Germany, 16 states, districts (5-digit AGS), municipalities in some GovData datasets |
+| Tools | `govdata_search`, `govdata_dataset`, `govdata_preview`, `govdata_table` |
+| Use instead | Eurostat for comparisons with other countries |
+
 **Use for** German figures (Destatis, down to state and district) and for finding German open data
 files and services (GovData). For comparisons between EU countries use Eurostat
 (`country_guide("eu")`).

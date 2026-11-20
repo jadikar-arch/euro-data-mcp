@@ -1397,6 +1397,71 @@
     "yth_empl_090",
     "yth_empl_100"
    ]
+  },
+  {
+   "q": "bevolking Amsterdam",
+   "ok": [
+    "37230ned",
+    "85496NED",
+    "85524NED",
+    "85644NED",
+    "83474NED"
+   ]
+  },
+  {
+   "q": "werkloosheid Nederland maandelijks",
+   "ok": [
+    "80590ned"
+   ]
+  },
+  {
+   "q": "huizenprijzen koopwoningen",
+   "ok": [
+    "85773NED",
+    "85792NED",
+    "83625NED",
+    "85819NED",
+    "85822NED"
+   ]
+  },
+  {
+   "q": "inflatie consumentenprijzen",
+   "ok": [
+    "86141NED",
+    "86144NED",
+    "71905ned",
+    "83136NED"
+   ]
+  },
+  {
+   "q": "geregistreerde criminaliteit",
+   "ok": [
+    "83648NED",
+    "83723NED"
+   ]
+  },
+  {
+   "q": "number of births in the Netherlands",
+   "ok": [
+    "85722NED",
+    "83474NED",
+    "37230ned"
+   ]
+  },
+  {
+   "q": "broeikasgassen uitstoot",
+   "ok": [
+    "85669NED",
+    "85668NED",
+    "84979NED"
+   ]
+  },
+  {
+   "q": "bankruptcies Netherlands",
+   "ok": [
+    "82242NED",
+    "83085NED"
+   ]
   }
  ]
 }

@@ -5,6 +5,20 @@ description: EU-level official data - Eurostat statistics (all EU/EEA countries)
 
 # EU level
 
+## Profile
+
+| | |
+|---|---|
+| Country / code | European Union (`eu`): Eurostat covers every EU/EEA country, so this is also where cross-country questions go |
+| Languages | Dataset titles and labels in English (Eurostat also has French and German); Parliament labels via `language`; data.europa.eu has titles in each portal's own language |
+| APIs | Eurostat and DG statistics (SDMX/JSON-stat, `ec.europa.eu/eurostat/api/dissemination`, `webgate.ec.europa.eu/*/redisstat`), DG AGRI agri-food portal (`api.tech.ec.europa.eu/agrifood`), European Parliament open data (`data.europarl.europa.eu/api/v2`), data.europa.eu (search + SPARQL) |
+| Access | Keyless, read-only. The Parliament API allows 500 requests per 5 minutes |
+| Licence | Commission reuse policy, CC BY 4.0 (© European Union); Parliament: reuse with attribution |
+| Data types | Statistics tables with time series (Eurostat, DGs), weekly/monthly market prices (agri-food), parliamentary records (MEPs, votes, texts), a metadata catalogue of 1.9M datasets with download links |
+| Geographic detail | Country and EU aggregates; NUTS regions in `…_r_…` datasets. No municipalities |
+| Tools | `eurostat_search/describe/codes/data`, `agri_endpoints/data`, `ep_meps/votes/query`, `dataeu_search/dataset/preview/facets/sparql/quality/use_cases` |
+| Use instead | A national source (`country_guide()` lists them) when the user wants regional detail or national definitions |
+
 | Need | Source | Tools |
 |---|---|---|
 | Compare countries; EU aggregates (EU27_2020, euro area) | Eurostat | `eurostat_*` |

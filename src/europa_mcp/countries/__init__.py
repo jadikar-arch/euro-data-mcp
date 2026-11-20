@@ -15,6 +15,6 @@ from __future__ import annotations
 
 from types import ModuleType
 
-from . import de, eu
+from . import de, eu, nl
 
-COUNTRIES: list[ModuleType] = [eu, de]
+COUNTRIES: list[ModuleType] = [eu, de, nl]

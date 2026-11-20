@@ -1,0 +1,48 @@
+{
+  "_comment": "Hand-written metadata for Dutch sources, used to build the find_data map. English→Dutch statistics terms live in nl.SYNONYMS.",
+  "sources": {
+    "CBS": "Netherlands only; regional detail down to municipality/neighbourhood; Dutch titles"
+  },
+  "synonyms": {},
+  "keywords": {},
+  "entries": [],
+  "_comment_headline": "Most-asked CBS tables with the everyday English words people use; find_data ranks them first when those words answer the query (see eu/hints.json).",
+  "headline": {
+    "CBS": {
+      "37230ned": "population inhabitants people monthly municipality region growth",
+      "83474NED": "population inhabitants development monthly births deaths migration",
+      "85496NED": "population inhabitants people total key figures",
+      "85524NED": "population inhabitants households history since 1899",
+      "85510NED": "population age sex gender nationality january",
+      "85644NED": "population age sex gender nationality region municipality january",
+      "85722NED": "births fertility babies children born",
+      "37979ned": "deaths mortality died",
+      "80333ned": "life expectancy",
+      "85848NED": "immigration emigration migration immigrants",
+      "71486ned": "households composition size family single",
+      "80590ned": "unemployment rate jobless employment labour force participation monthly",
+      "85263NED": "employment labour participation young people youth",
+      "83451NED": "jobs wages employment employees monthly",
+      "86141NED": "inflation consumer prices cpi price index",
+      "86144NED": "inflation consumer prices hicp harmonised price index",
+      "85773NED": "house prices homes dwellings price index owner-occupied",
+      "85792NED": "house prices homes price index region",
+      "83625NED": "house prices homes average selling price region",
+      "85035NED": "housing stock dwellings homes number region",
+      "85879NED": "gdp gross domestic product economic growth quarterly economy",
+      "85865NED": "gdp gross domestic product economic growth annual economy",
+      "83723NED": "crime offences recorded crime",
+      "83648NED": "crime offences recorded crime region",
+      "82242NED": "bankruptcies insolvencies companies",
+      "82472NED": "cars vehicles motor vehicles fleet",
+      "85668NED": "emissions greenhouse gases co2 air",
+      "85669NED": "emissions greenhouse gases ipcc climate co2",
+      "83989NED": "energy consumption supply balance",
+      "85592NED": "energy prices tariffs gas electricity consumers",
+      "82058NED": "tourism hotels overnight stays guests accommodation",
+      "83693NED": "consumer confidence economic climate",
+      "71904ned": "agriculture farms farming",
+      "70072ned": "regional key figures municipalities provinces region overview"
+    }
+  }
+}
