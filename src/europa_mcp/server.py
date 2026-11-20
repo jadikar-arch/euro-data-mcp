@@ -380,14 +380,14 @@ def coverage_overview() -> str:
 @safe
 async def country_guide(country: str = "") -> str:
     """How to use one country's (or 'eu') data tools: sources, workflow, codes and pitfalls.
-    Read it before the first call to that country's tools. No argument: list what is covered; 'europa': overview."""
+    Read it before the first call to that country's tools. No argument: list what is covered; 'overview': start here."""
     key = fold(country).strip()
     if not key:
         return coverage_overview()
     match = next((c for c in COUNTRIES if key in (c.CODE, fold(c.NAME))), None)
     path = SKILLS_DIR / (match.CODE if match else key) / "SKILL.md"
-    if key == "europa":  # the index skill, for clients that cannot read skill:// resources
-        path, match = SKILLS_DIR / "europa" / "SKILL.md", True
+    if key == "overview":  # the index skill, for clients that cannot read skill:// resources
+        path, match = SKILLS_DIR / "overview" / "SKILL.md", True
     if match is None or not path.is_file():
         return (
             "No guide for that country yet. Available: "

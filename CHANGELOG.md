@@ -19,7 +19,7 @@
   comparison) before fetching. Option labels start with the country (`Netherlands · CBS 37230ned`).
 - Every country skill starts with the same `## Profile` table (country, languages, APIs, access, licence,
   data types, geographic detail, tools); a test checks it and that the tools it names exist. New index skill
-  `skill://europa/SKILL.md` (also `country_guide("europa")`): covered countries, how to pick one, the workflow.
+  `skill://overview/SKILL.md` (also `country_guide("overview")`): covered countries, how to pick one, the workflow.
 - Dutch city and province names are ignored as query words, like country names.
 
 ## 0.4.2 (2026-11-05)

@@ -59,7 +59,7 @@ then add the module to `COUNTRIES` in `src/europa_mcp/countries/__init__.py`.
 
 ## 3. Write the model-facing skill
 
-Copy `templates/skill/SKILL.md` to `src/europa_mcp/skills/<cc>/SKILL.md`. The `## Profile` table (country, languages, APIs, access, licence, data types, geographic detail, tools, use instead) is required and tested. Add the country to the table in `skills/europa/SKILL.md`. Keep it under about 100
+Copy `templates/skill/SKILL.md` to `src/europa_mcp/skills/<cc>/SKILL.md`. The `## Profile` table (country, languages, APIs, access, licence, data types, geographic detail, tools, use instead) is required and tested. Add the country to the table in `skills/overview/SKILL.md`. Keep it under about 100
 lines: when to use this country vs Eurostat, the workflow with real tool calls, a code table
 (regions, periods, measures), and pitfalls you hit while testing. Verify every code and label
 you write against the live API.

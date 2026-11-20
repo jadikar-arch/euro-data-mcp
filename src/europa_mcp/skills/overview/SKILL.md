@@ -1,9 +1,9 @@
 ---
-name: europa
+name: overview
 description: Start here for official European open data - which countries and sources the europa server covers, how to pick one, and the workflow every data question follows (find_data, country guide, tools, source line). Read first, then the guide of the country you use.
 ---
 
-# Europa: how to answer a data question
+# Overview: how to answer a data question
 
 ## Covered
 

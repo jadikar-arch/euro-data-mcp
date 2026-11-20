@@ -118,15 +118,15 @@ async def test_every_country_skill_has_the_standard_profile_and_names_real_tools
 async def test_index_skill_lists_every_country_and_is_served():
     from europa_mcp.countries import COUNTRIES
 
-    text = (server.SKILLS_DIR / "europa" / "SKILL.md").read_text("utf-8")
-    assert text.startswith("---\nname: europa\n")
+    text = (server.SKILLS_DIR / "overview" / "SKILL.md").read_text("utf-8")
+    assert text.startswith("---\nname: overview\n")
     for c in COUNTRIES:
         assert f"| `{c.CODE}` |" in text and f"skill://{c.CODE}/SKILL.md" in text, c.CODE
     async with Client(server.mcp) as client:
         uris = {str(r.uri) for r in await client.list_resources()}
-    assert "skill://europa/SKILL.md" in uris
+    assert "skill://overview/SKILL.md" in uris
 
 
 async def test_country_guide_serves_the_index_skill_too():
-    out = await call("country_guide", country="europa")
-    assert out.startswith("# Europa: how to answer a data question") and "skill://nl/SKILL.md" in out
+    out = await call("country_guide", country="overview")
+    assert out.startswith("# Overview: how to answer a data question") and "skill://nl/SKILL.md" in out

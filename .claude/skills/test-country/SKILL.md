@@ -58,7 +58,7 @@ name the source.
 - Over-broad queries are refused before downloading; errors are short `Error: ...` strings.
 - Measure and column labels are unambiguous (no two rows with the same label and different values).
 - `hints.json` has `sources` for every map builder; `SYNONYMS` cover the common topics.
-- `skills/<cc>/SKILL.md` has the `## Profile` table, is under ~100 lines, and every code in it is verified against the live API; the country is in the table of `skills/europa/SKILL.md`.
+- `skills/<cc>/SKILL.md` has the `## Profile` table, is under ~100 lines, and every code in it is verified against the live API; the country is in the table of `skills/overview/SKILL.md`.
 - `country_guide("<cc>")` returns the guide; `tests/test_server.py` lists the country and its tools.
 - README and DEVELOPMENT.md list the country; CHANGELOG has an entry.
 
