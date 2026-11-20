@@ -59,7 +59,7 @@ then add the module to `COUNTRIES` in `src/europa_mcp/countries/__init__.py`.
 
 ## 3. Write the model-facing skill
 
-Copy `templates/skill/SKILL.md` to `src/europa_mcp/skills/<cc>/SKILL.md`. Keep it under about 80
+Copy `templates/skill/SKILL.md` to `src/europa_mcp/skills/<cc>/SKILL.md`. The `## Profile` table (country, languages, APIs, access, licence, data types, geographic detail, tools, use instead) is required and tested. Add the country to the table in `skills/overview/SKILL.md`. Keep it under about 100
 lines: when to use this country vs Eurostat, the workflow with real tool calls, a code table
 (regions, periods, measures), and pitfalls you hit while testing. Verify every code and label
 you write against the live API.
@@ -70,6 +70,7 @@ you write against the live API.
   path, truncation and errors, plus the map builder.
 - Add the tool names to `tests/test_server.py` and to `EXPECTED_TOOLS` and `CASES` in
   `.claude/skills/test-tools/scripts/smoke.py`, plus a `find_data` case in the local language.
+- Add the country to `COUNTRY_TOOLS` / `COUNTRY_LABELS` in the smoke script, then run the `test-country` skill for it (offline tests, `smoke.py --country <cc>`, find_data ranking, quality checklist).
 - Run `uv run pytest -q`, `uv run pytest -m live`, then the smoke script. Each response must stay
   under about 2k tokens.
 - `uv run europa-mcp map --export /tmp/map.csv`, then check the new rows and that

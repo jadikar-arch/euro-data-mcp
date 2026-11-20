@@ -1,0 +1,14 @@
+# CBS OData v4: probe findings (2026-11-19)
+- Base `https://datasets.cbs.nl/odata/v1`. Root sets: `Datasets`, `Catalogs` (only `CBS`), `ReleaseCalendar`. Keyless, JSON, CC BY 4.0.
+- `Datasets` fields: Identifier, Title, Description (long, Dutch), Status (Regulier 1,292 / Gediscontinueerd ~3,600 / Vervallen), Modified, ObservationCount. No period field: the period is in the Description after "Gegevens beschikbaar vanaf".
+- `/CBS/{id}` lists the table's sets. Code-set names come from `Dimensions[].CodesUrl` (e.g. `RegioSCodes`, `PeriodenCodes`); `Kind` is Geo/Time/Dimension. `MeasureCodes` has `MeasureGroupId` → `MeasureGroups` (Id, Title, ParentId).
+- Leaf measure titles repeat across groups (80590ned: four "Seizoengecorrigeerd"), so cbs.py prefixes repeated titles with the group path. Without this the rows were unreadable.
+- `Observations`: Measure, Value (float|null), StringValue, ValueAttribute ("None" or a footnote flag), one column per dimension code.
+- Working: `$filter` (eq/and/or, `contains()`), `$select`, `$top`, `$skip`, `$orderby`, `$count=true` (+`$top=0` = count only). Quotes are doubled (`'Regio''s'`); OR groups need parentheses.
+- Paging: 100,000 rows per page, then `@odata.nextLink`. 37230ned has 2.9M rows, so cbs_data estimates the size from code counts and refuses over 100k rows.
+- Periods: `2024JJ00` year, `2026KW01` quarter, `2026MM08` month. Latest = PeriodenCodes `$orderby=Identifier desc&$top=1`.
+- Errors: a bad property gives `{"error":{"message":"Could not find a property named 'Regio'…"}}` (web._message unwraps it); an unknown table gives 404.
+- Search: `$search` is silently ignored; only substring `contains()` works. All titles are Dutch, so English terms need `nl.SYNONYMS`. The full catalogue (6 MB with descriptions, ~2 s) is fetched once, cached 12 h and searched in memory: no local index or background sync.
+- Map: `mapping.build_cbs` makes one row per regular table (~1,290) with dimension + measure titles as keywords (2 requests per table, 8 at a time, ~30 s). 34 most-asked tables are marked headline in hints.json. Discontinued tables stay out of the map.
+- Dutch city and province names are STOPWORDS in common.py: tables are per topic and the place is a code picked later.
+- `ReleaseCalendar`: DatasetIdentifier, ReleaseDate only; titles come from the catalogue.

@@ -3,7 +3,7 @@
   "name": "io.github.jadikar-arch/europa-mcp",
   "title": "Europa",
   "description": "Find and fetch European open data: Eurostat, EU Parliament, data.europa.eu, national stats",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "repository": {
     "url": "https://github.com/jadikar-arch/euro-data-mcp",
     "source": "github"
@@ -12,7 +12,7 @@
     {
       "registryType": "pypi",
       "identifier": "europa-mcp",
-      "version": "0.4.3",
+      "version": "0.5.0",
       "transport": { "type": "stdio" }
     }
   ]

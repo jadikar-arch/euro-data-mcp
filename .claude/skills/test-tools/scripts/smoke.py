@@ -1,6 +1,6 @@
 """Live smoke test: launch the real europa-mcp server over stdio and exercise every tool.
 
-Usage: .venv/bin/python .claude/skills/test-tools/scripts/smoke.py [tool_name ...]
+Usage: .venv/bin/python .claude/skills/test-tools/scripts/smoke.py [--country eu|de|nl] [tool_name ...]
 Exit code 0 = all checks passed, 1 = at least one failed.
 """
 
@@ -39,9 +39,27 @@ EXPECTED_TOOLS = {
     "govdata_dataset",
     "govdata_preview",
     "govdata_table",
+    "cbs_search",
+    "cbs_describe",
+    "cbs_codes",
+    "cbs_data",
+    "cbs_releases",
     "find_data",
     "country_guide",
 }
+
+# Which tools belong to which country package (the cross-country find_data / country_guide cases are
+# assigned by label). A new country adds one entry here and its labels to COUNTRY_LABELS.
+COUNTRY_TOOLS = {
+    "eu": {t for t in EXPECTED_TOOLS if t.startswith(("eurostat_", "agri_", "ep_", "dataeu_"))},
+    "de": {t for t in EXPECTED_TOOLS if t.startswith("govdata_")},
+    "nl": {t for t in EXPECTED_TOOLS if t.startswith("cbs_")},
+}
+COUNTRY_LABELS = {
+    "de": {"de guide", "German query", "GovData slice"},
+    "nl": {"nl guide", "Dutch unemployment", "English house prices"},
+}
+SHARED = {"find_data", "country_guide", "dataeu_use_cases"}  # tools that serve several countries
 
 Check = Callable[[str], str | None]  # returns an error message, or None when OK
 
@@ -109,7 +127,30 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
         {"query": "chômage"},
         [no_error, first_row_id("une_rt_m", "une_rt_a", "une_rt_q", "tps00203", "teilm020")],
     ),
-    ("country_guide", "removed country", {"country": "nl"}, [starts("Unknown country. Available: eu")]),
+    (
+        "country_guide",
+        "coverage overview",
+        {},
+        [no_error, starts("code|country|sources"), contains("\nnl|Netherlands|")],
+    ),
+    (
+        "find_data",
+        "no country named",
+        {"query": "house prices"},
+        [no_error, contains("# No country named. Matches exist for:")],
+    ),
+    (
+        "find_data",
+        "uncovered country",
+        {"query": "unemployment Slovakia"},
+        [no_error, contains("# No national source for geo=SK")],
+    ),
+    (
+        "country_guide",
+        "country without a guide",
+        {"country": "fr"},
+        [starts("No guide for that country yet. Available: eu")],
+    ),
     ("find_data", "agri-food synonym", {"query": "pork prices"}, [no_error, contains("pigmeat/prices", "agri_data(")]),
     ("find_data", "parliament", {"query": "how did MEPs vote"}, [no_error, contains("ep_votes(")]),
     # Eurostat family
@@ -268,10 +309,72 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
         [no_error, contains("Verbraucherpreisindex 2020=100|")],
     ),
     ("govdata_table", "unknown table", {"table_id": "99999-9999"}, [starts("Error: Unknown Destatis table")]),
+    # Netherlands: CBS OData
+    ("country_guide", "nl guide", {"country": "nl"}, [no_error, starts("# Netherlands"), contains("cbs_data")]),
+    (
+        "find_data",
+        "Dutch unemployment",
+        {"query": "werkloosheid"},
+        [no_error, ranked, contains("|CBS|", 'cbs_describe("80590ned")')],
+    ),
+    (
+        "find_data",
+        "English house prices",
+        {"query": "house prices Netherlands", "sources": ["CBS"]},
+        [no_error, ranked, contains("cbs_describe(")],
+    ),
+    (
+        "cbs_search",
+        "English terms translated",
+        {"query": "population municipality", "limit": 5},
+        [no_error, contains("id|title"), max_rows(6)],
+    ),
+    ("cbs_search", "no match", {"query": "zzzzqq"}, [starts("No tables match")]),
+    (
+        "cbs_describe",
+        "population by region",
+        {"dataset_id": "37230ned"},
+        [no_error, contains("RegioS|", "Perioden|", "M000098|")],
+    ),
+    (
+        "cbs_codes",
+        "Den Haag alias",
+        {"dataset_id": "37230ned", "dimension": "RegioS", "query": "Den Haag"},
+        [no_error, contains("GM0518|")],
+    ),
+    (
+        "cbs_codes",
+        "unknown dimension",
+        {"dataset_id": "37230ned", "dimension": "Nope"},
+        [starts("Error: Unknown dimension")],
+    ),
+    (
+        "cbs_data",
+        "Amsterdam population",
+        {"dataset_id": "37230ned", "measures": ["M000098"], "filters": {"RegioS": ["GM0363"]}, "latest": True},
+        [no_error, contains("fixed: Regio's=Amsterdam"), max_rows(4), cites_source],
+    ),
+    (
+        "cbs_data",
+        "measure groups kept",
+        {"dataset_id": "80590ned", "latest": True, "limit": 20},
+        [no_error, contains("Werkloosheidspercentage: Seizoengecorrigeerd"), cites_source],
+    ),
+    ("cbs_data", "too broad", {"dataset_id": "37230ned"}, [starts("Error: query too broad")]),
+    ("cbs_data", "unknown table", {"dataset_id": "00000xx"}, [starts("Error: Unknown CBS table")]),
+    ("cbs_releases", "next week", {"days": 7, "limit": 5}, [no_error, max_rows(6)]),
 ]
 
 
-async def main(only: set[str]) -> int:
+def in_country(cc: str, tool: str, label: str) -> bool:
+    """Does this case test country `cc`? Shared tools are matched by label; eu takes the rest."""
+    if tool in SHARED and tool != "dataeu_use_cases":
+        other = set().union(*(v for k, v in COUNTRY_LABELS.items() if k != cc))
+        return label in COUNTRY_LABELS[cc] if cc in COUNTRY_LABELS else label not in other
+    return tool in COUNTRY_TOOLS[cc]
+
+
+async def main(only: set[str], country: str | None = None) -> int:
     if not SERVER.exists():
         print(f"FAIL server binary not found: {SERVER} (run `uv sync`)")
         return 1
@@ -279,12 +382,22 @@ async def main(only: set[str]) -> int:
     failures = 0
     async with Client(transport, timeout=180) as c:
         tools = {t.name for t in await c.list_tools()}
-        if not only:
+        if country:
+            missing = COUNTRY_TOOLS[country] - tools
+            failures += bool(missing)
+            print(
+                f"{'FAIL' if missing else 'PASS'}  list_tools ({country}): missing {sorted(missing)}"
+                if missing
+                else f"PASS  list_tools ({country}): {len(COUNTRY_TOOLS[country])} tools"
+            )
+        elif not only:
             ok = tools == EXPECTED_TOOLS
             failures += not ok
             print(f"{'PASS' if ok else 'FAIL'}  list_tools: {sorted(tools)}")
         for tool, label, args, checks in CASES:
             if only and tool not in only:
+                continue
+            if country and not in_country(country, tool, label):
                 continue
             t0 = time.perf_counter()
             try:
@@ -303,10 +416,20 @@ async def main(only: set[str]) -> int:
                 print(f"      - {e}")
             if errs and out:
                 print("      output: " + out[:400].replace("\n", "\n              "))
-    total = sum(1 for t, *_ in CASES if not only or t in only) + (0 if only else 1)
+    total = sum(
+        1 for t, label, *_ in CASES if (not only or t in only) and (not country or in_country(country, t, label))
+    ) + (0 if only and not country else 1)
     print(f"\n{total - failures}/{total} passed")
     return 1 if failures else 0
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main(set(sys.argv[1:]))))
+    argv = sys.argv[1:]
+    cc = None
+    if "--country" in argv:
+        i = argv.index("--country")
+        cc = argv[i + 1] if i + 1 < len(argv) else ""
+        del argv[i : i + 2]
+        if cc not in COUNTRY_TOOLS:
+            sys.exit(f"unknown country {cc!r}; known: {', '.join(COUNTRY_TOOLS)}")
+    sys.exit(asyncio.run(main(set(argv), cc)))

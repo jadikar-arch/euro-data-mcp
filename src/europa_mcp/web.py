@@ -45,6 +45,8 @@ def _message(resp: httpx.Response) -> str:
         err = body.get("error")
         if isinstance(err, list) and err and isinstance(err[0], dict):
             return str(err[0].get("label") or err[0])[:300]
+        if isinstance(err, dict) and isinstance(err.get("message"), str):  # OData: {"error": {"message": …}}
+            return err["message"].replace("The query specified in the URI is not valid. ", "").strip()[:300]
         for key in ("message", "description", "label", "error"):
             if isinstance(body.get(key), str):
                 return body[key][:300]

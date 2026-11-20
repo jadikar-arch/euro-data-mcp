@@ -23,13 +23,14 @@ import mcp.types as mcp_types
 from fastmcp import Context, FastMCP
 from fastmcp.server.providers.skills import SkillsDirectoryProvider
 
-from .common import READ_ONLY, UserError, cell, clip, fold, safe, setting
+from .common import READ_ONLY, UserError, cell, clip, countries_in, fold, safe, setting
 from .countries import COUNTRIES
 from .sourcemap import SourceMap, merge_synonyms
 
 log = logging.getLogger("europa_mcp")
 
 REFRESH_HOURS = float(setting("REFRESH_HOURS", "6"))
+RETRY_FAILED_SECONDS = 600.0  # a builder that failed is tried again after this long
 SKILLS_DIR = Path(str(files("europa_mcp").joinpath("skills")))
 
 SOURCES: dict[str, str] = {}  # source name → one-line scope, from every country's hints.json
@@ -41,13 +42,23 @@ INSTRUCTIONS = (
     "1. Start with find_data(topic) unless you already know the dataset id: it ranks the best "
     "datasets/endpoints across all sources, with the exact next call. The user chooses: in apps that "
     "support it they pick from the list themselves; otherwise show them the ranked list (rank, title, "
-    "period, breakdowns) and wait for their choice before fetching data, unless they already named one.\n"
+    "period, breakdowns) and wait for their choice before fetching data, unless they already named one. "
+    "If the question names no country and the matches come from several, offer the countries as options "
+    "(or an EU-wide comparison) and ask which one they want.\n"
     "2. Before using a country's tools the first time, read its guide: country_guide(code) "
     "(also served as resource skill://<code>/SKILL.md).\n"
     "3. Every data answer ends with a 'source:' line (link + licence); pass it on to the user.\n"
     "4. Before answering, check that the fetched data answers the question: the dataset title and the "
     "'fixed:' line (unit, age, sex, geo…). If it doesn't (wrong unit, national when regions were asked, "
     "an old period), try the next find_data candidate, or tell the user what the data does cover.\n"
+    "5. When the user asks what is covered, or names a country, call country_guide() without an argument: "
+    "it lists every country, its sources and what else is available through Eurostat.\n"
+    "6. Official use, no exceptions: every number comes from a tool result in this conversation, never from "
+    "memory, estimates or internet search, and is never combined with other sources. If the question is "
+    "unclear (country, period, region, unit, definition), ask short questions first. Plot series and "
+    'comparisons inline from the fetched numbers only. If nothing is found say "I cannot find data for '
+    'this."; if only part is found say exactly what is covered; if unsure say "I don\'t know." '
+    "Never fill a gap with a guess.\n"
     "Countries: " + ", ".join(f"{c.CODE} = {c.NAME}" for c in COUNTRIES) + ".\n"
     "europa-mcp is an independent project, not affiliated with or endorsed by the EU or any "
     "statistics office; the data comes unchanged from their public APIs."
@@ -77,7 +88,10 @@ async def _map_loop() -> None:
         smap = get_map()
         if smap.count() == 0 or smap.age() >= interval:
             await smap.build()  # per-builder failures are logged and keep the old rows
-        await asyncio.sleep(max(600.0, interval - smap.age()))
+        elif retry := smap.failed(RETRY_FAILED_SECONDS):
+            await smap.build(only=retry)  # a source that was down (e.g. an upstream 500) comes back soon
+        wait = RETRY_FAILED_SECONDS if smap.failed() else interval - smap.age()
+        await asyncio.sleep(max(RETRY_FAILED_SECONDS, wait))
 
 
 def ensure_map_task() -> None:
@@ -140,6 +154,65 @@ def ranked_matches(query: str, sources: list[str] | None, per_source: int, limit
     return picked
 
 
+def country_of(source: str) -> str:
+    """The country package a source belongs to, as a name ('EU' for the EU-level sources)."""
+    c = next((c for c in COUNTRIES if source in c.HINTS["sources"]), None)
+    return "" if c is None else ("EU" if c.CODE == "eu" else c.NAME)
+
+
+def country_choice_note(query: str, rows: list[dict[str, Any]]) -> list[str]:
+    """No country in the question but matches from several countries: tell the agent to offer the choice."""
+    if countries_in(query):
+        return []
+    found: dict[str, list[str]] = {}
+    for r in rows:
+        found.setdefault(country_of(r["source"]), [])
+        if r["source"] not in found[country_of(r["source"])]:
+            found[country_of(r["source"])].append(r["source"])
+    found.pop("", None)
+    if len(found) < 2:
+        return []
+    parts = [
+        f"{'EU/EEA, comparable across countries' if name == 'EU' else name} ({', '.join(srcs)})"
+        for name, srcs in found.items()
+    ]
+    return [
+        "# No country named. Matches exist for: " + "; ".join(parts) + ". Offer the user these options "
+        "(a country, or an EU-wide comparison) and ask which they want before fetching data."
+    ]
+
+
+def national_codes() -> dict[str, Any]:
+    """Eurostat geo code → country package, for the countries that have a national source."""
+    return {c.CODE.upper(): c for c in COUNTRIES if c.CODE != "eu"}
+
+
+def national_first(rows: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    """When the question names a country with its own source, that country's rows come first
+    (stable, so the order inside each group is unchanged)."""
+    own = national_codes()
+    mine = {s for g in countries_in(query) if g in own for s in own[g].HINTS["sources"]}
+    return sorted(rows, key=lambda r: r["source"] not in mine) if mine else rows
+
+
+def coverage_notes(query: str) -> list[str]:
+    """Tell the user what covers a country they named: its national source, or only Eurostat."""
+    own = national_codes()
+    out = []
+    for geo in countries_in(query):
+        if geo in own:
+            c = own[geo]
+            out.append(f"# {c.NAME}: national source {', '.join(c.HINTS['sources'])}; guide: country_guide('{c.CODE}')")
+        else:
+            have = ", ".join(f"{c.NAME} ({c.CODE})" for c in own.values())
+            out.append(
+                f"# No national source for geo={geo} yet (national sources: {have}). Eurostat covers it: "
+                f"eurostat_data(<dataset>, filters={{'geo': ['{geo}']}}); country portals: dataeu_search(query, country='{geo}'). "
+                "country_guide() lists coverage."
+            )
+    return out
+
+
 def match_table(query: str, rows: list[dict[str, Any]]) -> list[str]:
     out = [
         f"Ranked matches for '{query}' (best first; match = share of the question's words found).",
@@ -168,7 +241,13 @@ def match_table(query: str, rows: list[dict[str, Any]]) -> list[str]:
 
 def option_label(n: int, r: dict[str, Any]) -> str:
     facts = "; ".join(
-        x for x in (f"{r['source']} {r['id']}", r["period"], f"by {r['detail']}" if r.get("detail") else "") if x
+        x
+        for x in (
+            f"{country_of(r['source'])} · {r['source']} {r['id']}".removeprefix(" · "),
+            r["period"],
+            f"by {r['detail']}" if r.get("detail") else "",
+        )
+        if x
     )
     return f"{n}. {clip(r['title'], 90)} ({facts})"
 
@@ -279,27 +358,46 @@ async def find_data(
         return reply
     await get_map().ensure()
     rows = ranked_matches(query, sources, max(1, min(per_source, 10)), max(1, min(limit, 20)))
+    rows = national_first(rows, query)
+    notes = [*coverage_notes(query), *country_choice_note(query, rows)]
     fallback = f'# not it? dataeu_search("{query}") searches 1.9M datasets from EU and national portals'
     if not rows:
-        return f"No mapped source matches '{query}'.\n{fallback}"
+        return "\n".join([f"No mapped source matches '{query}'.", *notes, fallback])
     if reply == CLOSED:
-        return "\n".join([*match_table(query, rows), CLOSED_NOTE, fallback])
+        return "\n".join([*match_table(query, rows), *notes, CLOSED_NOTE, fallback])
     if ask_user and len(rows) > 1 and can_elicit(ctx):
         if modern_protocol(ctx):
             return input_required(query, rows)
         if (pick := await ask_user_to_choose(ctx, query, rows)) is not None:
             return pick
-    return "\n".join([*match_table(query, rows), *([ASK_USER_NOTE] if len(rows) > 1 else []), fallback])
+    return "\n".join([*match_table(query, rows), *notes, *([ASK_USER_NOTE] if len(rows) > 1 else []), fallback])
+
+
+def coverage_overview() -> str:
+    smap = get_map()
+    out = ["code|country|sources (rows in the find_data map)|guide"]
+    for c in COUNTRIES:
+        sources = "; ".join(f"{n} = {d} ({smap.count(n)})" for n, d in c.HINTS["sources"].items())
+        out.append("|".join(cell(x) for x in (c.CODE, c.NAME, sources, f"country_guide('{c.CODE}')")))
+    out.append(
+        "# Every other EU/EEA country: harmonised Eurostat data (eu, filter geo=<code>) and the datasets of "
+        "national portals through dataeu_search(query, country='<iso2>'). New national sources are added over time."
+    )
+    return "\n".join(out)
 
 
 @mcp.tool(annotations=READ_ONLY, output_schema=None)
 @safe
-async def country_guide(country: str) -> str:
+async def country_guide(country: str = "") -> str:
     """How to use one country's (or 'eu') data tools: sources, workflow, codes and pitfalls.
-    Read it before the first call to that country's tools."""
+    Read it before the first call to that country's tools. No argument: list what is covered; 'overview': start here."""
     key = fold(country).strip()
+    if not key:
+        return coverage_overview()
     match = next((c for c in COUNTRIES if key in (c.CODE, fold(c.NAME))), None)
     path = SKILLS_DIR / (match.CODE if match else key) / "SKILL.md"
+    if key == "overview":  # the index skill, for clients that cannot read skill:// resources
+        path, match = SKILLS_DIR / "overview" / "SKILL.md", True
     if match is None or not path.is_file():
         return (
             "No guide for that country yet. Available: "

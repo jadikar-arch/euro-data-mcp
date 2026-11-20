@@ -5,6 +5,31 @@ description: Germany official data - Destatis statistics tables (population, lab
 
 # Germany: Destatis and GovData
 
+## Profile
+
+| | |
+|---|---|
+| Country / code | Germany (`de`) |
+| Languages | German titles, labels and codes. English query words are translated (`population` → `bevölkerung`); answer in the user's language and name the table |
+| APIs | GovData CKAN catalogue (`ckan.govdata.de/api/3/action`) and Destatis GENESIS table downloads (`genesis.destatis.de/genesisWS/downloads/00/tables/<id>_00.csv`) |
+| Access | Keyless, read-only |
+| Licence | Destatis: Datenlizenz Deutschland, Namensnennung 2.0 (dl-de/by-2-0); GovData: per-dataset licence, shown by `govdata_dataset` |
+| Data types | Official statistics tables (Destatis, ~3,000: time series by state and district); an open data catalogue of 168k datasets, mostly files, maps (WMS/WFS) and APIs from federal, state and municipal publishers |
+| Geographic detail | Germany, 16 states, districts (5-digit AGS), municipalities in some GovData datasets |
+| Tools | `govdata_search`, `govdata_dataset`, `govdata_preview`, `govdata_table` |
+| Use instead | Eurostat for comparisons with other countries |
+
+## Answering rules (official use)
+
+These answers are used by government staff. A wrong or invented number is worse than no number.
+
+- **Source every answer.** End with the `source:` line (link + licence) and name the table id. No source line, no figure.
+- **Only fetched data.** Every number comes from a tool result in this conversation. Never estimate, round up, extrapolate, fill a gap or recall a figure from memory.
+- **No mixing.** Do not combine these results with internet search results or other knowledge. If the user wants other sources, say they are outside this tool.
+- **Ask when unclear.** If the country, period, region, unit, definition or breakdown is ambiguous, ask short questions before fetching. If several tables fit, show the list and let the user choose.
+- **Plot inline.** For a series over time or a comparison of three or more values, draw a chart in the reply (use your client's chart tool if it has one, otherwise a table), from the fetched numbers only, labelled with unit, period and source.
+- **Say what you could not do.** Nothing found: say "I cannot find data for this." Only part found (another period, region or definition): say exactly what the data covers. Not sure of the answer: say "I don't know." Never fill a gap with a guess.
+
 **Use for** German figures (Destatis, down to state and district) and for finding German open data
 files and services (GovData). For comparisons between EU countries use Eurostat
 (`country_guide("eu")`).

@@ -147,7 +147,11 @@ async def test_find_data_returns_a_ranked_list_for_the_user_to_choose_from(smap)
         '1|100%|Eurostat|prc_hpi_q|House price index - quarterly data|2005-Q1–2026-Q2||eurostat_describe("prc_hpi_q")'
     )
     assert any(ln.split("|")[2:4] == ["Destatis", "61262-0001"] for ln in lines[3:])
-    assert lines[-3].startswith("# sources: Eurostat = EU/EEA country comparisons")
+    assert lines[-4].startswith("# sources: Eurostat = EU/EEA country comparisons")
+    assert lines[-3] == (
+        "# No country named. Matches exist for: EU/EEA, comparable across countries (Eurostat); Germany (Destatis). "
+        "Offer the user these options (a country, or an EU-wide comparison) and ask which they want before fetching data."
+    )
     assert lines[-2] == server.ASK_USER_NOTE
     assert lines[-1].startswith('# not it? dataeu_search("house prices")')
 
@@ -158,7 +162,7 @@ def test_breakdowns_are_shown_to_people_choosing(tmp_path, monkeypatch):
     rows = m.search("house prices")
     assert rows[0]["detail"] == "NUTS 2 regions"
     assert server.option_label(1, rows[0]) == (
-        "1. House price index - quarterly data (Eurostat prc_hpi_q; 2005-Q1–2026-Q2; by NUTS 2 regions)"
+        "1. House price index - quarterly data (EU · Eurostat prc_hpi_q; 2005-Q1–2026-Q2; by NUTS 2 regions)"
     )
 
 
@@ -419,3 +423,50 @@ def test_phrase_synonyms_expand_as_one_group(smap):
     groups = expand("air quality per capita", smap.synonyms)
     assert groups[0][0] == "air quality" and "particulate matter" in groups[0]
     assert groups[1][0] == "per capita" and "per inhabitant" in groups[1]
+
+
+async def test_find_data_puts_the_named_country_first_and_says_what_covers_it(smap):
+    out = await call(query="house prices Germany")
+    lines = out.splitlines()
+    assert lines[2].split("|")[2] == "Destatis"  # the named country's own source leads
+    assert "# Germany: national source Destatis, GovData; guide: country_guide('de')" in lines
+
+
+async def test_find_data_says_when_only_eurostat_covers_a_country(smap):
+    out = await call(query="house prices Slovakia")
+    assert out.splitlines()[2].split("|")[2] == "Eurostat"
+    note = next(ln for ln in out.splitlines() if ln.startswith("# No national source for geo=SK"))
+    assert "filters={'geo': ['SK']}" in note and "country_guide() lists coverage" in note
+
+
+async def test_country_guide_without_argument_lists_every_country_and_its_sources():
+    async with Client(server.mcp) as c:
+        out = (await c.call_tool("country_guide", {})).content[0].text
+    lines = out.splitlines()
+    assert lines[0] == "code|country|sources (rows in the find_data map)|guide"
+    assert [ln.split("|")[0] for ln in lines[1:4]] == ["eu", "de", "nl"]
+    assert "CBS = Netherlands only" in lines[3] and "country_guide('nl')" in lines[3]
+    assert lines[-1].startswith("# Every other EU/EEA country")
+
+
+async def test_find_data_offers_countries_only_when_none_is_named(smap):
+    assert "# No country named." in await call(query="house prices")
+    assert "# No country named." not in await call(query="house prices Germany")
+    assert "# No country named." not in await call(query="house prices", sources=["Eurostat"])
+
+
+async def test_a_builder_that_failed_is_retried_and_then_fills_the_map():
+    calls = {"n": 0}
+
+    async def flaky():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("api.example error 500 after 3 attempts")
+        return [{"source": "Agrifood", "id": "pigmeat/prices", "title": "Pig prices", "call": "agri_data(...)"}]
+
+    m = SourceMap(":memory:", synonyms={}, builders={"Agrifood": flaky})
+    assert (await m.build())["Agrifood"] == "failed (RuntimeError)"
+    assert m.count() == 0 and m.failed() == ["Agrifood"]
+    assert m.failed(older_than=600) == []  # not yet: tried a moment ago
+    await m.build(only=m.failed())
+    assert m.failed() == [] and m.count("Agrifood") == 1

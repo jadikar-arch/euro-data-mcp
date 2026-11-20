@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.5.0 (2026-11-20)
+
+- **Netherlands is back** as a country package (`nl`): CBS OData v4 with `cbs_search`, `cbs_describe`,
+  `cbs_codes`, `cbs_data` and `cbs_releases`. It follows the same rules as `de`: the shared web client,
+  a `source:` line on every data answer, a find_data map (one row per regular table, ~1,290, with
+  dimension and measure titles as keywords, 34 headline tables) and a `country_guide("nl")` skill.
+  No local index or background sync any more: the catalogue is cached for 12 hours and searched in memory.
+- `cbs_data`: a measure title that repeats inside a table is prefixed with its group
+  (`Werkloze beroepsbevolking: Seizoengecorrigeerd`). Before, four rows were all called
+  `Seizoengecorrigeerd` with different values.
+- OData errors are shortened to their message (`Could not find a property named 'Regio'`).
+- `country_guide()` without an argument lists every country, its sources and what else is available.
+  `find_data` puts the named country's own source first and says when only Eurostat covers a country
+  (`# No national source for geo=SK yet ...`).
+- `find_data` without a country in the question and matches from several countries adds
+  `# No country named. Matches exist for: …` so the agent offers the countries (or an EU-wide
+  comparison) before fetching. Option labels start with the country (`Netherlands · CBS 37230ned`).
+- Every country skill starts with the same `## Profile` table (country, languages, APIs, access, licence,
+  data types, geographic detail, tools); a test checks it and that the tools it names exist. New index skill
+  `skill://overview/SKILL.md` (also `country_guide("overview")`): covered countries, how to pick one, the workflow.
+- find_data map: a source whose build failed (for example an upstream `error 500 after 3 attempts`)
+  is retried every 10 minutes instead of waiting for the next full refresh; its previous rows stay in use.
+- Answering rules for official use in the server instructions, the `overview` skill, every country skill
+  and the new-country template: always give the source, only fetched data (never memory or internet search,
+  never mixed), ask when a question is unclear, plot inline, and say "I cannot find data for this" or
+  "I don't know" instead of guessing.
+- Dutch city and province names are ignored as query words, like country names.
+
 ## 0.4.2 (2026-11-05)
 
 Fixes from a live test of all tools (2026-11-05). Data values were already correct; these are about

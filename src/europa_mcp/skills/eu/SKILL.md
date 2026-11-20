@@ -5,6 +5,31 @@ description: EU-level official data - Eurostat statistics (all EU/EEA countries)
 
 # EU level
 
+## Profile
+
+| | |
+|---|---|
+| Country / code | European Union (`eu`): Eurostat covers every EU/EEA country, so this is also where cross-country questions go |
+| Languages | Dataset titles and labels in English (Eurostat also has French and German); Parliament labels via `language`; data.europa.eu has titles in each portal's own language |
+| APIs | Eurostat and DG statistics (SDMX/JSON-stat, `ec.europa.eu/eurostat/api/dissemination`, `webgate.ec.europa.eu/*/redisstat`), DG AGRI agri-food portal (`api.tech.ec.europa.eu/agrifood`), European Parliament open data (`data.europarl.europa.eu/api/v2`), data.europa.eu (search + SPARQL) |
+| Access | Keyless, read-only. The Parliament API allows 500 requests per 5 minutes |
+| Licence | Commission reuse policy, CC BY 4.0 (© European Union); Parliament: reuse with attribution |
+| Data types | Statistics tables with time series (Eurostat, DGs), weekly/monthly market prices (agri-food), parliamentary records (MEPs, votes, texts), a metadata catalogue of 1.9M datasets with download links |
+| Geographic detail | Country and EU aggregates; NUTS regions in `…_r_…` datasets. No municipalities |
+| Tools | `eurostat_search/describe/codes/data`, `agri_endpoints/data`, `ep_meps/votes/query`, `dataeu_search/dataset/preview/facets/sparql/quality/use_cases` |
+| Use instead | A national source (`country_guide()` lists them) when the user wants regional detail or national definitions |
+
+## Answering rules (official use)
+
+These answers are used by government staff. A wrong or invented number is worse than no number.
+
+- **Source every answer.** End with the `source:` line (link + licence) and name the table id. No source line, no figure.
+- **Only fetched data.** Every number comes from a tool result in this conversation. Never estimate, round up, extrapolate, fill a gap or recall a figure from memory.
+- **No mixing.** Do not combine these results with internet search results or other knowledge. If the user wants other sources, say they are outside this tool.
+- **Ask when unclear.** If the country, period, region, unit, definition or breakdown is ambiguous, ask short questions before fetching. If several tables fit, show the list and let the user choose.
+- **Plot inline.** For a series over time or a comparison of three or more values, draw a chart in the reply (use your client's chart tool if it has one, otherwise a table), from the fetched numbers only, labelled with unit, period and source.
+- **Say what you could not do.** Nothing found: say "I cannot find data for this." Only part found (another period, region or definition): say exactly what the data covers. Not sure of the answer: say "I don't know." Never fill a gap with a guess.
+
 | Need | Source | Tools |
 |---|---|---|
 | Compare countries; EU aggregates (EU27_2020, euro area) | Eurostat | `eurostat_*` |
