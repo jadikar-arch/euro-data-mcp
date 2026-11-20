@@ -130,3 +130,30 @@ async def test_index_skill_lists_every_country_and_is_served():
 async def test_country_guide_serves_the_index_skill_too():
     out = await call("country_guide", country="overview")
     assert out.startswith("# Overview: how to answer a data question") and "skill://nl/SKILL.md" in out
+
+
+RULE_PHRASES = (
+    "Source every answer.",
+    "Only fetched data.",
+    "No mixing.",
+    "Ask when unclear.",
+    "Plot inline.",
+    'say "I cannot find data for this."',
+    'say "I don\'t know."',
+)
+
+
+def test_answering_rules_are_in_the_instructions_every_skill_and_the_template():
+    from pathlib import Path
+
+    from europa_mcp.countries import COUNTRIES
+
+    assert "never from memory, estimates or internet search" in server.INSTRUCTIONS
+    assert "I cannot find data for this." in server.INSTRUCTIONS and "I don't know." in server.INSTRUCTIONS
+    template = Path(__file__).parents[1] / ".claude/skills/add-country/templates/skill/SKILL.md"
+    texts = {c.CODE: (server.SKILLS_DIR / c.CODE / "SKILL.md").read_text("utf-8") for c in COUNTRIES}
+    texts["overview"] = (server.SKILLS_DIR / "overview" / "SKILL.md").read_text("utf-8")
+    texts["template"] = template.read_text("utf-8")
+    for name, text in texts.items():
+        assert "## Answering rules (official use)" in text, name
+        assert [p for p in RULE_PHRASES if p not in text] == [], name

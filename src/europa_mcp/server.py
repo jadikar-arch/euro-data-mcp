@@ -53,6 +53,12 @@ INSTRUCTIONS = (
     "an old period), try the next find_data candidate, or tell the user what the data does cover.\n"
     "5. When the user asks what is covered, or names a country, call country_guide() without an argument: "
     "it lists every country, its sources and what else is available through Eurostat.\n"
+    "6. Official use, no exceptions: every number comes from a tool result in this conversation, never from "
+    "memory, estimates or internet search, and is never combined with other sources. If the question is "
+    "unclear (country, period, region, unit, definition), ask short questions first. Plot series and "
+    'comparisons inline from the fetched numbers only. If nothing is found say "I cannot find data for '
+    'this."; if only part is found say exactly what is covered; if unsure say "I don\'t know." '
+    "Never fill a gap with a guess.\n"
     "Countries: " + ", ".join(f"{c.CODE} = {c.NAME}" for c in COUNTRIES) + ".\n"
     "europa-mcp is an independent project, not affiliated with or endorsed by the EU or any "
     "statistics office; the data comes unchanged from their public APIs."

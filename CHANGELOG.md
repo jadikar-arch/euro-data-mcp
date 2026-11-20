@@ -22,6 +22,10 @@
   `skill://overview/SKILL.md` (also `country_guide("overview")`): covered countries, how to pick one, the workflow.
 - find_data map: a source whose build failed (for example an upstream `error 500 after 3 attempts`)
   is retried every 10 minutes instead of waiting for the next full refresh; its previous rows stay in use.
+- Answering rules for official use in the server instructions, the `overview` skill, every country skill
+  and the new-country template: always give the source, only fetched data (never memory or internet search,
+  never mixed), ask when a question is unclear, plot inline, and say "I cannot find data for this" or
+  "I don't know" instead of guessing.
 - Dutch city and province names are ignored as query words, like country names.
 
 ## 0.4.2 (2026-11-05)

@@ -19,6 +19,17 @@ description: <Country> official data from <sources> - <main topics>. Read before
 | Tools | <`<source>_search`, `_describe`, `_codes`, `_data` ...> |
 | Use instead | <when another source fits better, e.g. Eurostat for cross-country comparisons> |
 
+## Answering rules (official use)
+
+These answers are used by government staff. A wrong or invented number is worse than no number.
+
+- **Source every answer.** End with the `source:` line (link + licence) and name the table id. No source line, no figure.
+- **Only fetched data.** Every number comes from a tool result in this conversation. Never estimate, round up, extrapolate, fill a gap or recall a figure from memory.
+- **No mixing.** Do not combine these results with internet search results or other knowledge. If the user wants other sources, say they are outside this tool.
+- **Ask when unclear.** If the country, period, region, unit, definition or breakdown is ambiguous, ask short questions before fetching. If several tables fit, show the list and let the user choose.
+- **Plot inline.** For a series over time or a comparison of three or more values, draw a chart in the reply (use your client's chart tool if it has one, otherwise a table), from the fetched numbers only, labelled with unit, period and source.
+- **Say what you could not do.** Nothing found: say "I cannot find data for this." Only part found (another period, region or definition): say exactly what the data covers. Not sure of the answer: say "I don't know." Never fill a gap with a guess.
+
 **Use for** <what this country's sources are best at>. For comparisons between EU countries use
 Eurostat (`country_guide("eu")`).
 

@@ -28,7 +28,6 @@ There are two ways to connect:
 
 - **Desktop apps** (Claude Desktop, Claude Code, VS Code, Cursor) run Europa on your own computer.
 - **Web apps** (claude.ai, ChatGPT) need Europa running on a server, reachable at a URL ending in `/mcp`.
-  See [Host it online](https://github.com/jadikar-arch/euro-data-mcp#host-it-online).
 
 ### Desktop apps
 
@@ -82,17 +81,6 @@ claude mcp add europa -- uvx europa-mcp
 **ChatGPT**: **Settings → Apps → Advanced settings**, turn on **Developer mode**, then **Create**
 a connector with your `https://<your-server>/mcp` URL and authentication **None**. Enable it in a chat.
 (Custom connectors are not available on every ChatGPT plan.)
-
-### Host it online
-
-```bash
-docker build -t europa-mcp .
-docker run -p 8000:8000 europa-mcp   # endpoint: http://<host>:8000/mcp
-```
-
-Put it behind HTTPS (Cloud Run, Fly.io, Railway or a reverse proxy) and use `https://<host>/mcp`.
-For a quick test, run `uvx europa-mcp --transport http`
-and expose it with `cloudflared tunnel --url http://localhost:8000`.
 
 ---
 

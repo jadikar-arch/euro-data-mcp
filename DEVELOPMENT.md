@@ -1,28 +1,6 @@
 # Developer guide
 
-Technical details for running, hosting and extending Europa. For setup as a user, see the [README](README.md).
-
-## Hosting it online
-
-*Needed to use Europa from ChatGPT or Claude in the browser.*
-
-```bash
-docker build -t europa-mcp .        # a few minutes; includes the search indexes
-docker run -p 8000:8000 europa-mcp  # MCP endpoint: http://<host>:8000/mcp
-```
-
-Put it behind HTTPS (any cloud host such as Cloud Run, Fly.io or Railway, or a reverse proxy) and
-share `https://<host>/mcp`. Requests are rate-limited per client IP (`EUROPA_RATE_LIMIT_RPS`,
-default 5 per second, burst 20).
-
-- **Login (optional):** the data is public, so no login is needed by default. To limit who can use
-  your server, set `EUROPA_API_KEYS=key1,key2`; clients then send `Authorization: Bearer key1`.
-  Claude.ai custom connectors only support OAuth, so leave this off if you connect from claude.ai.
-- **Usage insights (optional):** set `EUROPA_USAGE_LOG=/data/usage.jsonl` to log each tool call
-  anonymously (tool, query, found/not found, duration; no IP addresses or conversation text). Then
-  `europa-mcp usage --log /data/usage.jsonl` lists the most-asked topics and the questions no source
-  could answer, which shows what data people are missing.
-- **Quick test without deploying:** run `uv run europa-mcp --transport http` from a checkout and expose it with `cloudflared tunnel --url http://localhost:8000`.
+Technical details for running and extending Europa. For setup as a user, see the [README](README.md).
 
 ---
 
@@ -195,7 +173,7 @@ eurostat_data("une_rt_m", {"geo": ["DE"], "sex": ["T"], "age": ["TOTAL"], "unit"
 | `EUROPA_REFRESH_HOURS` | `6` | Refresh interval of the map |
 | `EUROPA_RATE_LIMIT_RPS` | `5` | HTTP mode: sustained requests per second per client IP (burst 20) |
 | `EUROPA_API_KEYS` | unset | HTTP mode: comma-separated bearer tokens; when set, every request needs one |
-| `EUROPA_USAGE_LOG` | unset | Path of the anonymous JSONL usage log (see [Hosting it online](#hosting-it-online)) |
+| `EUROPA_USAGE_LOG` | unset | Path of the anonymous JSONL usage log |
 | `EUROPA_HOST` / `PORT` | `127.0.0.1` / `8000` | HTTP bind address |
 | `EUROPA_LOG_LEVEL` | `INFO` | Logs go to stderr only |
 
