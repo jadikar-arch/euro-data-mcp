@@ -30,6 +30,7 @@ from .sourcemap import SourceMap, merge_synonyms
 log = logging.getLogger("europa_mcp")
 
 REFRESH_HOURS = float(setting("REFRESH_HOURS", "6"))
+RETRY_FAILED_SECONDS = 600.0  # a builder that failed is tried again after this long
 SKILLS_DIR = Path(str(files("europa_mcp").joinpath("skills")))
 
 SOURCES: dict[str, str] = {}  # source name → one-line scope, from every country's hints.json
@@ -81,7 +82,10 @@ async def _map_loop() -> None:
         smap = get_map()
         if smap.count() == 0 or smap.age() >= interval:
             await smap.build()  # per-builder failures are logged and keep the old rows
-        await asyncio.sleep(max(600.0, interval - smap.age()))
+        elif retry := smap.failed(RETRY_FAILED_SECONDS):
+            await smap.build(only=retry)  # a source that was down (e.g. an upstream 500) comes back soon
+        wait = RETRY_FAILED_SECONDS if smap.failed() else interval - smap.age()
+        await asyncio.sleep(max(RETRY_FAILED_SECONDS, wait))
 
 
 def ensure_map_task() -> None:

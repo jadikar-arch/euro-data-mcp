@@ -453,3 +453,20 @@ async def test_find_data_offers_countries_only_when_none_is_named(smap):
     assert "# No country named." in await call(query="house prices")
     assert "# No country named." not in await call(query="house prices Germany")
     assert "# No country named." not in await call(query="house prices", sources=["Eurostat"])
+
+
+async def test_a_builder_that_failed_is_retried_and_then_fills_the_map():
+    calls = {"n": 0}
+
+    async def flaky():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("api.example error 500 after 3 attempts")
+        return [{"source": "Agrifood", "id": "pigmeat/prices", "title": "Pig prices", "call": "agri_data(...)"}]
+
+    m = SourceMap(":memory:", synonyms={}, builders={"Agrifood": flaky})
+    assert (await m.build())["Agrifood"] == "failed (RuntimeError)"
+    assert m.count() == 0 and m.failed() == ["Agrifood"]
+    assert m.failed(older_than=600) == []  # not yet: tried a moment ago
+    await m.build(only=m.failed())
+    assert m.failed() == [] and m.count("Agrifood") == 1

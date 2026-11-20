@@ -211,6 +211,12 @@ class SourceMap:
         done = {r[0] for r in self.db.execute("SELECT source FROM map_meta")}
         return [b for b in self.builders if b not in done]
 
+    def failed(self, older_than: float = 0.0) -> list[str]:
+        """Builders whose last run failed (marked count -1) at least `older_than` seconds ago."""
+        cutoff = time.time() - older_than
+        rows = self.db.execute("SELECT source FROM map_meta WHERE count = -1 AND built <= ?", (cutoff,))
+        return [r[0] for r in rows if r[0] in self.builders]
+
     async def ensure(self) -> None:
         """Make sure every builder has run once (waits for a build already in progress)."""
         if not self.missing():

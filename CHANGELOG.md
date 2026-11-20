@@ -20,6 +20,8 @@
 - Every country skill starts with the same `## Profile` table (country, languages, APIs, access, licence,
   data types, geographic detail, tools); a test checks it and that the tools it names exist. New index skill
   `skill://overview/SKILL.md` (also `country_guide("overview")`): covered countries, how to pick one, the workflow.
+- find_data map: a source whose build failed (for example an upstream `error 500 after 3 attempts`)
+  is retried every 10 minutes instead of waiting for the next full refresh; its previous rows stay in use.
 - Dutch city and province names are ignored as query words, like country names.
 
 ## 0.4.2 (2026-11-05)
