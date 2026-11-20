@@ -1,6 +1,6 @@
 [project]
 name = "europa-mcp"
-version = "0.4.3"
+version = "0.5.0"
 description = "MCP server that lets AI assistants find and fetch public open data from Eurostat, the European Parliament, data.europa.eu and national statistics offices, with source and licence on every answer"
 readme = "README.md"
 requires-python = ">=3.12"

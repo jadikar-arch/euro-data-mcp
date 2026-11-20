@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-11-20)
 
 - **Netherlands is back** as a country package (`nl`): CBS OData v4 with `cbs_search`, `cbs_describe`,
   `cbs_codes`, `cbs_data` and `cbs_releases`. It follows the same rules as `de`: the shared web client,
