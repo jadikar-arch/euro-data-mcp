@@ -470,3 +470,57 @@ async def test_a_builder_that_failed_is_retried_and_then_fills_the_map():
     assert m.failed(older_than=600) == []  # not yet: tried a moment ago
     await m.build(only=m.failed())
     assert m.failed() == [] and m.count("Agrifood") == 1
+
+
+ENTRY = {"period": "", "updated": "", "keywords": "", "path": ""}
+
+
+def px_map() -> SourceMap:
+    """One table about 'unemployment' in Eurostat, Destatis (Germany) and SCB (Sweden)."""
+    m = SourceMap(":memory:", synonyms=server.all_synonyms())
+    for builder, source, ident, call in (
+        ("Eurostat", "Eurostat", "une_rt_m", 'eurostat_describe("une_rt_m")'),
+        ("Destatis", "Destatis", "13211-0002", 'govdata_table("13211-0002")'),
+        ("SCB", "SCB", "AKURLBefM", 'scb_describe("AKURLBefM")'),
+    ):
+        m.replace(builder, [{**ENTRY, "source": source, "id": ident, "title": "Unemployment rate", "call": call}])
+    return m
+
+
+def order(monkeypatch, query: str) -> list[str]:
+    monkeypatch.setattr(server, "SOURCE_MAP", px_map())
+    return [r["source"] for r in server.ranked_matches(query, None, 4, 10)]
+
+
+def test_a_neutral_question_puts_eu_sources_before_national_ones(monkeypatch):
+    got = order(monkeypatch, "unemployment rate")
+    assert got[0] == "Eurostat" and set(got[1:]) == {"Destatis", "SCB"}
+
+
+def test_a_named_country_leads_even_when_another_source_is_as_relevant(monkeypatch):
+    assert order(monkeypatch, "unemployment rate Germany")[0] == "Destatis"
+    assert order(monkeypatch, "unemployment rate Swedish")[0] == "SCB"
+    assert order(monkeypatch, "unemployment rate Stockholm")[0] == "SCB"  # a big city names its country
+
+
+def test_a_question_in_a_countrys_language_keeps_its_sources_level_with_eu_and_the_others_last(monkeypatch):
+    got = order(monkeypatch, "arbetslöshet")  # Swedish: SCB is level with Eurostat, Destatis comes last
+    assert got.index("Destatis") == 2 and set(got[:2]) == {"Eurostat", "SCB"}
+    assert order(monkeypatch, "Arbeitslosigkeit")[-1] == "SCB"
+
+
+async def test_find_data_does_not_wait_for_a_source_that_is_still_being_built(monkeypatch):
+    import asyncio
+
+    m = px_map()
+    monkeypatch.setattr(server, "SOURCE_MAP", m)
+    monkeypatch.setattr(server, "MAP_WAIT", 0.05)
+
+    async def slow():
+        await asyncio.sleep(5)
+        return []
+
+    m.builders["Slow"] = slow  # a builder that has not finished: its table list is still loading
+    out = await call(query="unemployment rate", ask_user=False)
+    assert "Eurostat|une_rt_m" in out.replace("|100%|", "|")  # answered from the sources that are ready
+    assert "# Still being built, so not searched yet: Slow" in out

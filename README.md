@@ -11,6 +11,10 @@ sources. You ask in plain language; the assistant picks a dataset, gets the figu
 | 🇪🇺 **EU** | Eurostat, European Commission, European Parliament, data.europa.eu |
 | 🇩🇪 **Germany** | Destatis, GovData |
 | 🇳🇱 **Netherlands** | CBS (Statistics Netherlands) |
+| 🇸🇪 **Sweden** | SCB (Statistics Sweden) |
+| 🇫🇮 **Finland** | StatFin (Statistics Finland) |
+| 🇪🇪 **Estonia** | Statistics Estonia |
+| 🇱🇻 **Latvia** | CSB (Central Statistical Bureau) |
 
 Ask *"which countries do you cover?"* to list them. Other EU/EEA countries are covered by Eurostat.
 
@@ -101,4 +105,6 @@ Code: [EUPL-1.2](https://github.com/jadikar-arch/euro-data-mcp/blob/main/LICENSE
 the [European Parliament](https://data.europarl.europa.eu), [data.europa.eu](https://data.europa.eu)
 (CC BY 4.0 / Commission reuse policy), [Destatis](https://www.destatis.de) and
 [GovData](https://www.govdata.de) (Datenlizenz Deutschland or per-dataset licence) and
-[CBS](https://www.cbs.nl) (CC BY 4.0).
+[CBS](https://www.cbs.nl) (CC BY 4.0), [SCB](https://www.scb.se) (CC0),
+[Statistics Finland](https://stat.fi) (CC BY 4.0), [Statistics Estonia](https://stat.ee) (CC BY-SA 4.0) and the
+[Latvian Central Statistical Bureau](https://stat.gov.lv) (reuse with attribution, terms like CC BY 4.0).

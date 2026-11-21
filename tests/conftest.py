@@ -24,3 +24,9 @@ def fake_dns(monkeypatch):
         return [PRIVATE_HOSTS.get(host, "93.184.215.14")]
 
     monkeypatch.setattr(preview, "resolve", resolve)
+
+
+@pytest.fixture(autouse=True)
+def isolated_cache_dir(tmp_path, monkeypatch):
+    """Catalogue and map caches go to a temp directory, never the user's cache."""
+    monkeypatch.setenv("EUROPA_CACHE_DIR", str(tmp_path / "cache"))

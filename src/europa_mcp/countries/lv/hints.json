@@ -1,0 +1,33 @@
+{
+  "_comment": "Hand-written metadata for Latvia sources, used to build the find_data map. English→Latvian terms live in lv.SYNONYMS; `headline` marks the most-asked tables (see eu/hints.json).",
+  "sources": {
+    "CSB": "Latvia only; ~1,700 tables with regional detail down to municipality (novads) and city; English titles"
+  },
+  "synonyms": {},
+  "keywords": {},
+  "entries": [],
+  "headline": {
+    "CSB": {
+      "POP/IR/IRS/IRS010": "population inhabitants people total key figures births deaths marriages migration annual",
+      "POP/IR/IRD/IRD081": "population inhabitants age sex gender region municipality city",
+      "POP/IR/IRV/IRV020": "population inhabitants age sex citizenship nationality",
+      "POP/ID/IDS/IDS010m": "births deaths live births monthly",
+      "POP/IR/IRP/IRP010": "life expectancy",
+      "POP/IB/IBE/IBE010": "migration immigration emigration international long-term",
+      "POP/IL/ILN/ILN010": "marriages divorces",
+      "POP/NN/NNR/NNR020": "poverty at risk of poverty rate",
+      "EMP/NBBA/NBBB/NBB160c": "unemployment rate unemployed persons jobless labour force survey quarterly",
+      "EMP/NBBA/NBBB/NBL290c": "unemployment rate employment rate education long-term",
+      "EMP/NBBA/NBBB/NBA031": "unemployment rate employment rate activity region",
+      "EMP/NBBA/NVA/NVA020m": "registered unemployed unemployment employment agency region monthly",
+      "EMP/DS/DSV/DSV010c": "wages salaries average monthly earnings pay quarterly",
+      "VEK/PC/PCI/PCI021m": "inflation consumer prices cpi price index commodity groups monthly",
+      "VEK/PC/PCI/PCI030m": "inflation consumer prices cpi price index since 1990",
+      "VEK/PC/PCS/PCS011m": "inflation harmonised consumer prices hicp commodity groups monthly",
+      "VEK/IK/IKP/IKP010": "gdp gross domestic product per capita economy annual",
+      "ENV/GP/GPE/GPE030": "emissions greenhouse gases co2 climate",
+      "NOZ/EN/ENC/ENC040": "electricity prices households energy",
+      "NOZ/EN/ENC/ENC020": "gas prices households energy"
+    }
+  }
+}

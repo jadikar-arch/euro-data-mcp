@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+- **Sweden, Finland, Estonia and Latvia** (`se`, `fi`, `ee`, `lv`): their statistics offices' PxWeb APIs through one
+  shared connector (`europa_mcp/pxweb.py`). Each gets `scb_*`, `statfin_*`, `statee_*` and `csb_*` tools
+  (`_search`, `_describe`, `_codes`, `_data`), find_data rows (3,386 / 1,537 / 2,141 / 1,411 tables), a country skill with
+  the standard Profile, a term list for local-language questions and source lines with each office's licence
+  (SCB CC0, StatFin CC BY 4.0, Statistics Estonia CC BY-SA 4.0, CSB reuse with attribution).
+- Care taken for official use: queries match whole words (searching `house prices` no longer returns gas prices "for
+  household consumers"); when no table matches all words the answer says so; tables with more than 6 measures ask which
+  ones; variables left out are listed as "server default (normally the total)"; over-broad requests are refused before
+  the call; missing-value symbols are omitted and counted; Sweden's `…CKM` tables carry SCB's note that counts are randomly
+  adjusted by up to ±3.
+- The offices' rate limits are kept (SCB 10 calls per 10 seconds, Statistics Finland about 30 a minute and a 61 s pause
+  after a 429); the table lists load in one request where the server offers it (Finland, Estonia, Latvia) and are saved
+  for 24 hours. Sweden's list takes about 12 minutes the first time; tools then say it is still loading.
+- find_data order: a country the question names (or one of its big cities) comes first; the EU sources and the countries
+  whose language the question is written in follow; other countries' sources come last. find_data waits at most 60 seconds
+  for sources that are still being built and says which. Archives of discontinued tables (Estonia, Latvia) are hidden.
+- `web.fetch` can POST a query body. OData and PxWeb error messages are shortened.
+- Eval: dev hit@3 99% (200/202, same two misses as before), holdout unchanged at 73%; the eval now scores what find_data
+  shows first.
+
 ## 0.5.0 (2026-11-20)
 
 - **Netherlands is back** as a country package (`nl`): CBS OData v4 with `cbs_search`, `cbs_describe`,

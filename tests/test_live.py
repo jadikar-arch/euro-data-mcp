@@ -88,3 +88,31 @@ async def test_cbs_end_to_end():
         assert "Werkloosheidspercentage: Seizoengecorrigeerd" in await text(
             "cbs_data", dataset_id="80590ned", latest=True, limit=20
         )
+
+
+@pytest.mark.parametrize("cc", ["fi", "ee", "lv", "se"])
+async def test_pxweb_headline_tables_exist_and_answer(cc, monkeypatch):
+    """Each office's most-asked tables are still in its real catalogue, and one of them returns values."""
+    import importlib
+
+    from europa_mcp import pxweb
+
+    pkg = importlib.import_module(f"europa_mcp.countries.{cc}")
+    src = importlib.import_module(f"europa_mcp.countries.{cc}.source").SRC
+    if cc == "se":  # the isolated test cache is empty: use the saved list of a real run, if there is one
+        from platformdirs import user_cache_dir
+
+        monkeypatch.setenv("EUROPA_CACHE_DIR", user_cache_dir("europa-mcp"))
+    if cc == "se" and pxweb.read_cache(src) is None:
+        pytest.skip("Sweden's table list takes about 12 minutes to build at SCB's rate limit; run it once first")
+    rows = await pxweb.catalog(src, wait=None)
+    known = {r["id"] for r in rows} | {r["short"] for r in rows}
+    missing = [i for i in pkg.HINTS["headline"][src.name] if i not in known]
+    assert not missing, f"headline tables gone from {src.name}: {missing}"
+    assert not pxweb.INCOMPLETE.get(src.prefix), f"{src.name}: some folders could not be listed"
+    first = next(iter(pkg.HINTS["headline"][src.name]))
+    mcp = server.mcp
+    async with Client(mcp) as c:
+        r = await c.call_tool(f"{src.prefix}_describe", {"table_id": first}, raise_on_error=False)
+        out = "".join(getattr(b, "text", "") for b in r.content)
+    assert not out.startswith("Error") and "variables (code|name|values|use):" in out, out[:200]

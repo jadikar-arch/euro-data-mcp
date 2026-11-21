@@ -29,7 +29,7 @@ async def main(fresh: bool, min_hit3: float, which: str) -> int:
     cases = json.loads(Path(__file__).with_name(SETS[which]).read_text("utf-8"))["cases"]
     hit1 = hit3 = 0
     for c in cases:
-        ids = [r["id"] for r in smap.search(c["q"])[:3]]
+        ids = [r["id"] for r in server.ranked_matches(c["q"], None, 4, 10)[:3]]  # what find_data shows first
         ok = {i.lower() for i in c["ok"]}
         rank = next((n for n, i in enumerate(ids, 1) if i.lower() in ok), None)
         hit1 += rank == 1

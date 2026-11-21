@@ -11,6 +11,8 @@ src/europa_mcp/
   server.py         core: loads every country, serves the skills, find_data, country_guide, CLI
   sourcemap.py      the find_data map (SQLite FTS5) and its ranking
   common.py, web.py shared errors, text tables, settings, source lines and HTTP client (retries, short errors)
+  pxweb.py          the PxWeb connector shared by se, fi, ee, lv: throttled requests, catalogue (one-request listing or
+                    folder walk, saved 24 h), the four tools <prefix>_search/describe/codes/data, map rows
   preview.py        first rows of publishers' CSV/JSON files (public hosts only, redirects re-checked)
   usage.py          opt-in anonymous usage log and the `europa-mcp usage` report
   countries/
@@ -18,6 +20,7 @@ src/europa_mcp/
     eu/             Eurostat + DGs, agri-food, European Parliament, data.europa.eu
     de/             GovData (CKAN catalogue) and Destatis GENESIS tables
     nl/             CBS OData v4 tables
+    se/ fi/ ee/ lv/ one PxSource each (source.py), term list (__init__.py), hints, notes; no tool code
   skills/
     eu/SKILL.md     guide for the assistant: when to use which source, workflow, codes, pitfalls
     de/SKILL.md
@@ -64,6 +67,10 @@ resources to the model.
 | `cbs_codes(dataset_id, dimension, query, limit=50)` | Look up region, period or measure codes by title (`Amsterdam` → `GM0363`). |
 | `cbs_data(dataset_id, measures, filters, latest, limit=500)` | Values of a CBS table; refuses queries above ~100k rows. |
 | `cbs_releases(days=14, limit=30)` | CBS tables getting new data soon. |
+| `scb_search(query, include_discontinued, limit=10)`, `statfin_…`, `statee_…`, `csb_…` | Find a table of Statistics Sweden / Finland / Estonia / Latvia (English or local words; whole-word match, all words must match). |
+| `scb_describe(table_id)` … | Variables (value counts, required or optional, time) and measures of a table; the id may be the last path segment. |
+| `scb_codes(table_id, variable, query, limit=50)` … | Look up value codes by label (hierarchy dots ignored; periods newest first). |
+| `scb_data(table_id, filters, last_n, limit=500)` … | Values: newest period by default, `'*'` = all values, more than 6 measures must be chosen, refuses over 20,000 values. |
 
 ## Source map (`find_data`)
 
@@ -80,6 +87,7 @@ enriched from the best signal it has:
 | European Parliament | ~20 list endpoints + `ep_meps`/`ep_votes` | OpenAPI tag and description |
 | data.europa.eu | its 4 tools | Hand-written |
 | Destatis | ~3,000 GENESIS tables | Theme from GovData groups, keywords from the dataset tags (regions, statistic, measures) |
+| SCB / StatFin / StatEE / CSB | 3,386 / 1,537 / 2,141 current / 1,411 current tables | One row per table; titles, folder trail (Sweden) and period range; 25 most-asked tables per office marked headline; English terms via each country's term list |
 | CBS | ~1,290 regular tables | Dimension and measure titles and the description as keywords; 34 most-asked tables marked as headline (hints.json); English terms via `nl.SYNONYMS` |
 | GovData | 13 themes + ~200 theme × publisher slices | 168k datasets are too many for one row each, so each row says what kind of data a publisher has on a theme (*Environment data from Land Schleswig-Holstein: 4,210 datasets*), with its top tags and formats and a ready `govdata_search` call |
 
@@ -149,6 +157,7 @@ German sources (probe findings in `countries/de/NOTES.md`):
 |---|---|
 | GovData (CKAN action API) | `https://ckan.govdata.de/api/3/action` |
 | CBS OData v4 (keyless JSON) | `https://datasets.cbs.nl/odata/v1` |
+| PxWeb v1 (keyless JSON) | `api.scb.se/OV0104/v1/doris/en/ssd`, `pxdata.stat.fi/PxWeb/api/v1/en/StatFin`, `andmed.stat.ee/api/v1/en/stat`, `data.stat.gov.lv/api/v1/en/OSP_PUB` |
 | Destatis GENESIS table downloads (keyless CSV) | `https://genesis.destatis.de/genesisWS/downloads/00/tables/<id>_00.csv` |
 
 Not wrapped: the data.europa.eu registry (`/api/hub/repo`) serves the same metadata as search, but as slow RDF. The MQA reporter only serves PDFs, so `dataeu_quality` links to it instead. SHACL validation is publisher tooling and currently returns 503.

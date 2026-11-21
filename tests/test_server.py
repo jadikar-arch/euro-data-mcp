@@ -38,6 +38,22 @@ async def test_tools_listed_with_short_docs():
         "cbs_codes",
         "cbs_data",
         "cbs_releases",
+        "scb_search",
+        "scb_describe",
+        "scb_codes",
+        "scb_data",
+        "statfin_search",
+        "statfin_describe",
+        "statfin_codes",
+        "statfin_data",
+        "statee_search",
+        "statee_describe",
+        "statee_codes",
+        "statee_data",
+        "csb_search",
+        "csb_describe",
+        "csb_codes",
+        "csb_data",
         "find_data",
         "country_guide",
     }
@@ -73,7 +89,7 @@ async def test_country_guides_served_as_tool_and_skill_resources():
 def test_every_country_has_a_skill_and_hints():
     from europa_mcp.countries import COUNTRIES
 
-    assert [c.CODE for c in COUNTRIES] == ["eu", "de", "nl"]
+    assert [c.CODE for c in COUNTRIES] == ["eu", "de", "nl", "se", "fi", "ee", "lv"]
     for c in COUNTRIES:
         assert (server.SKILLS_DIR / c.CODE / "SKILL.md").is_file(), c.CODE
         assert set(c.HINTS["sources"]) <= set(server.SOURCES)

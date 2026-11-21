@@ -59,16 +59,20 @@ async def fetch(
     *,
     headers: dict[str, str] | None = None,
     timeout: float | None = None,
+    json: Any = None,
 ) -> httpx.Response:
-    """GET with retry; raises NotFound on 404 and UserError on other failures."""
+    """GET with retry (POST when `json` is given: a read-only query body); raises NotFound on 404
+    and UserError on other failures."""
     host = urlsplit(url).netloc
     client = get_client()
     kwargs: dict[str, Any] = {"params": params, "headers": headers}
     if timeout:
         kwargs["timeout"] = timeout
+    if json is not None:
+        kwargs["json"] = json
     for attempt in range(ATTEMPTS):
         try:
-            resp = await client.get(url, **kwargs)
+            resp = await client.request("POST" if json is not None else "GET", url, **kwargs)
         except httpx.TimeoutException:
             raise UserError(f"{host} timed out; narrow the request.") from None
         except httpx.TransportError as e:

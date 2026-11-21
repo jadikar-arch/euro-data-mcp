@@ -18,6 +18,16 @@ src/europa_mcp/countries/<cc>/NOTES.md      probe findings (≤ 20 lines per API
 src/europa_mcp/skills/<cc>/SKILL.md         usage guide for the model (served as skill://<cc>/SKILL.md)
 ```
 
+## 0. Is it a PxWeb office?
+
+Many statistics offices (Sweden, Finland, Estonia, Latvia, Norway, Iceland, Slovenia, Croatia…) run PxWeb. For those
+do not write tool code: copy `countries/lv/` (a `source.py` with one `PxSource`, `__init__.py` with the term list,
+`mapping.py`, `hints.json`), set the base URL, licence, page-URL builder, rate limit (`min_interval`, `per_minute`),
+`listing=True` when `<base>?query=*&filter=*` lists all tables, and an `archive` rule for discontinued-table
+folders. Probe the rate limit (a 429 with `Retry-After` means a cap) and the licence on the office's own page, then
+continue at step 3. Everything else (search, describe, codes, data, map rows, size and measure checks) is in
+`europa_mcp/pxweb.py`.
+
 ## 1. Find and probe the APIs (no code yet)
 
 - Typical sources: the national statistics office (often PxWeb, SDMX or OData), the national open

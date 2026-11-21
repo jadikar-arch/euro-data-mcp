@@ -1462,6 +1462,110 @@
     "82242NED",
     "83085NED"
    ]
+  },
+  {
+   "q": "arbetslöshet",
+   "ok": [
+    "AM/AM0401/AM0401A/AKURLBefM",
+    "AM/AM0401/AM0401A/AKURLBefK",
+    "AM/AM0401/AM0401L/NAKUArblosaTM",
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "konsumentpriser inflation",
+   "ok": [
+    "PR/PR0101/PR0101A/KPI2020COICOPM",
+    "PR/PR0101/PR0101A/KPI2020COICOP2M",
+    "PR/PR0101/PR0101G/KPIF2020"
+   ]
+  },
+  {
+   "q": "befolkning kommun",
+   "ok": [
+    "BE/BE0101/BE0101A/BefolkningNy",
+    "BE/BE0101/BE0101A/BefolkningCKM",
+    "BE/BE0101/BE0101A/BefolkManadCKM"
+   ]
+  },
+  {
+   "q": "työttömyys",
+   "ok": [
+    "tyti/135z.px",
+    "tyti/135y.px",
+    "tyonv/12r5.px",
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "kuluttajahinnat",
+   "ok": [
+    "khi/11xs.px",
+    "khi/15b5.px"
+   ]
+  },
+  {
+   "q": "väestö",
+   "ok": [
+    "vaerak/11rb.px",
+    "vaerak/11ra.px",
+    "vaerak/11rd.px",
+    "vaerak/11re.px"
+   ]
+  },
+  {
+   "q": "töötus",
+   "ok": [
+    "sotsiaalelu/tooturg/tooturu-uldandmed/luhiajastatistika/TT3300.px",
+    "sotsiaalelu/tooturg/tootud/luhiajastatistika/TT065.PX",
+    "une_rt_m",
+    "une_rt_a",
+    "une_rt_q",
+    "tps00203",
+    "teilm020"
+   ]
+  },
+  {
+   "q": "tarbijahinnad",
+   "ok": [
+    "majandus/hinnad/IA002.px",
+    "majandus/hinnad/IA021.PX",
+    "majandus/hinnad/IA0230.px"
+   ]
+  },
+  {
+   "q": "rahvastik Eesti",
+   "ok": [
+    "rahvastik/rahvastikunaitajad-ja-koosseis/rahvaarv-ja-rahvastiku-koosseis/RV0240.PX",
+    "rahvastik/rahvastikunaitajad-ja-koosseis/rahvaarv-ja-rahvastiku-koosseis/RV0282U.PX",
+    "rahvastik/rahvastikunaitajad-ja-koosseis/rahvaarv-ja-rahvastiku-koosseis/RV0291U.PX",
+    "rahvastik/rahvastikunaitajad-ja-koosseis/rahvaarv-ja-rahvastiku-koosseis/RV022U.PX"
+   ]
+  },
+  {
+   "q": "bezdarbs",
+   "ok": [
+    "EMP/NBBA/NBBB/NBB160c",
+    "EMP/NBBA/NBBB/NBL290c",
+    "EMP/NBBA/NBBB/NBA031",
+    "EMP/NBBA/NVA/NVA020m"
+   ]
+  },
+  {
+   "q": "iedzīvotāji",
+   "ok": [
+    "POP/IR/IRD/IRD081",
+    "POP/IR/IRS/IRS010",
+    "POP/IR/IRV/IRV020"
+   ]
   }
  ]
 }
