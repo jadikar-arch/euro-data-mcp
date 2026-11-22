@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import sys
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from importlib.resources import files
@@ -80,6 +81,7 @@ def get_map() -> SourceMap:
             synonyms=all_synonyms(),
             builders={name: fn for c in COUNTRIES for name, fn in c.map_builders().items()},
         )
+        SOURCE_MAP.seed(SNAPSHOT)
     return SOURCE_MAP
 
 
@@ -89,8 +91,9 @@ async def _map_loop() -> None:
         smap = get_map()
         if smap.count() == 0 or smap.age() >= interval:
             await smap.build()  # per-builder failures are logged and keep the old rows
-        elif retry := smap.failed(RETRY_FAILED_SECONDS):
-            await smap.build(only=retry)  # a source that was down (e.g. an upstream 500) comes back soon
+        elif todo := sorted({*smap.missing(), *smap.failed(RETRY_FAILED_SECONDS)}):
+            # a country added since the last build, or a source that was down (e.g. an upstream 500)
+            await smap.build(only=todo)
         wait = RETRY_FAILED_SECONDS if smap.failed() else interval - smap.age()
         await asyncio.sleep(max(RETRY_FAILED_SECONDS, wait))
 
@@ -133,6 +136,7 @@ ASK_USER_NOTE = (
 )
 
 
+SNAPSHOT = Path(__file__).parent / "data" / "map-snapshot.jsonl.gz"  # rows shipped for the first start
 MAP_WAIT = 60.0  # seconds find_data waits for sources whose table list is still being built
 
 
@@ -154,6 +158,19 @@ def building_note(names: list[str]) -> list[str]:
     return [
         f"# Still being built, so not searched yet: {', '.join(names)} (the first start of a source takes minutes). "
         "Ask again in a few minutes if the country you need is among them."
+    ]
+
+
+def snapshot_note(rows: list[dict[str, Any]]) -> list[str]:
+    """Rows still from the packaged snapshot are not live: say so, with the date, once per answer."""
+    seeded = get_map().seeded()
+    used = sorted({r["source"] for r in rows if r.get("builder") in seeded})
+    if not used:
+        return []
+    day = time.strftime("%Y-%m-%d", time.gmtime(min(seeded.values())))
+    return [
+        f"# Table list of {', '.join(used)} is from the packaged snapshot of {day}; the live refresh is running. "
+        "Tables or periods published since then may be missing."
     ]
 
 
@@ -405,7 +422,12 @@ async def find_data(
         return reply
     still_building = await map_ready()
     rows = ranked_matches(query, sources, max(1, min(per_source, 10)), max(1, min(limit, 20)))
-    notes = [*coverage_notes(query), *country_choice_note(query, rows), *building_note(still_building)]
+    notes = [
+        *coverage_notes(query),
+        *country_choice_note(query, rows),
+        *building_note(still_building),
+        *snapshot_note(rows),
+    ]
     fallback = f'# not it? dataeu_search("{query}") searches 1.9M datasets from EU and national portals'
     if not rows:
         return "\n".join([f"No mapped source matches '{query}'.", *notes, fallback])
@@ -489,6 +511,7 @@ def main() -> None:
     p.add_argument("--host", default=setting("HOST", "127.0.0.1"))
     p.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
     p.add_argument("--export", metavar="CSV", help="map: also write the source map to a CSV file")
+    p.add_argument("--snapshot", metavar="FILE", help="map: also write the packaged snapshot (release step)")
     p.add_argument("--log", metavar="JSONL", help="usage: log file (default: $EUROPA_USAGE_LOG)")
     args = p.parse_args()
 
@@ -506,6 +529,8 @@ def main() -> None:
         async def run() -> None:
             try:
                 log.info("source map: %s", await get_map().build())
+                if args.snapshot:
+                    log.info("snapshot: %d entries to %s", get_map().write_snapshot(Path(args.snapshot)), args.snapshot)
                 if args.export:
                     log.info("exported %d entries to %s", get_map().export(Path(args.export)), args.export)
             finally:

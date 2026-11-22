@@ -212,3 +212,10 @@ for the latest unreleased code, `uvx --from git+https://github.com/jadikar-arch/
 3. `uv publish` (token in `UV_PUBLISH_TOKEN`; never commit it).
 
 A version number can be published only once.
+
+## Map snapshot (release step)
+
+`src/europa_mcp/data/map-snapshot.jsonl.gz` holds the rows of the `find_data` map so a first start works at once.
+Before every release run `uv run europa-mcp map --snapshot src/europa_mcp/data/map-snapshot.jsonl.gz`
+(about 12 minutes if Sweden's catalogue is not cached) and commit the file. A builder that fails keeps its old rows,
+so check the log for `failed` before committing.

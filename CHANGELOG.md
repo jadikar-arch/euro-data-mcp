@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The package ships a snapshot of the `find_data` map (about 1 MB, 20,000 tables). A new install seeds its map from it, so `find_data` works at once, and the live build replaces the rows in the background. Answers that use snapshot rows say so, with the date.
+- The background refresh now also builds sources that have no record yet (for example a country added by an update), not only failed ones.
+- Release step: `uv run europa-mcp map --snapshot src/europa_mcp/data/map-snapshot.jsonl.gz`, then build and publish.
+
 - **Sweden, Finland, Estonia and Latvia** (`se`, `fi`, `ee`, `lv`): their statistics offices' PxWeb APIs through one
   shared connector (`europa_mcp/pxweb.py`). Each gets `scb_*`, `statfin_*`, `statee_*` and `csb_*` tools
   (`_search`, `_describe`, `_codes`, `_data`), find_data rows (3,386 / 1,537 / 2,141 / 1,411 tables), a country skill with

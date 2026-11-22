@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import gzip
+import json
 import logging
 import re
 import sqlite3
@@ -30,6 +32,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
     source UNINDEXED, id UNINDEXED, title, path, keywords, builder UNINDEXED,
     tokenize='unicode61 remove_diacritics 2');
 CREATE TABLE IF NOT EXISTS map_meta(source TEXT PRIMARY KEY, built REAL, count INTEGER);
+CREATE TABLE IF NOT EXISTS map_seed(source TEXT PRIMARY KEY, created REAL);
 """
 CANDIDATES = 600
 # Headline span in an entry's keywords: "zqheadline <everyday words> zqend". The entry ranks first
@@ -226,6 +229,57 @@ class SourceMap:
         if missing := self.missing():
             await self.build(only=missing)
 
+    def seeded(self) -> dict[str, float]:
+        """Builders whose rows still come from the packaged snapshot (source -> snapshot time)."""
+        return {r[0]: r[1] for r in self.db.execute("SELECT source, created FROM map_seed") if r[0] in self.builders}
+
+    def seed(self, snapshot: Path) -> list[str]:
+        """Fill builders that have never run here from a packaged snapshot, so find_data works at
+        once; the background build replaces these rows with live ones. Returns the builders seeded."""
+        todo = set(self.missing())
+        if not todo or not snapshot.is_file():
+            return []
+        rows: dict[str, list[tuple[Any, ...]]] = {}
+        try:
+            with gzip.open(snapshot, "rt", encoding="utf-8") as f:
+                head = json.loads(f.readline())
+                for line in f:
+                    r = json.loads(line)
+                    if r["builder"] in todo:
+                        rows.setdefault(r["builder"], []).append(r)
+        except (OSError, ValueError, KeyError) as e:
+            log.warning("source map: snapshot %s unreadable: %s", snapshot, e)
+            return []
+        created = float(head.get("created", 0))
+        with self.db:
+            for name, entries in rows.items():
+                for e in entries:
+                    row = (e["source"], e["id"], e["title"], e["path"], e["keywords"])
+                    self.db.execute(
+                        "INSERT OR REPLACE INTO entries(source, id, title, path, keywords, period, updated, call,"
+                        " builder, detail) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        (*row, e["period"], e["updated"], e["call"], name, e["detail"]),
+                    )
+                    self.db.execute("INSERT INTO entries_fts VALUES(?,?,?,?,?,?)", (*row, name))
+                self.db.execute("INSERT OR REPLACE INTO map_meta VALUES(?,?,?)", (name, created, len(entries)))
+                self.db.execute("INSERT OR REPLACE INTO map_seed VALUES(?,?)", (name, created))
+        if rows:
+            log.info("source map: seeded %s from %s", sorted(rows), snapshot.name)
+        return sorted(rows)
+
+    def write_snapshot(self, out: Path) -> int:
+        """Write every row of the map (not the search index, which seed() rebuilds) as gzipped JSON lines."""
+        cols = ["source", "id", "title", "path", "keywords", "period", "updated", "call", "builder", "detail"]
+        built = [r[0] for r in self.db.execute("SELECT built FROM map_meta WHERE count >= 0")]
+        out.parent.mkdir(parents=True, exist_ok=True)
+        n = 0
+        with gzip.open(out, "wt", encoding="utf-8", compresslevel=9) as f:
+            f.write(json.dumps({"created": min(built) if built else time.time(), "format": 1}) + "\n")
+            for r in self.db.execute(f"SELECT {','.join(cols)} FROM entries ORDER BY builder, source, id"):
+                f.write(json.dumps(dict(zip(cols, tuple(r), strict=True)), ensure_ascii=False) + "\n")
+                n += 1
+        return n
+
     def age(self) -> float:
         row = self.db.execute("SELECT min(built) FROM map_meta").fetchone()
         return time.time() - (row[0] or 0)
@@ -247,6 +301,7 @@ class SourceMap:
                 )
                 self.db.execute("INSERT INTO entries_fts VALUES(?,?,?,?,?,?)", (*row, builder))
             self.db.execute("INSERT OR REPLACE INTO map_meta VALUES(?,?,?)", (builder, time.time(), len(entries)))
+            self.db.execute("DELETE FROM map_seed WHERE source=?", (builder,))
 
     async def build(self, only: list[str] | None = None) -> dict[str, int | str]:
         """Run builders concurrently; a failing builder keeps its previous rows."""

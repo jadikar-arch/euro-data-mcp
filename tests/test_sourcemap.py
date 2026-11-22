@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from fastmcp import Client
 
@@ -524,3 +526,62 @@ async def test_find_data_does_not_wait_for_a_source_that_is_still_being_built(mo
     out = await call(query="unemployment rate", ask_user=False)
     assert "Eurostat|une_rt_m" in out.replace("|100%|", "|")  # answered from the sources that are ready
     assert "# Still being built, so not searched yet: Slow" in out
+
+
+async def test_snapshot_seeds_a_new_install_and_live_build_replaces_it(tmp_path):
+    async def live():
+        return [{"source": "X", "id": "live", "title": "Population live", "call": "x"}]
+
+    maker = SourceMap(tmp_path / "a.db", builders={"X": live})
+    maker.replace("X", [{"source": "X", "id": "old", "title": "Population old", "call": "x"}])
+    snap = tmp_path / "snap.jsonl.gz"
+    assert maker.write_snapshot(snap) == 1
+
+    fresh = SourceMap(tmp_path / "b.db", builders={"X": live})
+    assert fresh.seed(snap) == ["X"]
+    assert fresh.missing() == [] and set(fresh.seeded()) == {"X"}  # searchable at once, marked as a snapshot
+    assert [r["id"] for r in fresh.search("population")] == ["old"]
+    assert fresh.seed(snap) == []  # nothing missing any more
+
+    await fresh.build()
+    assert [r["id"] for r in fresh.search("population")] == ["live"] and fresh.seeded() == {}
+
+
+def test_snapshot_skips_builders_that_already_ran_and_survives_a_bad_file(tmp_path):
+    async def ok():
+        return []
+
+    m = SourceMap(tmp_path / "m.db", builders={"X": ok})
+    m.replace("X", [{"source": "X", "id": "1", "title": "kept", "call": "x"}])
+    snap = tmp_path / "snap.jsonl.gz"
+    m.write_snapshot(snap)
+    assert m.seed(snap) == []
+    bad = tmp_path / "bad.jsonl.gz"
+    bad.write_bytes(b"not gzip")
+    other = SourceMap(tmp_path / "o.db", builders={"X": ok})
+    assert other.seed(bad) == [] and other.missing() == ["X"]
+
+
+async def test_map_loop_builds_sources_that_have_no_record_yet(tmp_path, monkeypatch):
+    built = []
+
+    async def a():
+        built.append("a")
+        return [{"source": "A", "id": "1", "title": "t", "call": "x"}]
+
+    async def b():
+        built.append("b")
+        return []
+
+    m = SourceMap(tmp_path / "m.db", builders={"a": a})
+    await m.build()
+    m.builders["b"] = b  # a country added after the last build
+    monkeypatch.setattr(server, "SOURCE_MAP", m)
+
+    async def stop(_):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(server.asyncio, "sleep", stop)
+    with pytest.raises(asyncio.CancelledError):
+        await server._map_loop()
+    assert built == ["a", "b"]
