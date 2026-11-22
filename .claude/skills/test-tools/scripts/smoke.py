@@ -7,6 +7,7 @@ Exit code 0 = all checks passed, 1 = at least one failed.
 from __future__ import annotations
 
 import asyncio
+import re
 import sys
 import time
 from collections.abc import Callable
@@ -84,6 +85,9 @@ COUNTRY_LABELS = {
     "lv": {"lv guide", "Latvian population"},
 }
 SHARED = {"find_data", "country_guide", "dataeu_use_cases"}  # tools that serve several countries
+
+# An upstream outage reaches the tool as 'Error: <host> error 500 after 3 attempts' (or unreachable / timed out).
+UPSTREAM_DOWN = re.compile(r"^Error: [\w.-]+ (?:error 5\d\d|unreachable|timed out)")
 
 Check = Callable[[str], str | None]  # returns an error message, or None when OK
 
@@ -311,14 +315,14 @@ CASES: list[tuple[str, str, dict, list[Check]]] = [
     (
         "govdata_dataset",
         "Destatis dataset",
-        {"dataset_id": "umgeschlagene-guter-umgeschlagene-container-binnenschifffahrt-bundeslander-monate"},
-        [no_error, contains('values: govdata_table("46321-0101")', "files (n|format|name|url)")],
+        {"dataset_id": "bevolkerung-bundeslander-stichtag"},
+        [no_error, contains('values: govdata_table("12411-0010")', "files (n|format|name|url)")],
     ),
     (
         "govdata_preview",
         "Destatis file redirects",
-        {"dataset_id": "umgeschlagene-guter-umgeschlagene-container-binnenschifffahrt-bundeslander-monate"},
-        [contains('govdata_table("46321-0101")')],
+        {"dataset_id": "bevolkerung-bundeslander-stichtag"},
+        [contains('govdata_table("12411-0010")')],
     ),
     (
         "govdata_table",
@@ -557,6 +561,7 @@ async def main(only: set[str], country: str | None = None) -> int:
         return 1
     transport = StdioTransport(command=str(SERVER), args=[], cwd=str(ROOT))
     failures = 0
+    skipped = 0
     async with Client(transport, timeout=180) as c:
         tools = {t.name for t in await c.list_tools()}
         if country:
@@ -586,6 +591,10 @@ async def main(only: set[str], country: str | None = None) -> int:
             if len(out) > MAX_CHARS:
                 errs.append(f"response too large ({len(out)} chars)")
             dt = time.perf_counter() - t0
+            if UPSTREAM_DOWN.match(out):  # the data source is down: nothing this server can fix or prove
+                skipped += 1
+                print(f"SKIP  {tool} / {label}  ({dt:.1f}s) upstream down: {out[:120]}")
+                continue
             status = "FAIL" if errs else "PASS"
             failures += bool(errs)
             print(f"{status}  {tool} / {label}  ({dt:.1f}s, ~{len(out) // 4} tok)")
@@ -596,7 +605,9 @@ async def main(only: set[str], country: str | None = None) -> int:
     total = sum(
         1 for t, label, *_ in CASES if (not only or t in only) and (not country or in_country(country, t, label))
     ) + (0 if only and not country else 1)
-    print(f"\n{total - failures}/{total} passed")
+    print(
+        f"\n{total - failures - skipped}/{total} passed" + (f", {skipped} skipped (upstream down)" if skipped else "")
+    )
     return 1 if failures else 0
 
 

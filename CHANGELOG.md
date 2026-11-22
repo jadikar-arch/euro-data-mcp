@@ -18,6 +18,10 @@
 - find_data order: a country the question names (or one of its big cities) comes first; the EU sources and the countries
   whose language the question is written in follow; other countries' sources come last. find_data waits at most 60 seconds
   for sources that are still being built and says which. Archives of discontinued tables (Estonia, Latvia) are hidden.
+- Agri-food: the service's OpenAPI document is saved on disk after each download and used while the service is down
+  (it has answered HTTP 500 for hours), so parameter checks and the find_data map no longer fail with it. Without a saved
+  copy the outage still reaches the user. The live smoke test reports an upstream 5xx as "skipped (upstream down)", and its
+  two stale GovData cases now use `bevolkerung-bundeslander-stichtag` (table `12411-0010`).
 - `web.fetch` can POST a query body. OData and PxWeb error messages are shortened.
 - Eval: dev hit@3 99% (200/202, same two misses as before), holdout unchanged at 73%; the eval now scores what find_data
   shows first.

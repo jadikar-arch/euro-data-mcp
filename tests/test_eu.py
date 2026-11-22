@@ -86,6 +86,7 @@ async def fresh():
         eurostat.CATALOGS,
         eurostat.STRUCTURES,
         agrifood.SPEC,
+        agrifood.RAW,
         europarl.SPEC,
         europarl.MEPS,
         europarl.SITTINGS,
@@ -868,3 +869,33 @@ def test_dataeu_newest_pool_drops_loose_matches():
     ]
     kept = dataeuropa.best_matches(rows, "electric vehicle charging stations")
     assert [r["id"] for r in kept] == ["a", "c"]
+
+
+async def test_agrifood_uses_the_saved_openapi_copy_while_the_service_is_down():
+    from europa_mcp.common import cache_dir
+
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{agrifood.BASE}/v3/api-docs").respond(200, json=AGRI_SPEC)
+        assert "pigmeat/prices" in await agrifood.endpoints()
+    assert (cache_dir() / agrifood.SPEC_FILE).is_file()  # saved after the download
+
+    agrifood.SPEC.clear()
+    agrifood.RAW.clear()
+    with respx.mock(assert_all_called=False) as mock:
+        down = mock.get(f"{agrifood.BASE}/v3/api-docs").respond(500, json={"message": "An internal error occurred"})
+        assert "pigmeat/prices" in await agrifood.endpoints()  # served from the saved copy
+        # the missing-parameter check does not need the live service either
+        assert (await call("agri_data", endpoint="oliveOil/production")).startswith(
+            "Error: oliveOil/production requires:"
+        )
+        agrifood.RAW.clear()
+        agrifood.SPEC.clear()
+        calls = down.call_count
+        await agrifood.endpoints()
+        assert down.call_count > calls  # the live service is tried again on the next call, not after a day
+
+
+async def test_agrifood_outage_without_a_saved_copy_reaches_the_user():
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{agrifood.BASE}/v3/api-docs").respond(500, json={"message": "An internal error occurred"})
+        assert (await call("agri_data", endpoint="pigmeat/prices")).startswith("Error: api.tech.ec.europa.eu error 500")
