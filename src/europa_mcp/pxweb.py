@@ -283,6 +283,11 @@ async def catalog(src: PxSource, wait: float | None = CATALOG_WAIT) -> list[dict
     is still loading (the first walk of a slow office takes minutes); the map builder waits for as long as it takes."""
     key = (src.prefix, id(asyncio.get_running_loop()))
     task = _loading.get(key)
+    # A tool call must not wait minutes because yesterday's copy expired: answer from the saved copy
+    # (table lists change slowly) while the refresh runs in the background.
+    stale = None
+    if wait is not None and not CATALOG.fresh(src.prefix) and read_cache(src) is None:
+        stale = read_cache(src, max_age=float("inf"))
     if task is None:
         task = asyncio.ensure_future(walk_catalog(src))
         _loading[key] = task
@@ -293,6 +298,8 @@ async def catalog(src: PxSource, wait: float | None = CATALOG_WAIT) -> list[dict
                 t.exception()  # mark retrieved: callers that gave up must not leave a warning behind
 
         task.add_done_callback(done)
+    if stale is not None:
+        return stale
     try:
         return await asyncio.wait_for(asyncio.shield(task), wait)
     except TimeoutError:

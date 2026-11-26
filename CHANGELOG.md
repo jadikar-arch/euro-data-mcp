@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.5.1 (2026-11-26)
 
 - The package ships a snapshot of the `find_data` map (about 1 MB, 20,000 tables). A new install seeds its map from it, so `find_data` works at once, and the live build replaces the rows in the background. Answers that use snapshot rows say so, with the date.
 - The background refresh now also builds sources that have no record yet (for example a country added by an update), not only failed ones.
+- Sweden, Finland, Estonia and Latvia table lists: when the saved copy is older than a day, tools answer from it at once and refresh it in the background, instead of waiting minutes for a new walk.
 - Release step: `uv run europa-mcp map --snapshot src/europa_mcp/data/map-snapshot.jsonl.gz`, then build and publish.
 
 - **Sweden, Finland, Estonia and Latvia** (`se`, `fi`, `ee`, `lv`): their statistics offices' PxWeb APIs through one

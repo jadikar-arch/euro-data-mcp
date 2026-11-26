@@ -254,6 +254,24 @@ async def test_catalogue_walk_skips_a_refused_folder_keeps_the_rest_and_is_cache
     assert [r["id"] for r in again] == [r["id"] for r in rows] and len(fake.gets) == walked
 
 
+async def test_an_expired_saved_catalogue_answers_at_once_while_the_refresh_runs(fake, monkeypatch):
+    import os
+
+    from europa_mcp.common import cache_dir
+
+    first = await pxweb.catalog(SRC)
+    saved = cache_dir() / f"pxweb-{SRC.prefix}.json"
+    old = saved.stat().st_mtime - 3 * 24 * 3600
+    os.utime(saved, (old, old))  # three days old: past the 24 h limit
+    pxweb.CATALOG.clear()
+    walked = len(fake.gets)
+    stale = await pxweb.catalog(SRC, wait=0.0)  # a tool call: no waiting for the refresh
+    assert [r["id"] for r in stale] == [r["id"] for r in first]
+    await asyncio.gather(*pxweb._loading.values())  # the background refresh finishes and saves a fresh copy
+    assert len(fake.gets) > walked and saved.stat().st_mtime > old + 24 * 3600
+    assert [r["id"] for r in await pxweb.catalog(SRC)] == [r["id"] for r in first]
+
+
 @pytest.fixture
 def instant(monkeypatch):
     """No real waiting: retries, throttles and the 429 pause finish at once."""

@@ -206,5 +206,9 @@ class Memo:
             self._data[key] = (time.monotonic(), value)
             return value
 
+    def fresh(self, key: Any) -> bool:
+        hit = self._data.get(key)
+        return bool(hit and time.monotonic() - hit[0] < self.ttl)
+
     def clear(self) -> None:
         self._data.clear()

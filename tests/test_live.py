@@ -10,6 +10,13 @@ from europa_mcp.sourcemap import SourceMap
 pytestmark = pytest.mark.live
 
 
+@pytest.fixture(autouse=True)
+async def close_http_client():
+    """Each test has its own event loop; a client left open by a failed test must not leak into the next."""
+    yield
+    await web.aclose()
+
+
 def data_lines(out: str) -> list[str]:
     return [ln for ln in out.splitlines() if not ln.startswith(("#", "source:"))]
 
@@ -58,9 +65,14 @@ async def test_find_data_ranks_headline_datasets_first(tmp_path, monkeypatch):
     await smap.build()
     assert smap.count("Eurostat") > 5000
     assert "zqheadline" in smap.db.execute("SELECT keywords FROM entries WHERE id='une_rt_m'").fetchone()[0]
-    assert smap.search("unemployment rate")[0]["id"] in ("une_rt_m", "une_rt_a", "une_rt_q", "tps00203", "teilm020")
-    assert smap.search("inflation")[0]["id"] in ("prc_hicp_minr", "prc_hicp_aind")
-    assert smap.search("population by region")[0]["id"].startswith(("demo_r_", "tgs"))  # metabase breakdowns
+    monkeypatch.setattr(server, "SOURCE_MAP", smap)
+
+    def top(q):  # what find_data shows first: the EU sources lead unless a country is named
+        return server.ranked_matches(q, None, 4, 10)[0]["id"]
+
+    assert top("unemployment rate") in ("une_rt_m", "une_rt_a", "une_rt_q", "tps00203", "teilm020")
+    assert top("inflation") in ("prc_hicp_minr", "prc_hicp_aind")
+    assert top("population by region").startswith(("demo_r_", "tgs"))  # metabase breakdowns
     await web.aclose()
 
 

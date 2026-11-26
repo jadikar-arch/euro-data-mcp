@@ -90,7 +90,9 @@ a connector with your `https://<your-server>/mcp` URL and authentication **None*
 
 ## Tips
 
-- The first question can take up to a minute while the dataset index downloads. After that it's fast.
+- The first question works at once: Europa ships a snapshot of its table index (dated in the answer) and refreshes it
+  from the live sources in the background. Sweden's office limits requests, so its live refresh takes about 12 minutes
+  the first time; until then the snapshot is used.
 - If the assistant doesn't use the tools, add *"use the europa tools"* to your question.
 - Mac: if the app can't find `uvx`, replace `"uvx"` with the full path from `which uvx`.
 
