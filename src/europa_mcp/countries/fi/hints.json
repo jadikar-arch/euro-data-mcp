@@ -1,0 +1,38 @@
+{
+  "_comment": "Hand-written metadata for Finland sources, used to build the find_data map. English→Finnish terms live in fi.SYNONYMS; `headline` marks the most-asked tables (see eu/hints.json).",
+  "sources": {
+    "StatFin": "Finland only; ~1,500 tables with regional detail down to municipality (kunta); English titles"
+  },
+  "synonyms": {},
+  "keywords": {},
+  "entries": [],
+  "headline": {
+    "StatFin": {
+      "vaerak/11rb.px": "population inhabitants people total annual since 1750 births deaths growth",
+      "vaerak/11ra.px": "population inhabitants key figures region municipality area",
+      "vaerak/11rd.px": "population age sex inhabitants structure year",
+      "vaerak/11re.px": "population age sex area municipality region",
+      "tyti/135z.px": "unemployment rate unemployed employment rate labour force survey jobless monthly",
+      "tyti/135y.px": "unemployment employed unemployed labour force status monthly sex age",
+      "tyonv/12r5.px": "unemployed jobseekers employment office registered unemployment monthly vacancies",
+      "khi/11xs.px": "inflation consumer prices cpi price index overall monthly",
+      "khi/15b5.px": "inflation consumer prices cpi price index monthly 2025=100",
+      "ntp/15a9.px": "gdp gross domestic product economy national accounts annual growth",
+      "ntp/132h.px": "gdp gross domestic product economy national accounts quarterly growth",
+      "ntp/15ae.px": "gdp gross domestic product per capita annual",
+      "altp/12bc.px": "gdp regional gross domestic product per capita area",
+      "ashi/13ms.px": "house prices dwellings housing price index old dwellings housing companies",
+      "kihi/15hw.px": "house prices one-dwelling houses price index per square metre",
+      "ati/14uv.px": "wages earnings salaries average monthly quarterly sector",
+      "ati/14uw.px": "wages earnings salaries average monthly annual sector",
+      "synt/12dj.px": "births live births fertility",
+      "kuol/12am.px": "life expectancy at birth",
+      "ksyyt/11az.px": "deaths causes of death age sex mortality",
+      "muutl/11a7.px": "migration immigration emigration immigrants age sex area",
+      "rpk/13kq.px": "crime offences recorded police",
+      "khki/138v.px": "greenhouse gas emissions co2 climate",
+      "eot/13xn.px": "poverty at risk of poverty social exclusion age sex",
+      "ehk/12st.px": "energy consumption total energy source quarterly"
+    }
+  }
+}

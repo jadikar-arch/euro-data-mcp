@@ -208,7 +208,7 @@ async def build_dg() -> list[Entry]:
 
 
 async def build_agrifood() -> list[Entry]:
-    spec = await fetch_json(f"{agrifood.BASE}/v3/api-docs")
+    spec = await agrifood.raw_spec()
     kw = HINTS["keywords"]
     data_eps, lookups = {}, []
     for path, ops in spec.get("paths", {}).items():

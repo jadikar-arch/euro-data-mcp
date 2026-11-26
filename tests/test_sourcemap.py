@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from fastmcp import Client
 
@@ -470,3 +472,116 @@ async def test_a_builder_that_failed_is_retried_and_then_fills_the_map():
     assert m.failed(older_than=600) == []  # not yet: tried a moment ago
     await m.build(only=m.failed())
     assert m.failed() == [] and m.count("Agrifood") == 1
+
+
+ENTRY = {"period": "", "updated": "", "keywords": "", "path": ""}
+
+
+def px_map() -> SourceMap:
+    """One table about 'unemployment' in Eurostat, Destatis (Germany) and SCB (Sweden)."""
+    m = SourceMap(":memory:", synonyms=server.all_synonyms())
+    for builder, source, ident, call in (
+        ("Eurostat", "Eurostat", "une_rt_m", 'eurostat_describe("une_rt_m")'),
+        ("Destatis", "Destatis", "13211-0002", 'govdata_table("13211-0002")'),
+        ("SCB", "SCB", "AKURLBefM", 'scb_describe("AKURLBefM")'),
+    ):
+        m.replace(builder, [{**ENTRY, "source": source, "id": ident, "title": "Unemployment rate", "call": call}])
+    return m
+
+
+def order(monkeypatch, query: str) -> list[str]:
+    monkeypatch.setattr(server, "SOURCE_MAP", px_map())
+    return [r["source"] for r in server.ranked_matches(query, None, 4, 10)]
+
+
+def test_a_neutral_question_puts_eu_sources_before_national_ones(monkeypatch):
+    got = order(monkeypatch, "unemployment rate")
+    assert got[0] == "Eurostat" and set(got[1:]) == {"Destatis", "SCB"}
+
+
+def test_a_named_country_leads_even_when_another_source_is_as_relevant(monkeypatch):
+    assert order(monkeypatch, "unemployment rate Germany")[0] == "Destatis"
+    assert order(monkeypatch, "unemployment rate Swedish")[0] == "SCB"
+    assert order(monkeypatch, "unemployment rate Stockholm")[0] == "SCB"  # a big city names its country
+
+
+def test_a_question_in_a_countrys_language_keeps_its_sources_level_with_eu_and_the_others_last(monkeypatch):
+    got = order(monkeypatch, "arbetslöshet")  # Swedish: SCB is level with Eurostat, Destatis comes last
+    assert got.index("Destatis") == 2 and set(got[:2]) == {"Eurostat", "SCB"}
+    assert order(monkeypatch, "Arbeitslosigkeit")[-1] == "SCB"
+
+
+async def test_find_data_does_not_wait_for_a_source_that_is_still_being_built(monkeypatch):
+    import asyncio
+
+    m = px_map()
+    monkeypatch.setattr(server, "SOURCE_MAP", m)
+    monkeypatch.setattr(server, "MAP_WAIT", 0.05)
+
+    async def slow():
+        await asyncio.sleep(5)
+        return []
+
+    m.builders["Slow"] = slow  # a builder that has not finished: its table list is still loading
+    out = await call(query="unemployment rate", ask_user=False)
+    assert "Eurostat|une_rt_m" in out.replace("|100%|", "|")  # answered from the sources that are ready
+    assert "# Still being built, so not searched yet: Slow" in out
+
+
+async def test_snapshot_seeds_a_new_install_and_live_build_replaces_it(tmp_path):
+    async def live():
+        return [{"source": "X", "id": "live", "title": "Population live", "call": "x"}]
+
+    maker = SourceMap(tmp_path / "a.db", builders={"X": live})
+    maker.replace("X", [{"source": "X", "id": "old", "title": "Population old", "call": "x"}])
+    snap = tmp_path / "snap.jsonl.gz"
+    assert maker.write_snapshot(snap) == 1
+
+    fresh = SourceMap(tmp_path / "b.db", builders={"X": live})
+    assert fresh.seed(snap) == ["X"]
+    assert fresh.missing() == [] and set(fresh.seeded()) == {"X"}  # searchable at once, marked as a snapshot
+    assert [r["id"] for r in fresh.search("population")] == ["old"]
+    assert fresh.seed(snap) == []  # nothing missing any more
+
+    await fresh.build()
+    assert [r["id"] for r in fresh.search("population")] == ["live"] and fresh.seeded() == {}
+
+
+def test_snapshot_skips_builders_that_already_ran_and_survives_a_bad_file(tmp_path):
+    async def ok():
+        return []
+
+    m = SourceMap(tmp_path / "m.db", builders={"X": ok})
+    m.replace("X", [{"source": "X", "id": "1", "title": "kept", "call": "x"}])
+    snap = tmp_path / "snap.jsonl.gz"
+    m.write_snapshot(snap)
+    assert m.seed(snap) == []
+    bad = tmp_path / "bad.jsonl.gz"
+    bad.write_bytes(b"not gzip")
+    other = SourceMap(tmp_path / "o.db", builders={"X": ok})
+    assert other.seed(bad) == [] and other.missing() == ["X"]
+
+
+async def test_map_loop_builds_sources_that_have_no_record_yet(tmp_path, monkeypatch):
+    built = []
+
+    async def a():
+        built.append("a")
+        return [{"source": "A", "id": "1", "title": "t", "call": "x"}]
+
+    async def b():
+        built.append("b")
+        return []
+
+    m = SourceMap(tmp_path / "m.db", builders={"a": a})
+    await m.build()
+    m.builders["b"] = b  # a country added after the last build
+    monkeypatch.setattr(server, "SOURCE_MAP", m)
+
+    async def stop(_):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(server.asyncio, "sleep", stop)
+    with pytest.raises(asyncio.CancelledError):
+        await server._map_loop()
+    assert built == ["a", "b"]

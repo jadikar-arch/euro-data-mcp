@@ -1,0 +1,39 @@
+{
+  "_comment": "Hand-written metadata for Sweden sources, used to build the find_data map. English→Swedish terms live in se.SYNONYMS; `headline` marks the most-asked tables (see eu/hints.json).",
+  "sources": {
+    "SCB": "Sweden only; ~2,000 tables with regional detail down to municipality (kommun) and county (län); English titles"
+  },
+  "synonyms": {},
+  "keywords": {},
+  "entries": [],
+  "headline": {
+    "SCB": {
+      "BE/BE0101/BE0101A/BefolkningNy": "population inhabitants people by region municipality county age sex marital status annual 1968 to 2024",
+      "BE/BE0101/BE0101A/BefolkningCKM": "population inhabitants people by region municipality county age sex marital status annual 2025",
+      "BE/BE0101/BE0101A/BefolkManadCKM": "population inhabitants people monthly region age sex latest",
+      "BE/BE0101/BE0101G/MBefStatRegionCKM": "population statistics monthly births deaths migration region sex",
+      "BE/BE0101/BE0101H/FoddaK": "births live births mother age sex region annual 1968 to 2024",
+      "BE/BE0101/BE0101H/FoddaKCKM": "births live births mother age sex region annual 2025",
+      "BE/BE0101/BE0101I/DodaFodelsearK": "deaths mortality age sex region annual 1968 to 2024",
+      "BE/BE0101/BE0101I/DodaFodelsearKCKM": "deaths mortality age sex region annual 2025",
+      "BE/BE0101/BE0101I/MedellivslangdL": "life expectancy county sex",
+      "BE/BE0101/BE0101J/ImmiEmiFlyttN": "migration immigration emigration country of origin age sex annual 1968 to 2024",
+      "BE/BE0101/BE0101J/ImmiEmiFlyttNCKM": "migration immigration emigration country of origin age sex annual 2025",
+      "BE/BE0401/BE0401B/BefolkprognRev2025": "population projection forecast future 2025 to 2120",
+      "AM/AM0401/AM0401A/AKURLBefM": "unemployment unemployment rate unemployed jobless employment employed labour force survey labour status monthly",
+      "AM/AM0401/AM0401A/AKURLBefK": "unemployment unemployment rate unemployed jobless employment employed labour force survey labour status quarterly",
+      "AM/AM0401/AM0401L/NAKUArblosaTM": "unemployed persons duration of unemployment labour force survey monthly",
+      "PR/PR0101/PR0101A/KPI2020COICOPM": "inflation consumer prices cpi price index coicop monthly",
+      "PR/PR0101/PR0101A/KPI2020COICOP2M": "inflation consumer prices cpi price index divisions monthly",
+      "PR/PR0101/PR0101G/KPIF2020": "inflation consumer prices cpif fixed interest rate price index monthly",
+      "NR/NR0103/NR0103E/NR0103ENS2010T01NA": "gdp gross domestic product economy national accounts expenditure annual growth",
+      "NR/NR0103/NR0103A/NR0103ENS2010T01Kv": "gdp gross domestic product economy national accounts expenditure quarterly growth",
+      "NR/NR0105/NR0105A/NR0105ENS2010T01A": "gdp gross regional domestic product region economy",
+      "BO/BO0501/BO0501A/FastpiPSRegKv": "house prices real estate price index one- and two-dwelling buildings houses region quarterly",
+      "AM/AM0110/AM0110A/LonYrkeRegion4AN": "wages salaries average monthly salary basic salary region occupation sex",
+      "HA/HA0201/HA0201X/NTHA0201": "foreign trade exports imports goods trade balance monthly",
+      "EN/EN0108/EN0108A/Elprod": "electricity production energy monthly",
+      "HE/HE0110/HE0110I/Tab4InkDesoRegso": "poverty at risk of poverty rate low economic standard region age"
+    }
+  }
+}

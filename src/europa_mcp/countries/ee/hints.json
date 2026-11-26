@@ -1,0 +1,39 @@
+{
+  "_comment": "Hand-written metadata for Estonia sources, used to build the find_data map. English→Estonian terms live in ee.SYNONYMS; `headline` marks the most-asked tables (see eu/hints.json).",
+  "sources": {
+    "StatEE": "Estonia only; ~5,000 tables with regional detail down to county (maakond) and municipality; English titles"
+  },
+  "synonyms": {},
+  "keywords": {},
+  "entries": [],
+  "headline": {
+    "StatEE": {
+      "RV0240.PX": "population inhabitants age sex place of residence county municipality 1 january",
+      "RV0282U.PX": "population age group sex place of residence 1 january",
+      "RV0291U.PX": "population number area density county",
+      "RV022U.PX": "population age sex ethnic nationality county",
+      "RV0213U.PX": "population change components natural increase migration county",
+      "RV030.PX": "births deaths natural increase annual population",
+      "RV032.PX": "births deaths natural increase county sex",
+      "RV035.px": "deaths weekly age sex mortality",
+      "RV045.PX": "life expectancy sex age",
+      "TT3300.px": "unemployment unemployed employed labour status labour force quarterly employment rate",
+      "TT4660.px": "employment rate labour force region group of persons",
+      "TT065.PX": "registered unemployed unemployment region monthly",
+      "IA002.px": "inflation consumer prices cpi price index monthly",
+      "IA021.PX": "inflation consumer prices cpi change monthly",
+      "IA0230.px": "inflation harmonised consumer prices hicp monthly",
+      "RAA0012.PX": "gdp gross domestic product economy national accounts",
+      "RAA0015.px": "gdp gross domestic product flash estimate quarterly economic growth",
+      "RAA0061.PX": "gdp gross domestic product expenditure approach consumption",
+      "IA028.PX": "house prices dwelling price index dwellings housing quarterly",
+      "PA111.px": "wages earnings salaries average monthly gross median economic activity quarterly",
+      "PA113.px": "wages earnings salaries average monthly gross median economic activity",
+      "KK31.PX": "emissions air emission accounts greenhouse gases",
+      "KE21.PX": "electricity production imports exports monthly energy",
+      "KE34.PX": "electricity prices households energy",
+      "TU122.PX": "tourism accommodation tourists nights county monthly",
+      "TU115.px": "tourism accommodated tourists nights country of residence"
+    }
+  }
+}

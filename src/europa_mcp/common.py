@@ -64,10 +64,15 @@ STOPWORDS = set(
     "hungary ireland italy latvia lithuania luxembourg malta netherlands poland portugal romania "
     "slovakia slovenia spain sweden norway iceland liechtenstein switzerland turkey turkiye "
     "albania montenegro serbia macedonia ukraine moldova "
+    # Swedish, Finnish, Estonian and Latvian places: the city is a code picked later, not a topic
+    "stockholm gothenburg goteborg malmo uppsala helsinki espoo tampere vantaa oulu turku tallinn tartu "
+    "narva parnu riga daugavpils liepaja jelgava jurmala lapland sverige suomi eesti latvija "
     # Dutch places: CBS tables are per topic, the municipality or province is a code picked later
     "amsterdam rotterdam utrecht eindhoven groningen tilburg almere breda nijmegen haarlem maastricht "
     "arnhem zwolle leiden dordrecht hague haag gravenhage drenthe flevoland friesland fryslan gelderland "
     "limburg brabant overijssel zeeland holland "
+    # Swedish, Finnish, Estonian and Latvian filler words ('number of', 'and')
+    "och antal av för ja lukumaara maara ning arv un skaits "
     # Dutch
     "de het een en van op voor met naar over bij uit door zijn wat hoe hoeveel welke gegevens "
     "cijfers aantal".split()
@@ -145,8 +150,8 @@ def source_line(url: str, licence: str) -> str:
 EC_LICENCE = "CC BY 4.0, © European Union"  # Commission reuse policy (Decision 2011/833/EU)
 
 
-# Country names and demonyms (folded) → Eurostat `geo` code, so find_data can tell the user which
-# national source covers the country they named, or that only Eurostat does.
+# Country names, demonyms and big cities (folded) → Eurostat `geo` code, so find_data can tell the user which
+# national source covers the country they named (or that only Eurostat does) and lead with it.
 COUNTRY_NAMES: dict[str, str] = {
     **{
         name: code
@@ -158,26 +163,26 @@ COUNTRY_NAMES: dict[str, str] = {
             "CY": "cyprus cypriot",
             "CZ": "czechia czech",
             "DK": "denmark danish",
-            "EE": "estonia estonian",
-            "FI": "finland finnish",
+            "EE": "estonia estonian eesti tallinn tartu narva parnu",
+            "FI": "finland finnish suomi helsinki espoo tampere vantaa oulu turku",
             "FR": "france french",
-            "DE": "germany german deutschland",
+            "DE": "germany german deutschland berlin hamburg munich munchen cologne koln frankfurt stuttgart dusseldorf",
             "EL": "greece greek",
             "HU": "hungary hungarian",
             "IE": "ireland irish",
             "IT": "italy italian",
-            "LV": "latvia latvian",
+            "LV": "latvia latvian latvija riga daugavpils liepaja jelgava jurmala",
             "LT": "lithuania lithuanian",
             "LU": "luxembourg",
             "MT": "malta maltese",
-            "NL": "netherlands dutch nederland holland",
+            "NL": "netherlands dutch nederland holland amsterdam rotterdam utrecht eindhoven groningen tilburg almere breda nijmegen haarlem maastricht",
             "PL": "poland polish",
             "PT": "portugal portuguese",
             "RO": "romania romanian",
             "SK": "slovakia slovak",
             "SI": "slovenia slovenian",
             "ES": "spain spanish",
-            "SE": "sweden swedish",
+            "SE": "sweden swedish sverige stockholm gothenburg goteborg malmo uppsala",
             "NO": "norway norwegian",
             "IS": "iceland icelandic",
             "CH": "switzerland swiss",

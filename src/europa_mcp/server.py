@@ -12,7 +12,9 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from importlib.resources import files
@@ -79,6 +81,7 @@ def get_map() -> SourceMap:
             synonyms=all_synonyms(),
             builders={name: fn for c in COUNTRIES for name, fn in c.map_builders().items()},
         )
+        SOURCE_MAP.seed(SNAPSHOT)
     return SOURCE_MAP
 
 
@@ -88,8 +91,9 @@ async def _map_loop() -> None:
         smap = get_map()
         if smap.count() == 0 or smap.age() >= interval:
             await smap.build()  # per-builder failures are logged and keep the old rows
-        elif retry := smap.failed(RETRY_FAILED_SECONDS):
-            await smap.build(only=retry)  # a source that was down (e.g. an upstream 500) comes back soon
+        elif todo := sorted({*smap.missing(), *smap.failed(RETRY_FAILED_SECONDS)}):
+            # a country added since the last build, or a source that was down (e.g. an upstream 500)
+            await smap.build(only=todo)
         wait = RETRY_FAILED_SECONDS if smap.failed() else interval - smap.age()
         await asyncio.sleep(max(RETRY_FAILED_SECONDS, wait))
 
@@ -132,6 +136,44 @@ ASK_USER_NOTE = (
 )
 
 
+SNAPSHOT = Path(__file__).parent / "data" / "map-snapshot.jsonl.gz"  # rows shipped for the first start
+MAP_WAIT = 60.0  # seconds find_data waits for sources whose table list is still being built
+
+
+async def map_ready() -> list[str]:
+    """Wait up to MAP_WAIT seconds for every source of the map. Returns the sources still being built:
+    the first start of a slow office (Sweden's rate limit means about 12 minutes) must not make a
+    question wait that long, so find_data answers from the sources that are ready and says so."""
+    smap = get_map()
+    try:
+        await asyncio.wait_for(asyncio.shield(smap.ensure()), MAP_WAIT)
+    except TimeoutError:
+        return smap.missing()
+    return []
+
+
+def building_note(names: list[str]) -> list[str]:
+    if not names:
+        return []
+    return [
+        f"# Still being built, so not searched yet: {', '.join(names)} (the first start of a source takes minutes). "
+        "Ask again in a few minutes if the country you need is among them."
+    ]
+
+
+def snapshot_note(rows: list[dict[str, Any]]) -> list[str]:
+    """Rows still from the packaged snapshot are not live: say so, with the date, once per answer."""
+    seeded = get_map().seeded()
+    used = sorted({r["source"] for r in rows if r.get("builder") in seeded})
+    if not used:
+        return []
+    day = time.strftime("%Y-%m-%d", time.gmtime(min(seeded.values())))
+    return [
+        f"# Table list of {', '.join(used)} is from the packaged snapshot of {day}; the live refresh is running. "
+        "Tables or periods published since then may be missing."
+    ]
+
+
 def ranked_matches(query: str, sources: list[str] | None, per_source: int, limit: int) -> list[dict[str, Any]]:
     """Best map entries, best first: only rows nearly as relevant as the top one, at most
     `per_source` per source so one source can't crowd out the others."""
@@ -142,8 +184,8 @@ def ranked_matches(query: str, sources: list[str] | None, per_source: int, limit
         wanted = [n for n in names if any(fold(n).startswith(fold(s).strip()) for s in sources)]
         if not wanted:
             raise UserError(f"Unknown sources {sources}. Valid: {', '.join(names)}")
-    ranked = smap.search(query, wanted)
-    best = ranked[0]["coverage"] if ranked else 0
+    ranked = scope_order(smap.search(query, wanted), query)
+    best = max((r["coverage"] for r in ranked), default=0)
     picked, per = [], {}
     for r in ranked:
         if r["coverage"] < best - 0.34 or len(picked) >= limit:
@@ -187,12 +229,34 @@ def national_codes() -> dict[str, Any]:
     return {c.CODE.upper(): c for c in COUNTRIES if c.CODE != "eu"}
 
 
-def national_first(rows: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
-    """When the question names a country with its own source, that country's rows come first
-    (stable, so the order inside each group is unchanged)."""
-    own = national_codes()
-    mine = {s for g in countries_in(query) if g in own for s in own[g].HINTS["sources"]}
-    return sorted(rows, key=lambda r: r["source"] not in mine) if mine else rows
+def pointed_at(query: str) -> tuple[set[str], set[str]]:
+    """(named, written): the sources of countries a question names ('Germany', 'Dutch', 'Amsterdam') and
+    those of countries whose language it is written in ('arbetslöshet', 'työttömyys')."""
+    words = set(re.findall(r"\w+", fold(query)))
+    named_geo = set(countries_in(query))
+    named: set[str] = set()
+    written: set[str] = set()
+    for c in COUNTRIES:
+        if c.CODE == "eu":
+            continue
+        english = {fold(k) for k in getattr(c, "SYNONYMS", {})}
+        local = {fold(w) for ws in getattr(c, "SYNONYMS", {}).values() for w in ws} - english
+        if c.CODE.upper() in named_geo:
+            named |= set(c.HINTS["sources"])
+        elif words & local:
+            written |= set(c.HINTS["sources"])
+    return named, written
+
+
+def scope_order(rows: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    """Order for a question. A country the question names comes first. Then the sources that cover every
+    country (Eurostat and the other EU sources) together with the countries whose language the question is
+    written in, by relevance. The other countries' national sources come last: a neutral question ('life
+    expectancy') is best answered by the comparable EU table, and four national tables must not push it out.
+    Stable, so the relevance order inside each group is kept."""
+    named, written = pointed_at(query)
+    level = set(next((c.HINTS["sources"] for c in COUNTRIES if c.CODE == "eu"), {})) | written
+    return sorted(rows, key=lambda r: 0 if r["source"] in named else 1 if r["source"] in level else 2)
 
 
 def coverage_notes(query: str) -> list[str]:
@@ -356,10 +420,14 @@ async def find_data(
     reply = answered(ctx, query) if ask_user else None
     if reply is not None and reply != CLOSED:
         return reply
-    await get_map().ensure()
+    still_building = await map_ready()
     rows = ranked_matches(query, sources, max(1, min(per_source, 10)), max(1, min(limit, 20)))
-    rows = national_first(rows, query)
-    notes = [*coverage_notes(query), *country_choice_note(query, rows)]
+    notes = [
+        *coverage_notes(query),
+        *country_choice_note(query, rows),
+        *building_note(still_building),
+        *snapshot_note(rows),
+    ]
     fallback = f'# not it? dataeu_search("{query}") searches 1.9M datasets from EU and national portals'
     if not rows:
         return "\n".join([f"No mapped source matches '{query}'.", *notes, fallback])
@@ -443,6 +511,7 @@ def main() -> None:
     p.add_argument("--host", default=setting("HOST", "127.0.0.1"))
     p.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
     p.add_argument("--export", metavar="CSV", help="map: also write the source map to a CSV file")
+    p.add_argument("--snapshot", metavar="FILE", help="map: also write the packaged snapshot (release step)")
     p.add_argument("--log", metavar="JSONL", help="usage: log file (default: $EUROPA_USAGE_LOG)")
     args = p.parse_args()
 
@@ -460,6 +529,8 @@ def main() -> None:
         async def run() -> None:
             try:
                 log.info("source map: %s", await get_map().build())
+                if args.snapshot:
+                    log.info("snapshot: %d entries to %s", get_map().write_snapshot(Path(args.snapshot)), args.snapshot)
                 if args.export:
                     log.info("exported %d entries to %s", get_map().export(Path(args.export)), args.export)
             finally:

@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.1 (2026-11-26)
+
+- The package ships a snapshot of the `find_data` map (about 1 MB, 20,000 tables). A new install seeds its map from it, so `find_data` works at once, and the live build replaces the rows in the background. Answers that use snapshot rows say so, with the date.
+- The background refresh now also builds sources that have no record yet (for example a country added by an update), not only failed ones.
+- Sweden, Finland, Estonia and Latvia table lists: when the saved copy is older than a day, tools answer from it at once and refresh it in the background, instead of waiting minutes for a new walk.
+- Release step: `uv run europa-mcp map --snapshot src/europa_mcp/data/map-snapshot.jsonl.gz`, then build and publish.
+
+- **Sweden, Finland, Estonia and Latvia** (`se`, `fi`, `ee`, `lv`): their statistics offices' PxWeb APIs through one
+  shared connector (`europa_mcp/pxweb.py`). Each gets `scb_*`, `statfin_*`, `statee_*` and `csb_*` tools
+  (`_search`, `_describe`, `_codes`, `_data`), find_data rows (3,386 / 1,537 / 2,141 / 1,411 tables), a country skill with
+  the standard Profile, a term list for local-language questions and source lines with each office's licence
+  (SCB CC0, StatFin CC BY 4.0, Statistics Estonia CC BY-SA 4.0, CSB reuse with attribution).
+- Care taken for official use: queries match whole words (searching `house prices` no longer returns gas prices "for
+  household consumers"); when no table matches all words the answer says so; tables with more than 6 measures ask which
+  ones; variables left out are listed as "server default (normally the total)"; over-broad requests are refused before
+  the call; missing-value symbols are omitted and counted; Sweden's `…CKM` tables carry SCB's note that counts are randomly
+  adjusted by up to ±3.
+- The offices' rate limits are kept (SCB 10 calls per 10 seconds, Statistics Finland about 30 a minute and a 61 s pause
+  after a 429); the table lists load in one request where the server offers it (Finland, Estonia, Latvia) and are saved
+  for 24 hours. Sweden's list takes about 12 minutes the first time; tools then say it is still loading.
+- find_data order: a country the question names (or one of its big cities) comes first; the EU sources and the countries
+  whose language the question is written in follow; other countries' sources come last. find_data waits at most 60 seconds
+  for sources that are still being built and says which. Archives of discontinued tables (Estonia, Latvia) are hidden.
+- Agri-food: the service's OpenAPI document is saved on disk after each download and used while the service is down
+  (it has answered HTTP 500 for hours), so parameter checks and the find_data map no longer fail with it. Without a saved
+  copy the outage still reaches the user. The live smoke test reports an upstream 5xx as "skipped (upstream down)", and its
+  two stale GovData cases now use `bevolkerung-bundeslander-stichtag` (table `12411-0010`).
+- `web.fetch` can POST a query body. OData and PxWeb error messages are shortened.
+- Eval: dev hit@3 99% (200/202, same two misses as before), holdout unchanged at 73%; the eval now scores what find_data
+  shows first.
+
 ## 0.5.0 (2026-11-20)
 
 - **Netherlands is back** as a country package (`nl`): CBS OData v4 with `cbs_search`, `cbs_describe`,

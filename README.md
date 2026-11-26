@@ -11,6 +11,10 @@ sources. You ask in plain language; the assistant picks a dataset, gets the figu
 | 🇪🇺 **EU** | Eurostat, European Commission, European Parliament, data.europa.eu |
 | 🇩🇪 **Germany** | Destatis, GovData |
 | 🇳🇱 **Netherlands** | CBS (Statistics Netherlands) |
+| 🇸🇪 **Sweden** | SCB (Statistics Sweden) |
+| 🇫🇮 **Finland** | StatFin (Statistics Finland) |
+| 🇪🇪 **Estonia** | Statistics Estonia |
+| 🇱🇻 **Latvia** | CSB (Central Statistical Bureau) |
 
 Ask *"which countries do you cover?"* to list them. Other EU/EEA countries are covered by Eurostat.
 
@@ -86,7 +90,9 @@ a connector with your `https://<your-server>/mcp` URL and authentication **None*
 
 ## Tips
 
-- The first question can take up to a minute while the dataset index downloads. After that it's fast.
+- The first question works at once: Europa ships a snapshot of its table index (dated in the answer) and refreshes it
+  from the live sources in the background. Sweden's office limits requests, so its live refresh takes about 12 minutes
+  the first time; until then the snapshot is used.
 - If the assistant doesn't use the tools, add *"use the europa tools"* to your question.
 - Mac: if the app can't find `uvx`, replace `"uvx"` with the full path from `which uvx`.
 
@@ -101,4 +107,6 @@ Code: [EUPL-1.2](https://github.com/jadikar-arch/euro-data-mcp/blob/main/LICENSE
 the [European Parliament](https://data.europarl.europa.eu), [data.europa.eu](https://data.europa.eu)
 (CC BY 4.0 / Commission reuse policy), [Destatis](https://www.destatis.de) and
 [GovData](https://www.govdata.de) (Datenlizenz Deutschland or per-dataset licence) and
-[CBS](https://www.cbs.nl) (CC BY 4.0).
+[CBS](https://www.cbs.nl) (CC BY 4.0), [SCB](https://www.scb.se) (CC0),
+[Statistics Finland](https://stat.fi) (CC BY 4.0), [Statistics Estonia](https://stat.ee) (CC BY-SA 4.0) and the
+[Latvian Central Statistical Bureau](https://stat.gov.lv) (reuse with attribution, terms like CC BY 4.0).

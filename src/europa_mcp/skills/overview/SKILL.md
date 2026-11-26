@@ -12,6 +12,10 @@ description: Start here for official European open data - which countries and so
 | `eu` | European Union | Eurostat (all EU/EEA countries), Commission DGs, agri-food prices, European Parliament, data.europa.eu | English | `skill://eu/SKILL.md` |
 | `de` | Germany | Destatis tables, GovData catalogue | German | `skill://de/SKILL.md` |
 | `nl` | Netherlands | CBS tables | Dutch | `skill://nl/SKILL.md` |
+| `se` | Sweden | SCB (Statistics Sweden) tables | English titles, Swedish place names | `skill://se/SKILL.md` |
+| `fi` | Finland | StatFin (Statistics Finland) tables | English titles | `skill://fi/SKILL.md` |
+| `ee` | Estonia | Statistics Estonia tables | English titles | `skill://ee/SKILL.md` |
+| `lv` | Latvia | CSB (Central Statistical Bureau) tables | English titles | `skill://lv/SKILL.md` |
 
 `country_guide()` (no argument) returns this list live. Every other EU/EEA country has harmonised
 Eurostat data (filter `geo=<code>`) and its national portals' datasets through

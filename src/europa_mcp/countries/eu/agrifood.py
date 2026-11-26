@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import re
 from typing import Any
 from urllib.parse import urlencode
@@ -14,6 +16,7 @@ from ...common import (
     NotFound,
     UserError,
     as_list,
+    cache_dir,
     cell,
     compact_table,
     fmt_value,
@@ -23,15 +26,49 @@ from ...common import (
 )
 from ...web import Memo, fetch_json
 
+log = logging.getLogger("europa_mcp")
+
 BASE = "https://api.tech.ec.europa.eu/agrifood"
 SPEC = Memo(ttl=24 * 3600)
+RAW = Memo(ttl=24 * 3600)
+SPEC_FILE = "agrifood-openapi.json"
+
+
+async def raw_spec() -> dict[str, Any]:
+    """The service's OpenAPI document. It is saved on disk after every successful download; when the
+    service is down (it answers HTTP 500 for hours at times) the saved copy is used, so parameter checks and
+    the find_data map keep working. Only when there is no saved copy does the outage reach the user."""
+    path = cache_dir() / SPEC_FILE
+
+    async def load():
+        try:
+            spec = await fetch_json(f"{BASE}/v3/api-docs")
+            if not isinstance(spec, dict) or "paths" not in spec:
+                raise UserError("api.tech.ec.europa.eu returned no OpenAPI document")
+        except UserError as e:
+            try:
+                saved = json.loads(path.read_text("utf-8"))
+            except (OSError, ValueError):
+                raise e from None
+            log.warning("agrifood: %s; using the OpenAPI copy saved on %s", e, path.stat().st_mtime)
+            return saved, False
+        try:
+            path.write_text(json.dumps(spec), "utf-8")
+        except OSError as e:
+            log.info("agrifood: OpenAPI document not saved: %s", e)
+        return spec, True
+
+    spec, live = await RAW.get("raw", load)
+    if not live:
+        RAW.clear()  # the next call tries the live service again
+    return spec
 
 
 async def endpoints() -> dict[str, dict[str, Any]]:
     """endpoint ('cereal/prices') → {'params': {name: (required, description)}}, from OpenAPI."""
 
     async def load():
-        spec = await fetch_json(f"{BASE}/v3/api-docs")
+        spec = await raw_spec()
         out = {}
         for path, ops in sorted(spec.get("paths", {}).items()):
             op = ops.get("get")
